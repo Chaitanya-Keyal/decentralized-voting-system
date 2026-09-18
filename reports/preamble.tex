@@ -1,0 +1,161 @@
+% Shared preamble for both evaluation reports.
+% Compile with: latexmk -pdf eval1.tex   (see Makefile)
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+% The .docx template uses Arial throughout; Helvetica is its metric-compatible
+% LaTeX equivalent.
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+% Margins and header spacing match the template: 0.5in all round, with room for
+% the institute logo that sits in the header of every page.
+\usepackage[a4paper,margin=0.5in,headheight=88pt,headsep=14pt,includehead]{geometry}
+\usepackage{microtype}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{csquotes}
+
+\usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
+\addbibresource{references.bib}
+
+\usepackage[hidelinks,breaklinks]{hyperref}
+
+\graphicspath{{figures/}}
+
+% ---------------------------------------------------------------------------
+% Draft placeholders
+%
+% \stub{...} marks unwritten content. It renders as a visible red box, so an
+% unfinished section is obvious on the page. Delete the \stub call as you write
+% the prose that replaces it; when none are left, the report is done.
+% ---------------------------------------------------------------------------
+\newcommand{\stub}[1]{%
+  \par\noindent
+  \begingroup
+  \color{red!65!black}\small\itshape
+  \fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{TODO: #1}}%
+  \endgroup
+  \par\medskip
+}
+
+% Inline marker for a single value still to be filled in.
+\newcommand{\note}[1]{\textcolor{blue!55!black}{[#1]}}
+
+% ---------------------------------------------------------------------------
+% Layout
+% ---------------------------------------------------------------------------
+% Every page carries the institute logo in the header, as the template does.
+\newcommand{\institutelogo}{\includegraphics[width=5.81in]{bits-logo}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[C]{\institutelogo}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+% Title page: logo header, no page number.
+\fancypagestyle{titlestyle}{%
+  \fancyhf{}%
+  \fancyhead[C]{\institutelogo}%
+  \renewcommand{\headrulewidth}{0pt}%
+}
+
+% The plain style is used on the first page of the document and by \chapter-like
+% breaks; give it the same header so no page is missing the logo.
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyhead[C]{\institutelogo}%
+  \fancyfoot[C]{\thepage}%
+  \renewcommand{\headrulewidth}{0pt}%
+}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+\setlist[itemize]{topsep=2pt,itemsep=2pt,parsep=0pt,leftmargin=1.4em}
+\setlist[enumerate]{topsep=2pt,itemsep=2pt,parsep=0pt,leftmargin=1.6em}
+
+\captionsetup{font=small,labelfont=bf}
+
+% Fixed-width column types for tables that need wrapping.
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  framesep=4pt,
+  rulecolor=\color{black!30},
+  numbers=left,
+  numberstyle=\tiny\color{black!50},
+  keywordstyle=\bfseries,
+  showstringspaces=false,
+  captionpos=b,
+}
+
+% Solidity is not a built-in listings language; define enough to be readable.
+\lstdefinelanguage{Solidity}{
+  keywords={pragma,solidity,contract,library,interface,function,modifier,event,
+      emit,struct,enum,mapping,memory,storage,calldata,public,private,
+      internal,external,view,pure,payable,returns,return,require,revert,
+      if,else,for,while,new,constructor,immutable,constant,is,using,
+      address,uint256,bytes32,bool,string,error},
+  keywordstyle=\bfseries,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{black!55}\itshape,
+  string=[b]",
+  stringstyle=\color{black!70},
+  morestring=[b]',
+}
+
+% ---------------------------------------------------------------------------
+% Title page
+% ---------------------------------------------------------------------------
+\newcommand{\maketitlepage}{%
+  % The title page needs no hyperref anchor, and suppressing it avoids a
+  % duplicate page.1 destination once front matter switches to roman numerals.
+  \hypersetup{pageanchor=false}%
+  \begin{titlepage}
+    \thispagestyle{titlestyle}
+    \centering
+    \vspace*{1.5cm}
+
+    {\Huge\bfseries \reporttitle\par}
+    \vspace{0.8cm}
+    {\Large \reportsubtitle\par}
+
+    \vspace{1.5cm}
+    {\large \coursename\par}
+    \vspace{0.3cm}
+    {\large \textbf{Group \groupnumber}\par}
+
+    \vspace{1.2cm}
+    {\large\bfseries Group Members\par}
+    \vspace{0.4cm}
+    \groupmemberstable
+
+    \vfill
+    {\large \submissiondate\par}
+    \vspace{1cm}
+  \end{titlepage}
+  % Front matter in roman numerals so the title page and the body do not both
+  % claim page 1 (which produces duplicate hyperref anchors).
+  \pagenumbering{roman}%
+  \hypersetup{pageanchor=true}%
+}
+
+% Ends the front matter and starts the numbered body.
+\newcommand{\startbody}{\clearpage\pagenumbering{arabic}}

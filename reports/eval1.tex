@@ -1,0 +1,459 @@
+\documentclass[11pt,a4paper]{article}
+
+\input{metadata}
+
+\newcommand{\reporttitle}{\projectname: A Decentralized Voting System}
+\newcommand{\reportsubtitle}{Evaluation 1: Design Report}
+\newcommand{\submissiondate}{September 2026}
+
+\input{preamble}
+
+\begin{document}
+
+\maketitlepage
+
+\tableofcontents
+\startbody
+
+% ===========================================================================
+\section{Introduction}
+% Source material: README.md, docs/architecture.md
+% Keep this short, one page. State what the system is, who it is for, and
+% what the reader will find in the rest of the report.
+% ===========================================================================
+
+\stub{One paragraph on what \projectname{} is: a decentralized application that
+  replaces a centrally administered election with a smart-contract-governed one.}
+
+\stub{One paragraph on why this domain was chosen over the other options in the
+  problem statement, and what specifically makes voting a good fit for a
+  blockchain rather than a database.}
+
+\stub{One short paragraph mapping the rest of the report: Section 2 analyses the
+  domain, Section 3 gathers stakeholder requirements, Section 4 proposes the
+  design, Section 5 defines how the project will be evaluated, and Section 6 sets
+  out the implementation plan.}
+
+% ===========================================================================
+\section{Domain and Problem Analysis}
+% Source material: README.md ("The problem"), docs/architecture.md section 2
+% This section must establish that a centralized solution is genuinely
+% inadequate; otherwise the whole project is unjustified.
+% ===========================================================================
+
+\subsection{The centralized status quo}
+
+\stub{Describe how elections are administered today (paper ballots, EVMs,
+  centrally hosted e-voting). Be concrete and fair: state what these systems do
+  well before criticising them.}
+
+\subsection{Trust concentrated in a single operator}
+
+A conventional electronic voting system asks the electorate to trust one operator
+with four separable responsibilities at once: the voter roll, the ballot box, the
+count, and the audit log. Table~\ref{tab:trust} states each assumption and how a
+blockchain-based design removes the need to make it.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Trust assumptions in a centralized system, and how \projectname{} removes each.}
+  \label{tab:trust}
+  \begin{tabular}{@{}L{6.0cm}L{9.7cm}@{}}
+    \toprule
+    \textbf{Assumption the voter must make} & \textbf{How \projectname{} removes it}                                                                      \\
+    \midrule
+    The voter roll is correct
+                                            & The roll is committed as a Merkle root on-chain before voting opens and cannot be changed afterwards.       \\
+    Nobody voted twice
+                                            & Each ballot carries a zero-knowledge nullifier; the contract rejects duplicates without learning who voted. \\
+    My ballot was counted
+                                            & Every ballot is an on-chain transaction the voter can locate for themselves.                                \\
+    The count is honest
+                                            & Tallies are incremented by contract code, not by an operator.                                               \\
+    The audit log was not edited
+                                            & The log is the chain.                                                                                       \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\stub{Expand each row into prose. For each one, name a concrete failure mode of
+  the centralized system: what exactly can a dishonest or compromised operator
+  do, and why can a voter not detect it?}
+
+\subsection{Why paper is not the answer either}
+
+\stub{Paper ballots remove some of these problems and introduce others: cost,
+  delay, and the fact that a voter cannot verify their own ballot once it enters
+  the box. Establish that the problem is real in both directions.}
+
+\subsection{Why a blockchain is the right tool here}
+
+\stub{Argue this honestly. A blockchain is the right tool when multiple mutually
+  distrusting parties need a shared, append-only record that no single one of them
+  controls. Say where this is genuinely true for voting, and be explicit about
+  what a blockchain does \emph{not} fix: voter eligibility still depends on an
+  off-chain identity check, which remains a trusted step.}
+
+% ===========================================================================
+\section{Requirement Gathering}
+% Source material: docs/architecture.md sections 1 and 2
+% The template grades "actors/stakeholders' requirement gathering with
+% justification", so every requirement below needs a stated reason.
+% ===========================================================================
+
+\subsection{Actors and stakeholders}
+
+Table~\ref{tab:actors} lists each actor, what the system permits them to do, and
+what it structurally prevents them from doing. The final column is the important
+one: a permission model is only meaningful when it is stated in terms of what a
+privileged party \emph{cannot} do.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Actors, their capabilities, and their structural limits.}
+  \label{tab:actors}
+  \small
+  \begin{tabular}{@{}L{2.8cm}L{6.0cm}L{6.4cm}@{}}
+    \toprule
+    \textbf{Actor} & \textbf{Can do}                                                                                  & \textbf{Cannot do} \\
+    \midrule
+    Election Authority
+                   & Create an election, set candidates and time windows, publish metadata, trigger finalization
+                   & Cast or alter a ballot; change the voter root once registration closes; stop the count                                \\
+    Registrar
+                   & Verify eligibility off-chain, collect identity commitments, publish the roll's root and leaf set
+                   & See how anyone voted; add voters after the root is frozen                                                             \\
+    Voter
+                   & Register an identity commitment, cast exactly one ballot, verify that their ballot landed
+                   & Vote twice; vote without being in the committed set                                                                   \\
+    Candidate
+                   & Be listed on a ballot, publish a manifesto
+                   & Anything privileged                                                                                                   \\
+    Auditor / Observer
+                   & Re-derive the full tally from chain data, verify every proof, check the roll size
+                   & Alter anything                                                                                                        \\
+    Relayer
+                   & Pay gas on a voter's behalf
+                   & Forge, modify, or replay a ballot                                                                                     \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\stub{For each actor, write a short paragraph justifying \emph{why} they need
+  the capabilities listed and why the restrictions are the right ones. This is the
+  part the rubric asks to be justified, so do not just restate the table.}
+
+\subsection{Functional requirements}
+
+\stub{Number these (FR1, FR2, \dots) so Section 5 and the Evaluation 2 report can
+  refer back to them. Derive each from an actor in Table~\ref{tab:actors} rather
+  than inventing them, e.g. FR1: the system shall allow the Election Authority
+  to define a candidate set and a voting window before registration opens.}
+
+\subsection{Non-functional requirements}
+
+\stub{Number these too (NFR1, NFR2, \dots). Cover at least: ballot secrecy,
+  eligibility enforcement, individual and universal verifiability, cost per vote,
+  latency, and the requirement that a voter need hold no cryptocurrency.}
+
+\subsection{Trust model and explicit non-goals}
+
+A design is only credible if it states what it does \emph{not} achieve.
+
+\stub{Write up the guarantees: eligibility, one-voter-one-ballot, ballot secrecy,
+  individual verifiability, universal verifiability, integrity of the count.}
+
+\stub{Write up the non-guarantees honestly, with the reason each is out of scope:
+  coercion resistance; Sybil resistance at the registrar; privacy from the relayer,
+  which sees the ballot payload it forwards; network-level anonymity; and secrecy
+  of the running tally while voting is open.}
+
+% ===========================================================================
+\section{Proposed System Design}
+% Source material: docs/architecture.md sections 3-7, docs/tech-stack.md
+% ===========================================================================
+
+\subsection{Architecture overview}
+
+\stub{Redraw the component diagram from \texttt{docs/architecture.md} as a proper
+  figure and place it here. Walk the reader through one request path rather than
+  describing every box in isolation.}
+
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox[c][5.5cm][c]{0.9\linewidth}{\centering\itshape
+      Figure placeholder: system architecture.\\
+      Export to \texttt{figures/architecture.pdf} and replace this box with\\
+      \texttt{\textbackslash includegraphics[width=0.9\textbackslash linewidth]\{architecture\}}}}
+  \caption{\projectname{} component architecture.}
+  \label{fig:architecture}
+\end{figure}
+
+\stub{Explain the single most important structural property: the public audit
+  path reads the chain directly and never depends on the project's own backend, so
+  the result remains verifiable even if the operators are dishonest or offline.}
+
+\subsection{Smart contract design}
+
+\stub{Describe each contract and its responsibility: the election lifecycle state
+  machine, the factory that deploys elections as minimal proxy clones, the voter
+  registry that stores roots, the tally library, and the ERC-2771 forwarder that
+  lets voters transact without holding gas.}
+
+\stub{Draw the election lifecycle as a state machine figure: Created, then
+  Registration, Voting, Tallying, Finalized, with Cancelled reachable only before
+  voting opens. State which transitions are time-gated and which require an
+  explicit call.}
+
+\subsection{Anonymous eligibility and double-vote prevention}
+
+\stub{Explain the mechanism in plain language before any notation. A voter holds
+  a secret; its commitment sits as a leaf in a Merkle tree whose root is on-chain.
+  To vote, the voter proves in zero knowledge that they know a secret matching
+  \emph{some} leaf, without revealing which. The proof carries a nullifier derived
+  deterministically from the secret and the election identifier, so a second ballot
+  from the same voter is rejected while the chain still learns nothing about who
+  they are.}
+
+\subsection{Scalability strategy}
+
+The system is designed so that gas cost is constant in the size of the
+electorate. This depends on one decision: the membership tree is built off-chain
+and only its root is written on-chain.
+
+\stub{Explain the consequence: a roll of ten voters and a roll of a hundred
+  thousand both cost a single 32-byte storage write. State the tradeoff too: the
+  tree is not reconstructible from chain data alone, so the registrar must publish
+  the leaf set for auditors, and that publication is what keeps the roll auditable.}
+
+\subsection{Technology choices and justification}
+
+\stub{Fill Table~\ref{tab:stack} out into prose. The rubric grades justification,
+  so for each row state the alternative that was considered and the specific reason
+  it was not chosen.}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Principal technology choices.}
+  \label{tab:stack}
+  \small
+  \begin{tabular}{@{}L{3.9cm}L{3.9cm}L{7.4cm}@{}}
+    \toprule
+    \textbf{Layer}     & \textbf{Choice}      & \textbf{Principal reason}                               \\
+    \midrule
+    Contract language  & Solidity             & \note{ecosystem, EVM portability}                       \\
+    Contract toolchain & Foundry              & \note{Solidity-native tests; gas snapshots come free}   \\
+    Contract libraries & OpenZeppelin         & \note{audited access control, forwarder, Merkle proofs} \\
+    Anonymity          & Semaphore            & \note{audited membership proofs and nullifiers}         \\
+    Testbed            & Polygon Amoy         & \note{Sepolia reaches end-of-life 30 Sep 2026}          \\
+    Frontend           & Next.js, wagmi, viem & \note{typed contract bindings}                          \\
+    Backend            & Fastify, PostgreSQL  & \note{indexer, registrar, relayer}                      \\
+    Metadata storage   & IPFS                 & \note{on-chain bytes are expensive}                     \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\stub{Justify the testbed choice explicitly; it is the decision most likely to
+  be questioned. Ethereum Sepolia reaches end-of-life on 30 September 2026, which
+  falls between this report and the final demonstration, so the project targets
+  Polygon Amoy instead and keeps Sepolia only as a comparison baseline.}
+
+% ===========================================================================
+\section{Evaluation Parameters}
+% Source material: docs/evaluation-parameters.md
+% The rubric explicitly grades "defined evaluation parameters", so this section
+% carries real weight. Every parameter needs a measurement method, not just a
+% name.
+% ===========================================================================
+
+Each parameter below states what is measured, how it will be measured, and what
+result would count as success. The targets are hypotheses to be tested in
+Evaluation 2, not claims; results will be reported as measured, including where
+a target is missed.
+
+\subsection{Cost}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Cost parameters.}
+  \label{tab:eval-cost}
+  \small
+  \begin{tabular}{@{}lL{5.3cm}L{5.1cm}L{3.9cm}@{}}
+    \toprule
+    \textbf{ID} & \textbf{Parameter}        & \textbf{Measurement}                         & \textbf{Target}       \\
+    \midrule
+    A1          & Gas per operation         & Gas snapshots over each contract entry point & Ballot under 400k gas \\
+    A2          & Cost per vote in INR      & A1 times gas price times token price         & Under INR 0.50        \\
+    A3          & Layer-1 vs Layer-2 cost   & Same suite on both networks                  & Quantify the saving   \\
+    A4          & On-chain vs IPFS metadata & Inline bytes vs a 32-byte identifier         & Show the gap          \\
+    A5          & Proxy deployment saving   & Direct deploy vs minimal proxy clone         & Over 90\% saving      \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Performance}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Performance parameters.}
+  \label{tab:eval-perf}
+  \small
+  \begin{tabular}{@{}lL{5.3cm}L{5.1cm}L{3.9cm}@{}}
+    \toprule
+    \textbf{ID} & \textbf{Parameter}           & \textbf{Measurement}                   & \textbf{Target}                \\
+    \midrule
+    B1          & End-to-end vote latency      & Wall clock, click to confirmation      & 95th percentile under 10 s     \\
+    B2          & Client proof generation time & Timed in-browser, by device class      & Under 5 s on a mid-range phone \\
+    B3          & On-chain verification cost   & Gas attributable to proof verification & Isolate from base cost         \\
+    B4          & Throughput                   & Concurrent ballots, ramped             & Locate the knee of the curve   \\
+    B5          & Indexer lag                  & Event emission to dashboard visibility & Under 3 s                      \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Scalability}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Scalability parameters.}
+  \label{tab:eval-scale}
+  \small
+  \begin{tabular}{@{}lL{5.3cm}L{5.1cm}L{3.9cm}@{}}
+    \toprule
+    \textbf{ID} & \textbf{Parameter}       & \textbf{Measurement}          & \textbf{Target}         \\
+    \midrule
+    C1          & Gas vs voter-roll size   & Rolls from $10^1$ to $10^5$   & Flat                    \\
+    C2          & Proof time vs tree depth & B2 across the same roll sizes & Logarithmic, not linear \\
+    C3          & Concurrent-voter ceiling & Load until failure            & Name the bottleneck     \\
+    C4          & Candidate-count scaling  & 2, 10, and 50 candidates      & Constant per ballot     \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\stub{Say plainly that C1 is the central claim of the design. If gas is not flat
+  in the size of the electorate, the architecture did not deliver what it promised,
+  and the report will say so.}
+
+\subsection{Security and correctness}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Security and correctness parameters.}
+  \label{tab:eval-sec}
+  \small
+  \begin{tabular}{@{}lL{5.1cm}L{9.7cm}@{}}
+    \toprule
+    \textbf{ID} & \textbf{Property}        & \textbf{How it is demonstrated}                                   \\
+    \midrule
+    D1          & Double-vote resistance   & Replaying a nullifier must revert; fuzzed over collisions         \\
+    D2          & Eligibility enforcement  & A valid proof against the wrong root must revert                  \\
+    D3          & Ballot secrecy           & Show that no chain data links an address to a ballot              \\
+    D4          & Individual verifiability & A voter locates their own ballot transaction                      \\
+    D5          & Universal verifiability  & Recompute the tally with the project's backend switched off       \\
+    D6          & Authority containment    & The authority cannot vote, alter a frozen root, or stop the count \\
+    D7          & Static analysis          & Findings by severity, each with a written disposition             \\
+    D8          & Test coverage            & Line coverage over the contract sources                           \\
+    D9          & Reorganization safety    & Simulate a chain reorganization; the indexer must self-heal       \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Usability and adoption}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Usability parameters.}
+  \label{tab:eval-use}
+  \small
+  \begin{tabular}{@{}lL{5.3cm}L{5.1cm}L{3.9cm}@{}}
+    \toprule
+    \textbf{ID} & \textbf{Parameter}     & \textbf{Measurement}                             & \textbf{Target} \\
+    \midrule
+    E1          & Steps to cast a ballot & User actions from landing page to receipt        & At most 4       \\
+    E2          & Voter gas burden       & Cryptocurrency a voter must hold                 & Zero            \\
+    E3          & Task success rate      & 10 users unfamiliar with cryptocurrency, unaided & Over 80\%       \\
+    E4          & Time to first vote     & Wall clock including wallet installation         & Under 5 minutes \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\stub{Justify why usability is treated as a first-class evaluation parameter
+  rather than a nicety: a voting system only redistributes power if ordinary people
+  can actually operate it.}
+
+\subsection{Measurement methodology}
+
+\stub{State how measurements will be made credible: repetitions per data point,
+  reporting medians and tail percentiles rather than single runs, which environment
+  each number comes from, and which controls are recorded alongside each result.}
+
+% ===========================================================================
+\section{Implementation Plan}
+% Source material: docs/roadmap.md
+% ===========================================================================
+
+The system will be built in three functional tiers, each a working system in its
+own right. Building them in sequence means every privacy and cost feature is
+measured against a working baseline rather than asserted.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Build tiers.}
+  \label{tab:tiers}
+  \small
+  \begin{tabular}{@{}lL{3.9cm}L{5.3cm}L{3.0cm}@{}}
+    \toprule
+    \textbf{Tier} & \textbf{Eligibility} & \textbf{Ballot privacy}           & \textbf{Voter pays gas} \\
+    \midrule
+    1             & On-chain roll        & None; ballots linked to addresses & Yes                     \\
+    2             & Merkle root          & None                              & Yes                     \\
+    3             & Zero-knowledge proof & Anonymous, nullifier-protected    & No                      \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Phase plan and milestones.}
+  \label{tab:phases}
+  \small
+  \begin{tabular}{@{}lL{3.0cm}L{10.8cm}@{}}
+    \toprule
+    \textbf{Phase} & \textbf{Window}       & \textbf{Milestone}                                                        \\
+    \midrule
+    1              & Late Sep -- mid Oct   & A vote works end to end locally: tier 2, no anonymity, no gas sponsorship \\
+    2              & Mid -- late Oct       & Anonymous and gasless on the testbed: tier 3                              \\
+    3              & Late Oct -- early Nov & Feature freeze; auditing, resilience, usability testing                   \\
+    4              & Early -- mid Nov      & Measurement campaign against Section 5                                    \\
+    5              & Mid -- late Nov       & Rehearsal and buffer                                                      \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\stub{Expand each phase into a short paragraph naming its concrete deliverables
+  and its exit criterion.}
+
+\stub{State the principal risk and its mitigation: in-browser zero-knowledge
+  proof generation is the component most likely to fail, so a dated decision point
+  partway through Phase 2 switches to server-side proof generation: weaker
+  privacy, honestly documented, rather than allowing the schedule to slip.}
+
+% ===========================================================================
+\section{Conclusion}
+% ===========================================================================
+
+\stub{Three short paragraphs: what the problem is, what is being built and why
+  that design addresses it, and what Evaluation 2 will demonstrate. Do not
+  introduce anything new here.}
+
+% ===========================================================================
+\section{References}
+% ===========================================================================
+
+\printbibliography[heading=none]
+
+\stub{Cite what was actually read. Include the sources behind the design claims
+  in Sections 2 and 4, and the documentation for the protocols and testbed named in
+  Section 4.}
+
+\end{document}
