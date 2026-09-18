@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+keystore/
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/dry-run/
+contracts/.gas-snapshot.tmp
+
+# Next.js
+.next/
+out/
+.vercel/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# ZK artifacts
+*.zkey
+*.wasm
+*.ptau
+!**/verification_key.json
+
+# Test + coverage
+coverage/
+lcov.info
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# LaTeX build artifacts. The PDFs are build output too: they regenerate with
+# `make` and would otherwise churn as binary diffs on every edit. Force-add the
+# final one when submitting:  git add -f reports/eval1.pdf
+reports/*.pdf
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+
+# Local scratch
+tmp/
+scratch/
