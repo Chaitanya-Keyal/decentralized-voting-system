@@ -363,7 +363,7 @@ The path below touches every component, which is why it is the thing to rehearse
 | 7 | Relayer | Verifies the proof off-chain, checks the nullifier, sponsors the transaction from its own funded account, returns a signed receipt |
 | 8 | `VoteForwarder` | Verifies signature, nonce and deadline, calls `Election` with the signer appended |
 | 9 | `Election.castVote` | Requires `Voting` phase, verifies the proof against the frozen root, reverts if the nullifier is spent or if accepting would push the count of spent nullifiers past the published roll size, records the nullifier, increments the candidate through `TallyLib`, emits `VoteCast` |
-| 10 | Indexer | Materializes `VoteCast` into PostgreSQL for fast dashboard reads (parameter B5, target under 3 s) |
+| 10 | Indexer | Materializes `VoteCast` into PostgreSQL for fast dashboard reads; lag is on the Phase 3 checklist, not a reported parameter |
 | 11 | Audit dashboard | Reads the chain through a public RPC endpoint, never our backend, and recomputes the tally from raw logs |
 
 Every check in step 9 is a revert rather than a status flag, so a ballot is either counted or
@@ -390,20 +390,20 @@ reason, not the row.
 | :-- | :-- | :-- |
 | A public blockchain at all | A signed, append-only log on a server we run | A signed log still has an operator who decides what goes into it and can show two different logs to two readers; a chain agrees inclusion and ordering among parties who do not work for us, and enforces the acceptance rule at write time instead of auditing it afterwards |
 | Polygon Amoy, chain id 80002, as the primary testbed | Ethereum Sepolia, Base Sepolia | Sepolia reaches end-of-life on 30 September 2026, seven weeks before the demonstration, and Base Sepolia settles to it; Amoy is the maintained Polygon PoS testnet with about 2 s blocks and an independent lifecycle |
-| A3 as a desk calculation over one gas figure | Deploying to a second network and measuring it there | Gas is a function of the EVM and the bytecode, so an identical suite consumes identical gas on any EVM chain and a second deployment would measure a fee market rather than a property of the design. Sepolia is not a deployment target at all, because it reaches end-of-life on 30 September 2026 and the first deployable contract lands with M1 in October. A3 prices the single A1 gas figure under Ethereum mainnet, Polygon PoS mainnet and Amoy conditions, and reports a band across gas prices (see "The hard ones", item 8) |
+| Pricing one measured gas figure rather than deploying twice | Deploying to a second network and measuring it there | Gas is a function of the EVM and the bytecode, so an identical suite consumes identical gas on any EVM chain and a second deployment would measure a fee market rather than a property of the design. Sepolia is not a deployment target at all, because it reaches end-of-life on 30 September 2026 and the first deployable contract lands with M1 in October. A2 states the gas price and token price behind its rupee figure, under Ethereum mainnet, Polygon PoS mainnet and Amoy conditions, and reports a band across gas prices (see "The hard ones", item 8) |
 | Anvil for gas and throughput | Measuring everything on Amoy | Gas is deterministic given the bytecode and the calldata, so local measurement is exact rather than approximate; and at 0.009 POL a ballot against about 0.1 POL a day from a faucet, a 200-ballot load run is not fundable |
 | Semaphore v4 | Custom circom circuits | It is exactly the primitive we need, anonymous group membership with a scoped nullifier, audited and maintained; writing our own circuits would consume the project budget and put unaudited cryptography at the centre of a security project |
 | Semaphore's circuits, verifier and nullifier scheme, but **not** its on-chain group management | Using Semaphore's group contracts | Their `addMember` inserts a leaf into contract storage, so registration would cost gas per voter and be linear in the electorate, which is the exact curve this design exists to flatten |
 | Semaphore rather than MACI | MACI | MACI adds the coercion resistance we lack, but it needs a coordinator, encrypted messages and key rotation, and its coordinator is itself trusted for privacy, so it trades one trust assumption for another |
 | Membership tree built off-chain, only the 32-byte root on-chain | Storing the roll on-chain | Registration becomes one storage write for a roll of any size, which is parameter C1; the price is that the tree is not reconstructible from chain data, so the registrar publishes the leaf set to IPFS and its CID goes on-chain beside the root. Publication serves the voter as well as the auditor: the booth rebuilds the tree from it to derive its own authentication path, which is what keeps the registrar off the vote path |
-| EIP-1167 minimal proxy clones | A fresh `Election` deployment per election | A clone is a few dozen bytes delegating to one shared implementation, so deployment cost falls by an order of magnitude (parameter A5, target above 90% saving), and the shared implementation is immutable, so nobody can rewrite the rules mid-vote |
+| EIP-1167 minimal proxy clones | A fresh `Election` deployment per election | A clone is a few dozen bytes delegating to one shared implementation, so deploying an election costs far less than deploying a fresh contract, and the shared implementation is immutable, so nobody can rewrite the rules mid-vote |
 | A relayer sponsoring gas through ERC-2771 | The voter pays their own gas | A voter should not have to acquire cryptocurrency to vote (parameter E2). Do not reach for the line that direct submission makes censorship "an expense rather than a veto": it is only an expense for a voter who already holds gas, and E2 sets that holding to zero. The signed receipt and the client-side deadline are what make a drop provable, and they bound the attack rather than removing it |
-| Foundry | Hardhat 3 | Tests are written in Solidity, so there is no language switch between a contract and its test, and `forge snapshot` emits per-function gas numbers as a side effect, which is parameters A1, A4, A5, C1 and C4 measured for free; the built-in fuzzer supplies the adversarial ballot tests D1 needs |
+| Foundry | Hardhat 3 | Tests are written in Solidity, so there is no language switch between a contract and its test, and `forge snapshot` emits per-function gas numbers as a side effect, which is parameters A1 and C1 measured for free; the built-in fuzzer supplies the adversarial ballot tests D1 needs |
 | OpenZeppelin Contracts 5.x | Hand-rolled access control, forwarder, Merkle proofs, clones | In a project whose subject is security, reimplementing an audited role check is hard to defend and harder to review |
 | The audit dashboard reads a public RPC endpoint and never our backend | Serving the tally from our indexer | An audit routed through our own server verifies our claims rather than the chain, and would be worth nothing at the moment it mattered; this is what makes killing the backend mid-demonstration a meaningful test |
 | The backend is a convenience and liveness layer only | A backend that holds any authority over the result | The registrar's only output is a root that then freezes, the relayer can neither forge, alter nor replay a ballot, and the indexer is a cache rebuildable from genesis. Do not shorten the middle clause to "the relayer only pays gas and can be bypassed": it can still drop the ballots for one candidate, and the bypass needs gas E2 says the voter does not hold |
 | Tier 2 shipped before tier 3 | Building the anonymous version directly | The cost of anonymity is a difference and a difference needs two endpoints; a gas snapshot at M1 fixes one, the same snapshot after Phase 2 gives the other, and if tier 3 fails outright tier 2 is still a complete system to demonstrate |
-| IPFS with the CID stored on-chain for metadata | Storing manifestos on-chain | A content identifier gives the same integrity guarantee for a fraction of the gas (parameter A4), accepting that availability now depends on somebody pinning the file |
+| IPFS with the CID stored on-chain for metadata | Storing manifestos on-chain | A content identifier gives the same integrity guarantee for a fraction of the gas, accepting that availability now depends on somebody pinning the file |
 | `TallyLib` as a separate library | Counting rules inside `Election` | The counting rule is published with the election and can be swapped for approval voting without touching lifecycle logic, so it is fixed before ballots exist rather than settled once they are in |
 
 ## What we deliberately do not do
@@ -430,7 +430,7 @@ Three more to concede in the first sentence if they come up:
 | Gap | The one-line answer |
 | :-- | :-- |
 | **Credential transfer and organised vote farming** | "The identity secret is a bearer credential with nothing binding it to a person, so it can be sold or generated in bulk by an operator registering on voters' behalf. Anonymity also removes the forensic trail a centralized system would leave, which is a genuine cost of the design." |
-| **A lost identity secret** | "The secret lives in browser storage and the root freezes at the close of registration, so a cleared browser between registration and voting is permanent disenfranchisement. The standard fix is deriving the identity deterministically from a wallet signature so it is reproducible and never stored at rest, and E5 measures whether a voter enrolled in one browser profile can vote from another." |
+| **A lost identity secret** | "The secret lives in browser storage and the root freezes at the close of registration, so a cleared browser between registration and voting is permanent disenfranchisement. The standard fix is deriving the identity deterministically from a wallet signature so it is reproducible and never stored at rest, and whether a voter enrolled in one browser profile can vote from another is a known gap." |
 | **Availability of the published leaf set** | "The CID is on-chain, so a registrar who publishes a leaf set that does not reproduce the root is caught immediately. One who publishes nothing, or unpins it later, is not caught by that check, and since the booth builds its authentication path from that file, withholding it blocks voting rather than only blocking audit. We expect observers to fetch and pin their own copy at publication time, and a non-empty CID is a precondition for opening the voting window." |
 
 Three framings worth memorising. First: the verification path is decentralized while parts
@@ -558,7 +558,7 @@ Tendermint-based validator layer that selects proposers and produces checkpoints
 the EVM block producer with roughly two-second blocks. Checkpoints of the Bor chain are
 periodically committed to Ethereum. We care because of finality: two-second blocks make the
 demo responsive, but a freshly included block is not final and a short reorg can drop it.
-That is why D9 is reorg safety, and why our B1 target of p95 under ten seconds is
+That is why reorg handling is on the Phase 3 checklist, and why our B1 target of p95 under ten seconds is
 confirmation time, not block time.
 
 > *Follow-up.* "Your voter gets a receipt at one confirmation. What do you tell them?" That
@@ -576,9 +576,9 @@ It is a sidechain, and calling it a Layer 2 is loose, so we do not. A rollup pos
 transaction data to Ethereum and inherits Ethereum's security, so anyone can reconstruct its
 state from L1 data alone. Polygon PoS has its own validator set and its own security budget,
 and it checkpoints state roots to Ethereum without posting the data needed to reconstruct
-state. That wording matters for A3 as well: we do not present it as a Layer-1 against
+state. That wording matters for cost as well: we do not present it as a Layer-1 against
 Layer-2 result. Gas is identical across EVM chains, so a second deployment would only have
-produced a second copy of the same number. A3 instead prices the one measured gas figure
+produced a second copy of the same number. A2 instead prices the one measured gas figure
 under several fee regimes and reports a band.
 
 > *Follow-up.* "Does the distinction matter for an election?" Yes. On a sidechain, that
@@ -597,11 +597,11 @@ gone from state. If it is still valid and sitting in a mempool it can be re-incl
 and counts then; if not, the vote was not cast and the voter resubmits. Resubmitting is safe
 precisely because the nullifier was never recorded, since our double-vote check reads state,
 not receipts. The indexer has to detect the reorg through a parent-hash mismatch and roll
-back the rows it materialized, which is D9, tested by forcing a reorg on Anvil.
+back the rows it materialized, which Phase 3 tests by forcing a reorg on Anvil.
 
 > *Follow-up.* "How deep a reorg are you exposed to on Amoy?" Realistically a few blocks, and
 > we plan to wait several confirmations before presenting a receipt as settled. We have not
-> quantified it, and D9 tests that the indexer self-heals rather than measuring Amoy's real
+> quantified it, and Phase 3 tests that the indexer self-heals rather than measuring Amoy's real
 > reorg distribution.
 >
 > *Trap.* "It is on the blockchain, so it cannot be lost" treats inclusion as finality.
@@ -939,8 +939,8 @@ all; it reads the chain through an RPC endpoint, which is the property we demons
 killing the backend. For the cache itself: every row is keyed on transaction hash plus log
 index, so replaying a block is idempotent; we store each block's hash and check that every new
 block's parent hash matches the last one stored, and a mismatch means a fork; and the whole
-database is rebuildable from genesis, which Phase 3 demonstrates. B5 measures the lag, target
-under three seconds, and D9 is the reorg test.
+database is rebuildable from genesis, which Phase 3 demonstrates. Indexer lag and reorg
+recovery are Phase 3 checklist items rather than reported parameters.
 
 > *Follow-up.* "How do you know the rebuilt database equals the incrementally built one?"
 > Rebuild into a second schema and diff the tables, and separately compare the tally against a
@@ -997,7 +997,7 @@ is `castVote`, so every accepted ballot is already counted. Finalization does no
 result, it closes the state machine. If the authority refuses to call it, the tally is still
 readable and anyone can recompute it from `VoteCast` logs. What the authority can do is cancel,
 and only before voting opens; once Voting starts the machine has no path backwards and the
-root is frozen. D6 tests that the admin cannot vote, cannot alter a frozen root, cannot stop
+root is frozen. D5 tests that the admin cannot vote, cannot alter a frozen root, cannot stop
 the count.
 
 > *Follow-up.* "Can the authority stall forever by never opening voting?" No: transitions are
@@ -1147,7 +1147,7 @@ cannot cast a ballot or stop the count.
 > *Follow-up.* "Could they repoint the trusted forwarder on a live election?" It should not be
 > settable after deployment. The forwarder is set once in the implementation and shared by
 > every clone; a mutable forwarder would hand an attacker exactly the power we claim the
-> authority does not have, so it belongs in the D6 containment tests.
+> authority does not have, so it belongs in the D5 containment tests.
 >
 > *Trap.* "The contracts are immutable, so a stolen key does nothing." Immutability protects
 > the code, not the role assignments, and phishing voters onto a fake election address defeats
@@ -1270,7 +1270,7 @@ graded November demo on a network scheduled to die in September is the larger ri
 deployment is a deliberate decision about whose security you are buying.
 
 > *Follow-up.* "So your integrity guarantee is only as strong as Amoy's validators. What happens
-> on a reorg?" That is D9: we simulate a reorg on Anvil and check the indexer heals rather than
+> on a reorg?" Phase 3 covers it: we simulate a reorg on Anvil and check the indexer heals rather than
 > serving a stale tally. A deep reorg on a small validator set is a real risk and we name it
 > rather than claim a finality we do not have.
 >
@@ -1327,13 +1327,13 @@ tier 3's ballot flat and higher. A bad result on the tier 3 line is any upward s
 would mean something in our path touches per-voter state. Be honest about the half that cannot
 fail: the registration line is flat by construction, so its job is to catch an accidental O(n)
 term rather than to discover anything. The parameters that can genuinely come out against us
-are C2, proving time against tree depth, and C5, the off-chain cost, because both run on
+is C2, proving time and whether a large roll can be handled in a browser at all, because it runs on
 devices we do not control.
 
 > *Follow-up.* "Flat from ten to a hundred thousand. Do you claim it holds at ten million?" No.
 > We measure four decades and state that extrapolation rests on the argument that the on-chain
 > write is one storage slot regardless of n, plus a tree-depth term C2 measures separately. The
-> off-chain side is linear and C5 measures it: registrar tree-build time, leaf-set size and the
+> off-chain side is linear, and it is the registrar tree-build time, leaf-set size and the
 > time to rebuild the tree and recompute the root in a browser, at the same roll sizes.
 >
 > *Trap.* "All of them matter", or naming a security property like D1, which is a unit test with
@@ -1383,7 +1383,7 @@ percentile of the true distribution. So we report p95 with the order statistic n
 raise n wherever sampling is free, since gas is deterministic and Anvil throughput and proving
 time cost nothing. The thirty constraint binds only on Amoy latency.
 
-> *Follow-up.* "Which numbers are the n equals thirty ones?" B1 end-to-end latency and B5
+> *Follow-up.* "Which numbers are the n equals thirty ones?" B1 end-to-end latency and B2
 > indexer lag on Amoy, which are the only quantities that need a public network at all.
 > Everything else is deterministic or local and runs higher.
 >
@@ -1401,7 +1401,7 @@ differ, the SHA is identical and the base fee is comparable, we have a network e
 report it as one.
 
 > *Follow-up.* "What is immune to all of that?" Gas. It is deterministic given the bytecode and
-> the inputs, so A1, C1 and C4 are reproducible from a commit SHA alone. That is why gas carries
+> the inputs, so A1 and C1 are reproducible from a commit SHA alone. That is why gas carries
 > the central claim and latency does not.
 >
 > *Trap.* Running it both days and taking the better number, or averaging across days. The first
@@ -1436,7 +1436,7 @@ reader can substitute their own assumptions. A single rupee figure with no date 
 assumption is not a result.
 
 > *Follow-up.* "What is the honest headline cost result?" Gas per ballot, which is measured, and
-> then A3: that one gas figure priced under Ethereum mainnet, Polygon PoS mainnet and Amoy
+> then A2: that one gas figure priced under Ethereum mainnet, Polygon PoS mainnet and Amoy
 > conditions, reported as a band across gas prices. The band survives the price assumptions in a
 > way a single rupee figure does not, and it is a comparison of fee markets rather than a claim
 > about the design.
@@ -1685,7 +1685,7 @@ per-voter storage cost, and C1 records which of the two produced it."
 
 > **The position.** Say in advance that tier 3 is expected to cost more per ballot in absolute
 > terms at every roll size we can measure, so the graph is not read as a cost claim we never
-> made. The off-chain side is measured too, as C5: registrar tree-build time, leaf-set size and
+> made. The off-chain side grows too: registrar tree-build time, leaf-set size and
 > the time to rebuild the tree and recompute the root in a browser are where the cost actually
 > went.
 
@@ -1710,7 +1710,7 @@ bound is a genuinely good property and we state it."
 > **The design.** Off-chain proof verification comes before sponsorship, with per-nullifier
 > rate limiting and the daily cap behind it rather than in front of it.
 
-### 8. A3 prices gas, and does not measure a second network
+### 8. Why we price one gas figure instead of deploying twice
 
 **The question.** "A cost comparison needs a second network. Sepolia reaches end of life on
 30 September and your first working contract is M1 on 11 October, so on which day would a
@@ -1726,14 +1726,14 @@ mainnet feeds anyway.
 **The answer.** "Concede the schedule collision outright: Sepolia is not a deployment target
 at all, and no measurement in the plan depends on it. Then take the parameter for what it is.
 Gas is identical across EVM chains, so the entire difference between networks is a fee market,
-and deploying twice would have measured a fee market rather than a property of the design. A3
+and deploying twice would have measured a fee market rather than a property of the design. A2
 is cost per ballot computed from the single A1 gas figure, priced under Ethereum mainnet,
 Polygon PoS mainnet and Amoy conditions, reported as a band across gas prices rather than a
 single number. We do not call it Layer 1 against Layer 2 either, because Polygon PoS is a
 checkpointed sidechain and not a rollup, so what is set side by side is two fee markets over
 chains that execute the same bytecode."
 
-> **The position.** A3 is a price model over one measured gas figure, and everything it reports
+> **The position.** A2 is a price model over one measured gas figure, and everything it reports
 > is a band. If a live measurement on a second network is wanted in November, it names a
 > maintained testnet rather than one with a published shutdown date.
 
@@ -1797,9 +1797,9 @@ November. What happens?"
 **Why it bites.** Nothing can be done. The secret is gone, the commitment in the frozen tree is
 unusable, and re-enrolment would mean changing a root we froze on purpose. Private browsing, a
 new phone, a reinstalled browser, storage eviction and a shared lab machine all produce the
-same outcome, and registration is deliberately days ahead of voting. E1 to E4 all measure a
+same outcome, and registration is deliberately days ahead of voting. E1 to E3 all measure a
 clean first run on a single device, which is the run least likely to fail, and that is exactly
-why E5 exists.
+why it is worth raising before the examiner does.
 
 **The answer.** "This is a genuine gap, not a scope decision we made. The standard fix is one
 line of design: derive the identity deterministically from a wallet signature over a fixed
@@ -1811,7 +1811,7 @@ phrase shown at registration, and the honest boundary is that re-registration is
 while registration is open and impossible after the root freezes."
 
 > **The position.** The recovery story and the re-registration boundary are stated rather than
-> left implicit, and returning on a second device is parameter E5, which measures whether a
+> left implicit, and returning on a second device is a known gap rather than a measured parameter: whether a
 > voter enrolled in one browser profile can vote from another and what that path costs in steps.
 
 ### 12. The go/no-go is conditional on M1, not on the calendar
@@ -1848,12 +1848,12 @@ pre-funded wallets, which costs us parameter E2 and not the election."
 
 | Point | The position |
 | :-- | :-- |
-| Who is allowed to finalize an election | Permissionless is the design. Every transition whose timestamp has passed is callable by anyone, the authority is restricted to pre-registration configuration and to cancellation before voting opens, and D6 tests an observer finalizing over the authority's objection |
+| Who is allowed to finalize an election | The closing transitions are permissionless: once their timestamps pass, any observer can close voting and finalize. The authority is restricted to configuration, opening the phases, and to cancellation before voting opens. Say it that way rather than claiming every transition is open to anyone. The authority is restricted to pre-registration configuration and to cancellation before voting opens, and D5 tests an observer finalizing over the authority's objection |
 | Crediting the EIP-712 signature with stopping a relayer altering a ballot | The proof stops that, because the signal is a public input. ERC-2771 is not a security boundary here; it is kept for the request deadline, for one code path shared with direct submission, and for an audited implementation, and if A1 comes in over budget, dropping the forwarder is the first saving to take |
 | Listing OpenZeppelin `MerkleProof` and Semaphore as if tier 3 upgraded tier 2's tree | They are different trees: keccak over sorted pairs versus Poseidon in a LeanIMT, and a keccak root is not a valid circuit input because it is not constrained below the field modulus. Phase 2 replaces the tree builder and the registry's notion of a root. Verification uses the standalone Semaphore verifier called with our own root, with the tree depth pinned in the contract rather than taken from the caller |
 | Extrapolating to ten crore voters at INR 5 crore | Throughput binds long before cost: about 37 ballots a second is roughly a month of exclusive block space. One lakh is the figure to quote; a ten crore figure is not, because it also contradicts the scope set in Section 2 |
 | Proving time of roughly one to three seconds | It is an expectation from published desktop benchmarks and reads as a hypothesis, with B2 measuring it. The failure mode that would actually trigger the fallback is a mobile memory ceiling or the artifact download, and both belong in the risk table |
-| Whether E4 should include wallet installation | The voting path needs no wallet, because eligibility is the proof and the signing key can be created in the browser. E4 measures the no-wallet path and reports the wallet install separately as the fallback cost |
+| Whether the timing should include wallet installation | The voting path needs no wallet, because eligibility is the proof and the signing key can be created in the browser. The measurement covers the no-wallet path and reports the wallet install separately as the fallback cost |
 | "An observer can verify the tally even if every service we operate is lying" | Too broad; narrow it: no privileged access is needed and an auditor can use any provider or their own node. We do not run a light client in the browser, so a reader who trusts nobody has to run a node |
 | A relayer accepting a ballot near the close of voting and submitting it after | The ERC-2771 deadline expires before the voting window closes, relayed submission is refused in the last few minutes, and a receipt is shown only once a confirmed transaction hash exists |
 
@@ -1870,14 +1870,14 @@ report, and the answer is to give the position below.
 | 3 | The ballot count capped on-chain against the stored roll size; no detection claim; roll correctness stated as a non-guarantee; a split registrar or observer co-signing recorded as future work | Sections 3, 4 |
 | 4 | Signed registration receipt and a check-your-own-commitment step before voting | Sections 3, 4 |
 | 5 | The trusted setup named, with the ceremony and the artifact hash pinning | Section 4 |
-| 6 | C1 stated as three predictions against an on-chain enrolment baseline, tier 2's ballot line predicted logarithmic, off-chain cost measured as C5 | Sections 4, 5 |
+| 6 | C1 stated as three predictions against an on-chain enrolment baseline, tier 2's ballot line predicted logarithmic, off-chain cost acknowledged as growing with the roll | Sections 4, 5 |
 | 7 | The relayer verifies the proof off-chain before sponsoring | Sections 3, 4, 6 |
-| 8 | A3 defined as a price model over one gas figure, with no second deployment; Polygon PoS named as a checkpointed sidechain | Section 5 |
+| 8 | Cost defined as a price model over one gas figure, with no second deployment; Polygon PoS named as a checkpointed sidechain | Section 5 |
 | 9 | Ballot secrecy bounded by anonymity set size, with the demonstration sized so the set is not one | Sections 3, 4 |
 | 10 | Coercion stated as a non-goal; credential transfer as a non-guarantee of its own; the regression against a hosted system conceded in the domain section | Sections 2, 3 |
-| 11 | Identity recovery and the re-registration boundary stated; returning on a second device measured as E5 | Sections 3, 4, 5 |
+| 11 | Identity recovery and the re-registration boundary stated; returning on a second device recorded as a known gap | Sections 3, 4, 5 |
 | 12 | The go/no-go conditional on M1; tier 2 as the second fallback, decided on 1 November; the phase budget stated as hours available alongside other coursework | Section 6 |
-| 13 | Permissionless transitions throughout; ERC-2771 credited correctly; tier 2 and tier 3 trees described as a replacement; proving time written as a hypothesis; E4 measuring the no-wallet path | Sections 3, 4, 5, 6 |
+| 13 | Permissionless transitions throughout; ERC-2771 credited correctly; tier 2 and tier 3 trees described as a replacement; proving time written as a hypothesis; the no-wallet path stated | Sections 3, 4, 5, 6 |
 
 ## Cheat sheet
 
@@ -1894,28 +1894,29 @@ from Created or Registration and only before voting opens. Every transition is g
 **Events.** `ElectionCreated`, `VoterRootPublished`, `VoteCast`, `Finalized`. These four are what
 the audit dashboard replays.
 
-**Evaluation parameter families.** A1 to A5 cost, B1 to B5 performance, C1 to C5 scalability, D1
-to D9 security and correctness, E1 to E5 usability. **C1 is gas against voter-roll size at rolls of
-10, 10^2, 10^3, 10^4, 10^5, and it makes three predictions: registration flat, the tier 3 ballot
-flat to within one percent, the tier 2 ballot rising with log2(n) because the path travels in
-calldata. The line it is measured against is on-chain enrolment, one leaf insertion per voter at
-roughly 22,100 gas, which rises linearly. Say before the graph that tier 3 is expected to cost
-more per ballot in absolute terms at every roll size we can measure. The registration line is flat
-by construction, so the parameters that can genuinely fail are C2, proving time against tree
-depth, and C5, the off-chain cost.**
+**Evaluation parameter families.** Fifteen parameters: A1 to A2 cost, B1 to B2 performance, C1 to
+C3 scalability, D1 to D5 security and correctness, E1 to E3 usability. **C1 is gas against
+voter-roll size at rolls of 10 up to 10^5, and it makes three predictions: registration flat, the
+tier 3 ballot flat, the tier 2 ballot rising slowly because the path travels to the contract. Say
+before the graph that tier 3 is expected to cost more per ballot at every roll size we can
+measure. The registration line is flat by construction, so the parameter that can genuinely fail
+is C2: proving time, and whether a large roll can be handled in a browser at all.**
+
+**Before quoting any gas figure.** Nothing in this project has been measured. Every number below
+and every number elsewhere in this guide is either a target we set or an order-of-magnitude
+expectation from published figures. Say which it is when you quote it. "We expect roughly 200k gas
+for the proof check, and A1 measures it in November" is a good answer; stating it flat is a claim
+you cannot support, and an examiner who asks where it came from has caught you.
 
 | Number | Value |
 | :-- | :-- |
-| `castVote` gas budget (A1) | under 400,000, of which the Groth16 pairing check is about 200k to 250k, plus the ballot counter's warm write for the roll-size check |
+| `castVote` gas budget (A1) | under 400,000, a target rather than a measurement |
 | Groth16 proof | 8 field elements, 256 bytes, constant at every tree depth |
-| Cost per ballot | about 0.009 POL, target under INR 0.50 (A2) |
-| Cold storage write | about 20,000 gas |
-| Merkle depth | 4 for a roll of 10, 17 for a roll of 100,000 |
-| Tally latency targets | B1 p95 under 10 s end to end, B2 p95 under 5 s proving on a mid-range phone, B5 indexer lag under 3 s |
+| Cost per ballot | target under INR 0.50 (A2), with the gas price and token price stated beside it |
+| Latency targets | B1 p95 under 10 s end to end, B2 p95 under 5 s proving on a mid-range phone |
 | Repetitions | n at least 30 per data point, report median and p95 |
-| Faucet reality | about 0.1 POL per claim per day, so a 200-ballot load run on Amoy is not fundable |
-| Usability targets | E1 at most 4 steps, E2 zero POL held, E3 over 80 percent of 10 users unaided, E4 under 5 minutes, E5 a working path for a voter returning on a second device |
-| Clone saving (A5) | target above 90 percent against a fresh deployment |
+| Faucet reality | testnet faucets cannot fund a sustained load run, so throughput runs on a local node |
+| Usability targets | E1 at most 4 steps, E2 zero POL held, E3 over 80 percent of 10 users unaided |
 
 | Date | What |
 | :-- | :-- |
@@ -1931,8 +1932,8 @@ depth, and C5, the off-chain cost.**
 | **30 Sep 2026** | **Ethereum Sepolia end-of-life, seven weeks before the demo, which is why the primary testbed is Polygon Amoy, chain id 80002 and why nothing in the plan deploys to Sepolia at all** |
 
 **Testbeds.** Anvil local for gas and throughput (deterministic, free). Polygon Amoy, chain id
-80002, for latency and the live demo. Gas is identical across EVM chains, so A3 is a price model
-over one gas figure rather than a second measurement campaign on another network.
+80002, for latency and the live demo. Gas is identical across EVM chains, so cost is priced from
+one gas figure rather than measured again on another network.
 
 **Schedule honesty.** The phase budget assumes the hours available alongside other coursework,
 and the feature freeze on 8 November exists partly to absorb examination periods. Say that if
@@ -2011,9 +2012,9 @@ frontend host).
 | **Scope** | The election identifier mixed into the nullifier so ballots cannot be linked across elections |
 | **Semaphore v4** | The audited anonymous-group-membership protocol supplying our circuit, verifier and nullifier scheme |
 | **Signal** | The public input carrying the candidate choice, bound into the proof so it cannot be altered in transit |
-| **Slither** | Static analyser for Solidity; findings by severity are reported as parameter D7 |
+| **Slither** | Static analyser for Solidity; run on the Phase 3 checklist rather than reported as a parameter |
 | **Soundness** | The property that a prover without a valid witness cannot produce an accepted proof |
-| **SSTORE** | The EVM opcode that writes a storage slot; about 20,000 gas when the slot was empty |
+| **SSTORE** | The EVM opcode that writes a storage slot |
 | **Sybil resistance** | Resistance to one person enrolling as many; explicitly not guaranteed at our registrar |
 | **Trusted forwarder** | The one contract address `Election` will accept an appended sender from |
 | **Trusted setup** | The circuit-specific ceremony Groth16 needs; leftover randomness would allow forged proofs |
