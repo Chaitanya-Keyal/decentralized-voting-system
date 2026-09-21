@@ -46,7 +46,7 @@ dashboard reads the chain through a public RPC endpoint, never this backend:
 registrar and relayer are conveniences, the indexer a cache. With every
 service off or lying, an observer can re-verify every proof and recompute the
 tally from the \texttt{VoteCast} logs. Correctness asks nobody to trust the
-operators; liveness and the franchise still do. D5 tests correctness.
+operators; liveness and the franchise still do.
 
 Both liveness dependencies have escapes: the registrar is needed to register,
 not to vote, and the relayer only by a voter holding no gas. The second

@@ -43,14 +43,14 @@
 It cannot finalize: closing voting and fixing the result are permissionless
 once their timestamps pass, so it cannot stall a poll it is losing. Every act
 reserved to it precedes the first ballot and emits an event. More power would
-let it enrol itself; with less, no election could be convened (D5).
+let it enrol itself; with less, no election could be convened.
 
 \paragraph{Registrar.}
 Eligibility is an off-chain fact whose evidence must never reach a public
 ledger, so the registrar checks it (institute email plus a one-time password)
 and publishes only the root, roll size and leaf set identifier. The booth
 derives its own path from that set, so the registrar is absent from the ballot
-path (FR15). The root freezes when registration closes, since a registrar able
+path. The root freezes when registration closes, since a registrar able
 to append leaves mid-vote could manufacture ballots.
 
 \paragraph{Voter.}
@@ -69,13 +69,13 @@ roster and manifesto identifier are on-chain, so substitution is detectable,
 and the tally is public.
 
 \paragraph{Auditor and observer.}
-Auditing needs no registration or approval: FR12 makes the ballots, tally, root
-and roll size public, and NFR11 covers the roll check. An audit through this
-project's backend would verify the operator, not the chain; D5 recomputes the
-tally with it off.
+Auditing needs no registration or approval, because the ballots, the tally, the
+root and the roll size are all public. An audit conducted through this project's
+backend would verify the operator rather than the chain, so the result must be
+recomputable with that backend switched off.
 
 \paragraph{Relayer.}
-The relayer exists so a voter need not acquire cryptocurrency (FR10). It
+The relayer exists so a voter need not acquire cryptocurrency. It
 cannot alter a ballot: the nullifier and candidate signal are bound inside the
 proof, and the relayed request is only accounting. The booth builds its own
 path, so the relayer is the only service this project must keep answering
