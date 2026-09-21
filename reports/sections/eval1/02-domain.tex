@@ -49,7 +49,7 @@ the gap is known. And a voter's only evidence is a confirmation screen written
 by the same system that would have dropped the ballot.
 
 The duplicate-vote row carries one qualification: it rests on the proof
-system's soundness, and so on the trusted setup that Section~4 states.
+system's soundness, and so on the trusted setup that Section~3 records as an assumption.
 
 \subsection{Why paper is not the answer either}
 
@@ -93,10 +93,7 @@ Four things it does not fix.
 
         Exclusion is caught only per voter. The booth downloads the published
         leaf set and derives its own authentication path, so each voter can
-        check that their own commitment is present. The remedy is to stop
-        trusting one registrar: split the role across parties, or have candidate
-        observers co-sign the entries before the root is frozen. Neither is
-        built. So \projectname{} removes the operator from the box and the
+        check that their own commitment is present. Removing it means not trusting a single registrar, which is out of scope here. So \projectname{} removes the operator from the box and the
         count, and leaves one party in control of the franchise. Section~3 lists
         roll correctness as a non-guarantee.
 
@@ -121,9 +118,7 @@ Four things it does not fix.
         nullifier. That works remotely and in bulk, and anonymity removes the
         forensic trail logs would have left. It is the right trade against an
         operator who controls the roll, box and count, and the wrong one
-        against a candidate with cash and a small electorate. MACI-style key
-        rotation is the known answer and is beyond this schedule; Section~3
-        records coercion and the sale of a credential as non-guarantees.
+        against a candidate with cash and a small electorate. Section~3 records coercion and the sale of a credential as non-guarantees.
 \end{itemize}
 
 Section~4's design attempts transparency and secrecy together: eligibility

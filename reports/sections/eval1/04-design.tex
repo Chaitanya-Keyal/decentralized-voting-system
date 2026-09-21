@@ -55,8 +55,7 @@ drop only ballots for the candidate it dislikes, and turnout below the roll
 size hides it. Direct submission bounds the attack, but only for a voter
 already holding gas. The answer is accountability, not prevention: a signed
 receipt for every accepted ballot, and a booth warning offering direct
-submission if no transaction hash arrives before a deadline. Encrypted ballots
-or independent relayers would remove it; neither is built.
+submission if no transaction hash arrives before a deadline. Removing it rather than bounding it is out of scope.
 
 Ballot secrecy is conditional. Against the chain it is unconditional: no
 on-chain value links an address or identity to a ballot. Against the operator
@@ -173,8 +172,7 @@ Two limits. The identity secret is a bearer credential: its holder computes
 the nullifier and casts the ballot, and with a deterministic nullifier and no
 rotation the seller cannot cast a competing one, so selling it sells the vote
 irrevocably. Anonymity also removes the forensic trail a centralized system
-leaves in logs. Vote buying stays a non-guarantee, and MACI-style key rotation
-is out of reach in eight weeks.
+leaves in logs. Vote buying stays a non-guarantee.
 
 \subsection{Scalability strategy}
 
@@ -229,8 +227,7 @@ make stuffing visible, since the registrar picks the number. What is real is
 that the capacity to stuff is fixed in public before any ballot exists and
 \texttt{castVote} refuses ballots past it, where a hosted system can add rows
 at close of poll knowing the gap. The remedy is to stop trusting one
-registrar, by splitting the role or having candidate-appointed observers
-co-sign the leaf set; neither is built.
+registrar, which is out of scope here.
 
 C1 measures registration and ballot gas across rolls from $10$ to $10^5$. Flat
 registration follows from the design on paper, but C1 measures the

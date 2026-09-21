@@ -202,8 +202,7 @@ Six properties \projectname{} does not guarantee:
         irrevocably: the nullifier is deterministic and there is no key
         rotation. The buyer verifies delivery on-chain, remotely and in bulk,
         so here the design is worse than a paper ballot, which lets a coerced
-        voter lie. The remedy, MACI-style key rotation, needs a coordinator and
-        circuit work this schedule cannot fit.
+        voter lie. Resisting it is out of scope.
   \item \emph{Sybil resistance at the registrar.} A dishonest registrar can
         enrol identities matching no real person, and publishing the roll size
         does not make that detectable: registration is voluntary, so nobody
@@ -211,8 +210,7 @@ Six properties \projectname{} does not guarantee:
         detection: the number is fixed and public before any ballot exists, and
         \texttt{castVote} refuses ballots past it. A registrar can still enrol
         phantom leaves early and spend them late for whichever candidate the
-        running tally needs. The remedy is a split registrar, or observers
-        co-signing the leaf set; neither is built.
+        running tally needs. Removing it means not trusting a single registrar, which is out of scope here.
   \item \emph{Roll correctness.} Nothing forces the frozen roll to match who
         actually registered: a registrar can drop or substitute a commitment
         and the leaf set still reproduces the published root, since recomputing
@@ -226,9 +224,7 @@ Six properties \projectname{} does not guarantee:
         conditional on separation. With the freedom to refuse, this is one
         attack: dropping only the ballots naming one candidate alters the
         result, and turnout below the roll size hides it. FR10's receipt and
-        FR13's deadline warning bound it, and FR9 only helps a voter holding
-        gas; removing it needs encrypted ballots or several independent
-        relayers.
+        FR13's deadline warning bound it, and FR9 only helps a voter holding gas. Removing the attack rather than bounding it is out of scope.
   \item \emph{Network-level anonymity.} A relayer or RPC provider sees the IP a
         ballot arrives from, and an operator that also ran registration holds
         the address that person registered from. The relayer strips what
@@ -239,9 +235,7 @@ Six properties \projectname{} does not guarantee:
         they arrive, so a partial result is visible while voting is open and
         can sway voters yet to cast. It also erodes ballot secrecy: timestamped
         \texttt{VoteCast} events with a public counter let anyone who knows
-        when a person voted narrow the anonymity set. Hiding it needs
-        homomorphic or commit-reveal tallying, which adds a phase the Section~4
-        lifecycle does not model.
+        when a person voted narrow the anonymity set. Hiding it would need a tallying scheme this design does not implement.
 \end{itemize}
 
 Each follows from a scope decision; the remedies above are future work.
