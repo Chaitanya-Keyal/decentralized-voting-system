@@ -46,21 +46,17 @@ limit with its reason; in outline they are these.
         the voter submits directly.
   \item \emph{The relayer can censor selectively}, dropping only ballots for the
         candidate it dislikes. The record shows nothing, because low turnout is normal.
-        Signed receipts and a booth deadline warning bound that attack rather than
-        removing it; removing it needs encrypted ballots or several independent
-        relayers, which we do not build.
+        Signed receipts and a booth deadline warning bound that attack rather
+        than removing it.
   \item \emph{Roll correctness} is not guaranteed. The registrar can enrol commitments
         for people who do not exist and omit real registrants. Publishing the roll size
         does not make stuffing detectable, because the registrar sets that number and
         nobody else knows the true figure. It only commits the stuffing capacity before
-        any ballot exists. The remedy we do not build is splitting the registrar across
-        parties, or having observers co-sign the leaf set.
+        any ballot exists.
   \item \emph{Coercion} is not resisted. A voter can hand over the identity secret,
         which both proves their vote and lets the coercer cast it.
-  \item \emph{Eligibility rests on a trusted setup.} Groth16 needs a circuit-specific
-        ceremony, so we use Semaphore's published phase-two artifacts and verify their
-        hashes. Collusion by every contributor would let forged proofs verify, and the
-        roll-size cap limits the damage.
+  \item \emph{Eligibility rests on a trusted setup} that this group did not run.
+        If it was compromised, forged proofs would verify.
   \item \emph{Two further exposures:} an RPC provider sees the source IP, and the
         running tally is visible while voting is open.
 \end{itemize}

@@ -10,7 +10,7 @@ carries its reasoning and the alternative it beat.
 | **Solidity `^0.8.28`** | Vyper, Rust/Solana | Largest ecosystem, matches the course, and one language for the local node and the public testbed alike |
 | **Foundry** (forge/cast/anvil) | Hardhat 3, Truffle | Tests are written *in Solidity*, so there is no context-switching, and the course is about Solidity. `forge snapshot` emits per-function gas numbers for free, which is literally one of our graded evaluation parameters. Built-in fuzzing gives us adversarial ballot tests cheaply. Single toolchain, one language. |
 | **OpenZeppelin Contracts 5.x** | Hand-rolled | Audited `AccessControl`, `ERC2771Forwarder`, `MerkleProof`, `Clones`. Writing our own access control in a security-focused project would be indefensible. |
-| **EIP-1167 minimal proxies** | Deploy a fresh `Election` each time | Deploying election #50 should drop from roughly 2M gas to roughly 45k. Parameter A5 measures that rather than repeating it. |
+| **EIP-1167 minimal proxies** | Deploy a fresh `Election` each time | Deploying election #50 should drop from roughly 2M gas to roughly 45k. rather than repeating it. |
 | **Semaphore v4** | Custom circom circuits, MACI | Audited, maintained, has the exact primitive we need (anonymous group membership + nullifier). Writing our own circuits would consume the entire project budget. We use its verifier and nullifier scheme but **not** its on-chain group management; the tree is built off-chain so registration stays O(1) in gas. Groth16 needs a circuit-specific trusted setup, so the eligibility guarantee rests on one: we take the published phase-two ceremony artifacts for the Semaphore circuits and verify their hashes against the Semaphore repository rather than running a ceremony of our own. If every contributor to that ceremony colluded, forged membership proofs would verify, which is why the contract also caps accepted ballots at the declared roll size. MACI adds coercion resistance but needs a coordinator and far more infrastructure than the schedule allows. |
 
 > **Note on Hardhat:** Hardhat 3's Rust rewrite closed most of the speed gap and it wins
@@ -57,7 +57,7 @@ wherever the transaction ran. The second reason is the naming point above: Polyg
 a sidechain, so pricing it against Ethereum compares two EVM fee markets and is not a
 result about rollup economics.
 
-A3 is redefined accordingly. It prices the single gas figure A1 produces under several fee
+A2 states the gas price and token price it used, so the rupee figure can be recomputed. It prices the single gas figure A1 produces under several fee
 regimes (Ethereum mainnet, Polygon PoS mainnet, Polygon Amoy) and reports a band across a
 range of gas prices instead of one number, because a quote taken on one afternoon is a
 screenshot rather than a cost. It needs no second network, which is why dropping Sepolia
@@ -87,7 +87,7 @@ benchmark methodology in [evaluation-parameters.md](evaluation-parameters.md).
 | **Node 22 + TypeScript + Fastify** | Express, NestJS | Same language as the frontend (shared types across the whole repo), faster than Express, lighter than NestJS |
 | **PostgreSQL + Prisma** | MongoDB | The indexer's data is relational (elections → candidates → ballots) and we want transactional integrity on the registrar's voter records |
 | **viem** (server-side too) | ethers | One chain library across frontend, backend, and codegen |
-| **IPFS via Pinata** | On-chain storage | Storing a 2KB manifesto on-chain should cost roughly 40x the gas of a 32-byte CID, and parameter A4 measures the gap rather than assuming it. |
+| **IPFS via Pinata** | On-chain storage | Storing a 2KB manifesto on-chain should cost roughly 40x the gas of a 32-byte CID. rather than assuming it. |
 | **BullMQ + Redis** | Naive async | Relayer needs a durable, rate-limited queue; a dropped ballot is a lost vote |
 
 ## Repository and tooling

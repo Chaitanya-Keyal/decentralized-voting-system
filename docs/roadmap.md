@@ -174,10 +174,10 @@ No feature work. Run the full measurement campaign from
 - Full sweep of the A, B, C, D and E families, with no parameter left without either a
   committed number or a written statement of why it has none
 - Raw CSVs committed to `bench/results/`; graphs generated from them by script, not by hand
-- A3 is a desk calculation and not a second deployment. Identical bytecode consumes identical
+- There is no second deployment and no cross-network comparison. Identical bytecode consumes identical
   gas on either chain, so running the suite twice would produce two copies of the A1 number,
   and the whole of the difference between networks is a fee market denominated in worthless
-  test tokens. A3 prices the single A1 figure under Ethereum mainnet, Polygon PoS mainnet and
+  test tokens. A2 prices the single A1 figure under the fee conditions it records, and
   Amoy conditions, and reports a band across a range of gas prices rather than a point
 - Eval 2 report drafted section by section against the template
 
@@ -249,5 +249,5 @@ Step 6 is what distinguishes this from a database with extra steps. Rehearse it.
 | Relayer drops the ballots for one candidate | High | Bounded, not removed: a signed receipt for every accepted ballot, so a dropped one becomes a signed promise it did not keep, and the booth warns and offers direct submission if no transaction hash appears before a deadline. Removing it needs encrypted ballots or several independent relayers, neither of which we build |
 | Faucet drip too slow for load testing | Medium | Throughput tests run on Anvil; pre-fund Amoy wallets from multiple faucets, starting early |
 | Relayer unreachable during the live demo | Medium | Free-tier deploy plus a tunnel; pre-funded wallets let voters bypass it entirely |
-| Sepolia end of life (30 Sep) | Closed | We are not exposed: Sepolia is not used at all, everything deploys to Amoy with Anvil locally, and A3 is a desk calculation over fee regimes rather than a live Layer-1 run |
+| Sepolia end of life (30 Sep) | Closed | We are not exposed: Sepolia is not used at all, everything deploys to Amoy with Anvil locally|
 | Schedule slip late in the term | High | 8 Nov feature freeze exists specifically to absorb it |

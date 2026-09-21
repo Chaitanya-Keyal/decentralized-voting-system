@@ -29,7 +29,7 @@ the contract layer, holding every fact that decides the election
     the candidate. Proving should take seconds, not milliseconds, an
     assumption B2 tests on real handsets.
   \item The booth wraps \texttt{castVote} in an ERC-2771 request, signs it with
-    an EIP-712 signature that moves no balance, and posts it to the relayer,
+    a signature that moves no balance, and posts it to the relayer,
     which verifies the proof off-chain before spending gas, then submits
     through \texttt{VoteForwarder}. Eligibility comes from the proof alone,
     so the appended signer is never checked against the roll: the key can be
@@ -82,20 +82,17 @@ pinned in the contract.
 \texttt{VoterRegistry} holds the membership root, roll
 size and IPFS leaf-set identifier, in one registrar transaction. The root
 freezes at close of registration, fixing the electorate, and \texttt{castVote}
-requires spent nullifiers never to exceed the roll size: a comparison plus a
-warm write of about 2,900 gas (A1). \texttt{TallyLib} keeps the counting rules
+requires spent nullifiers never to exceed the roll size, which costs one
+comparison against a value already in storage. \texttt{TallyLib} keeps the counting rules
 in a library, so a second method needs no lifecycle change: plurality first,
 approval voting if time allows. \texttt{VoteForwarder} is an OpenZeppelin
 \texttt{ERC2771Forwarder}: it checks signature, deadline and nonce and gives
 one code path for sponsored and direct submission.
 
 The forwarder is a convenience, not a security control: the proof stops a
-relayer altering a ballot, the nullifier stops a replay. Its rent is mostly a
-nonce slot per signer, about 22,100 gas per ballot with an ephemeral key.
-Reusing a key would save most of that and link a voter's ballots across
-elections, so the ephemeral key is a privacy purchase A1 prices. If A1 is over
-budget, the first saving is dropping the forwarder and letting the relayer
-call \texttt{castVote} directly.
+relayer altering a ballot, and the nullifier stops a replay. Each ballot uses a
+fresh signing key, because reusing one would link a voter's ballots across
+elections.
 
 \begin{figure}[htbp]
   \centering
@@ -130,11 +127,10 @@ frozen behind it.
 
 \subsection{Anonymous eligibility and double-vote prevention}
 
-The system uses Semaphore v4. A voter's identity secret stays on their device;
-its commitment is a Poseidon hash of the derived public value, which the
-registrar inserts as a leaf of an incremental Merkle tree. The browser builds
-a Groth16 proof with the secret and path as private witness and the root,
-nullifier, election scope and signal hash as public inputs. The nullifier
+The system uses Semaphore v4. A voter's identity secret stays on their device,
+and the registrar records only its commitment as a leaf of the membership tree.
+The browser then builds a proof that the secret behind some leaf under the
+published root is known, without revealing which leaf. The nullifier
 hashes the secret with the election identifier: deterministic, so a second
 ballot reverts; one-way, so it reveals nothing about the secret; scoped, so a
 voter's nullifiers in two elections cannot be linked. Binding the signal into
@@ -171,7 +167,7 @@ would carry the address in the clear and the choice as an argument, and the
 registrar's roll ties addresses to people, so it would publish a signed record
 of how everyone voted and make coercion enforceable. The nullifier costs the
 same storage write as the flag and adds proof verification, so anonymity is
-not free; A1 and B3 price it.
+not free; A1 prices it.
 
 Two limits. The identity secret is a bearer credential: its holder computes
 the nullifier and casts the ballot, and with a deterministic nullifier and no
@@ -182,21 +178,20 @@ is out of reach in eight weeks.
 
 \subsection{Scalability strategy}
 
-Two operations are constant in roll size: publishing a roll, one transaction
-writing a root, a roll size and a content identifier; and casting a ballot,
-the same pairing check at every depth. Both follow from building the
-membership tree off-chain and putting only its root on the chain. ``Gas does
-not grow with the electorate'' is not true; the claim is no broader.
+Two operations are constant in roll size: publishing a roll, which is one
+transaction writing a root, a roll size and a content identifier; and casting a
+tier 3 ballot, which runs the same fixed check whatever the tree depth. Both
+follow from building the membership tree off-chain and putting only its root on
+the chain. ``Gas does not grow with the electorate'' is not true, and the claim
+is no broader.
 
-Everything else grows. Total election gas is linear in ballots cast, since
-each ballot is its own transaction with its own pairing check and writes;
-turnout drives the bill, not roll size. Browser work grows with the logarithm
-of the roll, which is why C2 tracks proving time against tree depth. Off-chain
-work is linear in the roll and paid twice, by the registrar building the tree
-and each auditor rehashing it. That trade is still right, since hashing costs
-microseconds against 22,100 gas for a storage slot. It is a relocation, not a
-disappearance, so C5 measures the tree build, leaf-set size and browser
-rebuild time.
+Everything else grows. Total election gas is linear in ballots cast, since each
+ballot is its own transaction, so turnout drives the bill rather than roll size.
+Browser work grows with the roll, which is why C2 tracks proving time against
+it. Off-chain work is linear in the roll and paid twice, by the registrar
+building the tree and by each auditor rehashing it. Hashing off-chain is far
+cheaper than storing on-chain, so the trade is still worth making, but it is a
+relocation of cost rather than a disappearance.
 
 Semaphore's own group contracts are rejected for that reason. They keep the
 group in storage, where each \texttt{addMember} inserts a leaf and recomputes
@@ -212,8 +207,8 @@ In tier 2 the authentication path travels in
 calldata, costing a few hundred gas per level of depth; in tier 3 it is
 private witness data and the ballot stops depending on depth. The expectation,
 before measurement, is that the tier 3 line is flat and sits above tier 2 at
-every testable roll size, never crossing it, since a pairing check costs far
-more than thirteen Merkle levels. Anonymity is a price, not a cost win: the
+every testable roll size, never crossing it, since the proof check costs far
+more than the path it replaces. Anonymity is a price, not a cost win: the
 design adopts Semaphore's circuits, verifier and nullifier scheme, rejecting
 only its group management.
 
@@ -241,9 +236,8 @@ C1 measures registration and ballot gas across rolls from $10$ to $10^5$. Flat
 registration follows from the design on paper, but C1 measures the
 implementation: a contract that wrote commitments into storage would carry a
 linear term, and the graph would show it. If a line is not flat, Evaluation 2
-says so. Two risks sit outside the gas curve: proving time against tree
-depth (C2), and whether a hundred-thousand-leaf roll can be checked on a phone
-at all (C5).
+says so. One risk sits outside the gas curve: proving time, and whether a
+hundred-thousand-leaf roll can be handled in a browser at all (C2).
 
 \subsection{Technology choices and justification}
 
@@ -274,20 +268,18 @@ Table~\ref{tab:stack} gives the choices, alternatives and why they lost.
 
 Four rows need more. Vyper's library ecosystem is thin, and a non-EVM platform
 would have cost identical contracts on a local node and a public network.
-\texttt{forge snapshot} yields A1, A4, A5, C1 and C4 from the suite, and
+\texttt{forge snapshot} yields A1 and C1 from the suite, and
 Foundry's fuzzer supplies the adversarial ballot tests D1 needs; Hardhat 3
 wins on TypeScript coupling, but wagmi types Foundry ABIs anyway.
 
-OpenZeppelin's \texttt{MerkleProof} belongs to tier 2 only, and that is not
-cosmetic: it verifies a keccak256 tree over sorted pairs, while the Semaphore
-circuit constrains a Poseidon tree over the BN254 scalar field. A keccak root
-is not a valid input there, being unconstrained below the field modulus. Tier 3
-therefore replaces the tree builder, the registry's notion of a root and the
-verification path; lifecycle, factory, indexer and gas baseline carry over.
+OpenZeppelin's \texttt{MerkleProof} belongs to tier 2 only. The two tiers hash
+their trees differently, so tier 3 replaces the tree builder, the registry's
+notion of a root and the verification path. Lifecycle, factory, indexer and gas
+baseline carry over.
 
 An EIP-1167 clone is a few dozen bytes delegating to one shared
-implementation, so deployment cost should fall by an order of magnitude; A5
-tests that. A defect there would affect every election, accepted because the
+implementation, so deploying an election costs far less than deploying a fresh
+contract. A defect there would affect every election, accepted because the
 implementation is immutable, where an upgradeable one would let the authority
 rewrite the rules mid-vote.
 
@@ -315,9 +307,9 @@ price.
 
 There is no layer-1 against layer-2 comparison, and none is needed. Identical
 EVM bytecode burns identical gas on any EVM chain; only the fee market and
-token price differ. A3 prices the measured gas under several fee regimes and
-reports a band, not one number, any rupee figure being an illustration.
-Polygon PoS is a checkpointed sidechain, not a rollup.
+token price differ. A2 therefore states the gas price and token price it used,
+so any rupee figure is an illustration rather than a forecast. Polygon PoS is a
+checkpointed sidechain, not a rollup.
 
 Anvil takes what needs no public network: instant, free, reproducible. Gas is
 deterministic given the same bytecode and calldata, so gas parameters are

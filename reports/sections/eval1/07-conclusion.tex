@@ -19,29 +19,22 @@ The constant-cost claim is per operation, not per election: total gas still
 grows with ballots cast, and the roll-sized work moved onto the registrar, the
 auditors and the booth.
 
-The gaps in Section~3 are carried here as future work. Eligibility rests on a
-trusted setup this group did not run; we verify the hashes of Semaphore's
-published ceremony artifacts, but collusion by every contributor would let
-forged proofs verify undetectably. Roll correctness is not guaranteed, because
-one registrar decides who is enrolled. Publishing the roll size does not make
-stuffing detectable; it only commits the capacity to stuff before any ballot
-exists. Fixing that needs the registrar split across parties, or observers
-co-signing the leaf set before the root freezes.
+The gaps in Section~3 stand. Eligibility rests on a trusted setup this group did
+not run. Roll correctness is not guaranteed, because one registrar decides who
+is enrolled, and publishing the roll size does not make stuffing detectable. A
+voter can be coerced into handing over their secret. Secrecy from the operator
+holds only while the relayer runs separately from the registrar, or the voter
+submits directly. The running tally is public while voting is open.
 
-Three more limits stand. Coercion and credential sale need MACI-style key
-rotation. Secrecy from the operator holds only while the relayer runs separately
-from the registrar, or the voter submits directly, because the relayer reads the
-choice and the source IP and can drop ballots naming one candidate. Tally
-secrecy during voting needs commit-reveal or homomorphic tallying. So
-\projectname{} removes the operator from the ballot box and from the count, and
-leaves one party in control of the franchise.
+So \projectname{} removes the operator from the ballot box and from the count,
+and leaves one party in control of the franchise. Each of these gaps is recorded
+as future work rather than answered here.
 
 Nothing here has been measured. Evaluation 2 replaces these expectations with
 numbers against the parameters in Section~5. C1 measures registration and ballot
 gas from ten voters to a hundred thousand; tier 3 should be flat, and above tier
-2 throughout, which is the price of anonymity rather than a saving. C2 and C5
-guard the flank that leaves open: proving time against tree depth, and whether a
-hundred-thousand-leaf roll rebuilds in a browser. A3 prices the A1 gas figure
-under three fee regimes as a band. D5 needs no graph at all: with our backend
+2 throughout, which is the price of anonymity rather than a saving. C2 guards the
+flank that leaves open: whether a hundred-thousand-leaf roll can be handled in a
+browser at all. D4 needs no graph at all: with our backend
 switched off mid-demonstration, the audit dashboard must still read the chain
 and recompute the tally. Missed targets will be reported too.

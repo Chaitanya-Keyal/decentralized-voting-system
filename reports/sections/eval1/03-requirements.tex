@@ -43,7 +43,7 @@
 It cannot finalize: closing voting and fixing the result are permissionless
 once their timestamps pass, so it cannot stall a poll it is losing. Every act
 reserved to it precedes the first ballot and emits an event. More power would
-let it enrol itself; with less, no election could be convened (D6).
+let it enrol itself; with less, no election could be convened (D5).
 
 \paragraph{Registrar.}
 Eligibility is an off-chain fact whose evidence must never reach a public
@@ -77,7 +77,7 @@ tally with it off.
 \paragraph{Relayer.}
 The relayer exists so a voter need not acquire cryptocurrency (FR10). It
 cannot alter a ballot: the nullifier and candidate signal are bound inside the
-proof, and the EIP-712 request is only accounting. The booth builds its own
+proof, and the relayed request is only accounting. The booth builds its own
 path, so the relayer is the only service this project must keep answering
 during voting. That it reads the choice while also deciding whether to forward
 is conceded below as one attack.
@@ -96,7 +96,7 @@ is conceded below as one attack.
   \addlinespace[2pt]
   FR2 & Permit candidate changes only in \texttt{Created} or \texttt{Registration}. & Errors must be fixable, but a roster changing mid-vote alters the meaning of ballots already cast. \\
   \addlinespace[2pt]
-  FR3 & Publish the ballot description and each manifesto to IPFS, storing the content identifier on-chain. & Voters need a readable statement; the committed identifier makes substitution detectable at constant cost (A4). \\
+  FR3 & Publish the ballot description and each manifesto to IPFS, storing the content identifier on-chain. & Voters need a readable statement; the committed identifier makes substitution detectable. \\
   \addlinespace[2pt]
   FR4 & Let the Registrar check eligibility off-chain and accept each identity commitment, writing no personal data on-chain. & Only the Registrar can establish this off-chain fact, whose evidence must never reach a public ledger. \\
   \addlinespace[2pt]
@@ -141,21 +141,21 @@ is conceded below as one attack.
   \addlinespace[2pt]
   NFR4 & \emph{Individual verifiability.} A voter can locate their own ballot in chain data using only what their client holds, and confirm their commitment in the leaves beforehand. & D4 \\
   \addlinespace[2pt]
-  NFR5 & \emph{Universal verifiability.} Any party can recompute the tally from raw chain logs and reach the published result. & D5, with this project's backend off \\
+  NFR5 & \emph{Universal verifiability.} Any party can recompute the tally from raw chain logs and reach the published result. & D4, with this project's backend off \\
   \addlinespace[2pt]
-  NFR6 & \emph{Integrity of the count.} Tallies move only on the ballot-acceptance path, and no role, the Authority included, can alter a tally, stop the count or withhold finalization. & D6, with D7 for static analysis and D8 for coverage \\
+  NFR6 & \emph{Integrity of the count.} Tallies move only on the ballot-acceptance path, and no role, the Authority included, can alter a tally, stop the count or withhold finalization. & D5 \\
   \addlinespace[2pt]
-  NFR7 & \emph{Cost of running an election.} A ballot including proof verification stays under 400,000 gas and under INR 0.50 on Polygon Amoy; a new election deploys as a clone. & A1 and A2 per ballot, A3 across fee regimes, A5 for the clone saving \\
+  NFR7 & \emph{Cost of running an election.} A ballot including proof verification stays under 400,000 gas and under INR 0.50 on Polygon Amoy; a new election deploys as a clone. & A1 and A2 \\
   \addlinespace[2pt]
-  NFR8 & \emph{End-to-end latency.} The 95th percentile from click to on-chain inclusion on Polygon Amoy stays under 10 seconds, of which browser proving is under 5 seconds on a mid-range phone. & B1 and B2, with B3 for verification gas and B5 for dashboard lag \\
+  NFR8 & \emph{End-to-end latency.} The 95th percentile from click to on-chain inclusion on Polygon Amoy stays under 10 seconds, of which browser proving is under 5 seconds on a mid-range phone. & B1 and B2 \\
   \addlinespace[2pt]
-  NFR9 & \emph{Scalability in the electorate.} Gas per operation is constant in the number of enrolled voters once a ballot carries FR7's proof, since neither the root nor the proof grows with the roll. The plain Merkle-proof baseline differs at the ballot, whose authentication path grows with tree depth. Browser proving time grows with the logarithm of the roll. The claim is per operation: election cost stays linear in ballots cast. & C1 and C2, C3 for the concurrency ceiling, C4 for constant cost in candidates \\
+  NFR9 & \emph{Scalability in the electorate.} Gas per operation is constant in the number of enrolled voters once a ballot carries FR7's proof, since neither the root nor the proof grows with the roll. The plain Merkle-proof baseline differs at the ballot, whose authentication path grows with tree depth. Browser proving time grows with the logarithm of the roll. The claim is per operation: election cost stays linear in ballots cast. & C1 and C2, with C3 for the concurrency ceiling \\
   \addlinespace[2pt]
-  NFR10 & \emph{No cryptocurrency held by the voter.} Registration and voting complete while the voter holds a zero balance. & E2, with E1 and E4 for actions and time \\
+  NFR10 & \emph{No cryptocurrency held by the voter.} Registration and voting complete while the voter holds a zero balance. & E2, with E1 for actions \\
   \addlinespace[2pt]
-  NFR11 & \emph{Auditability of the voter roll.} The root, roll size and leaf set identifier are on-chain and the leaves published, so anyone can recompute the root and compare it, and a voter can find their commitment. Two limits belong to the requirement: the check costs work linear in the roll, paid by each auditor separately; and it shows only that the leaves produce the root, never that they are real people. & D5 extended to the root, and C5 for its cost at each roll size \\
+  NFR11 & \emph{Auditability of the voter roll.} The root, roll size and leaf set identifier are on-chain and the leaves published, so anyone can recompute the root and compare it, and a voter can find their commitment. Two limits belong to the requirement: the check costs work linear in the roll, paid by each auditor separately; and it shows only that the leaves produce the root, never that they are real people. & D4 extended to the root \\
   \addlinespace[2pt]
-  NFR12 & \emph{Availability of the public result path.} The result stays readable and verifiable while every service this project runs is offline. & D5, and D9 for reorganization recovery on the convenience path \\
+  NFR12 & \emph{Availability of the public result path.} The result stays readable and verifiable while every service this project runs is offline. & D4 \\
   \addlinespace[2pt]
   NFR13 & \emph{Operability by a non-specialist.} A voter with no cryptocurrency experience casts a ballot unaided, read as more than eight of ten E3 participants finishing without help. & E3 for completion, E1 capping actions at four \\
 \end{longtable}

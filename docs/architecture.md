@@ -429,7 +429,7 @@ Dropping Sepolia costs less than it appears, because the comparison it was meant
 not an experiment. Gas is a function of the EVM and the bytecode, so an identical suite consumes
 identical gas on Sepolia and on Amoy; the entire difference is a fee market, and both tokens are
 worthless testnet tokens, so any rupee figure has to be imported from mainnet price feeds
-anyway. A3 is therefore cost per ballot computed from the single A1 gas figure, priced under
+anyway. A2 is therefore cost per ballot computed from the single A1 gas figure, priced under
 Ethereum mainnet, Polygon PoS mainnet and Amoy conditions, and reported with a sensitivity band
 over gas price rather than as a single number. If a live layer-1 figure is still wanted in
 November, we name a successor testnet rather than one with a published shutdown date.
