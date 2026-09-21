@@ -1,0 +1,55 @@
+% ===========================================================================
+\section{References}
+% ===========================================================================
+
+This list holds the normative standards the contracts must conform to and the
+official documentation for the components the design depends on. It is not a
+literature survey, and it does not restate Table~\ref{tab:stack}.
+
+Two Ethereum standards fix the contract layer. ERC-1167 specifies the minimal
+proxy that \texttt{ElectionFactory} clones for each election \cite{eip1167}.
+The clone is a few dozen bytes and delegates every call to one shared
+implementation. Parameter A5 measures whether the saving over deploying a fresh
+\texttt{Election} exceeds 90\%; we do not assume it. ERC-2771 specifies the
+trusted-forwarder convention that \texttt{Election} inherits and
+\texttt{VoteForwarder} implements \cite{erc2771}. Under it a contract treats the
+signer of a relayed request, not the forwarder, as the sender. It is cited for
+one reason: it binds the voter's signature to the whole request, so the relayer
+that pays the gas cannot alter or replay what it forwards. Eligibility is
+decided by the proof, never by that signer address.
+
+The anonymity scheme follows the Semaphore protocol documentation
+\cite{semaphore}: identity commitment, membership proof against a published
+root, and a nullifier derived from the identity secret and the election
+identifier. We adopt Semaphore's circuits, verifier and nullifier scheme. We do
+not adopt its on-chain group management, because holding the membership tree in
+contract storage costs one insertion per voter and makes registration linear in
+roll size. The access control, Merkle proof, clone and ERC-2771 forwarder
+implementations come from OpenZeppelin Contracts 5.x \cite{openzeppelin} rather
+than from hand-written code. Reimplementing audited primitives in a project
+about security is hard to defend at review. The contracts target the Solidity
+0.8.28 language reference \cite{solidity} and are built, tested and gas-profiled
+with Foundry \cite{foundry}, whose \texttt{forge snapshot} output is the
+intended source of the gas figures parameter A1 calls for.
+
+Two sources settle the testbed. The Ethereum Foundation's testnet update gives
+30 September 2026 as the end of life for Sepolia \cite{sepoliaeol}. That is why
+Sepolia is not used at all: the first deployable contract lands with M1 in
+October, so no day exists on which both a live Sepolia and a working contract
+exist. The Polygon documentation supplies the Amoy parameters the deployment
+scripts target, chain id 80002 and the POL gas token among them
+\cite{polygonamoy}. Amoy is the officially maintained Polygon PoS testnet and
+its lifecycle does not depend on the Sepolia sunset. Everything deploys to Amoy;
+Anvil runs locally.
+
+The off-chain artefacts, the published leaf set above all, are addressed by
+content identifier and retrieved as described in the IPFS documentation
+\cite{ipfs}. Publishing the leaf set keeps the membership tree checkable against
+the on-chain root without writing the tree to the chain, and the ballot booth
+derives its own authentication path from it. The same mechanism carries the
+candidate manifestos. The three client surfaces are built on the Next.js App
+Router \cite{nextjs} and reach the chain through wagmi \cite{wagmi} and viem
+\cite{viem}. The audit dashboard uses a public RPC endpoint directly, so a
+result can be verified without the project's own backend.
+
+\printbibliography[heading=none]

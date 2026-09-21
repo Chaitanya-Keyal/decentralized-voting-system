@@ -26,6 +26,8 @@
 \usepackage{titlesec}
 \usepackage{listings}
 \usepackage{csquotes}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds,calc}
 
 \usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
 \addbibresource{references.bib}
@@ -88,6 +90,12 @@
 \setlist[enumerate]{topsep=2pt,itemsep=2pt,parsep=0pt,leftmargin=1.6em}
 
 \captionsetup{font=small,labelfont=bf}
+
+% A page holding only floats is centred vertically by default, which strands a
+% figure in the middle of an otherwise empty page. Push those pages to the top.
+\makeatletter
+\setlength{\@fptop}{0pt}
+\makeatother
 
 % Fixed-width column types for tables that need wrapping.
 \newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}

@@ -1,0 +1,44 @@
+% ===========================================================================
+\section{Conclusion}
+% ===========================================================================
+
+An election result is acted on at once, never reconciled, so a mis-stated
+tally has no later event to expose it. An audit only moves trust to the auditor
+and to records the operator produced. \projectname{} instead puts the rules
+deciding an election into contract code on a public testbed: who may vote, when
+phases change, which ballots count. A reader who disbelieves the result
+recomputes it from the raw log, and the nullifier that stops a second ballot
+never reveals whose it was. Anonymity rests on a Merkle commitment rather than
+Semaphore's on-chain group management, which charges a transaction and a leaf
+insertion per voter. Only the root, the roll size and the leaf set's IPFS
+identifier reach the chain; the booth derives its own authentication path from
+it. The constant-cost claim is per operation, not per election. Total gas stays
+linear in ballots cast; roll-sized work moved onto the registrar, auditors
+and booth.
+
+Section~3's gaps are carried here as future work, with remedies. Eligibility
+rests on a trusted setup this group did not run. We verify the hashes of
+Semaphore's published ceremony artifacts, but if every contributor colluded,
+forged membership proofs would verify undetectably. Roll correctness is
+not guaranteed. One registrar decides who is enrolled, and publishing the roll size
+does not make stuffing detectable; it commits the capacity to stuff before any
+ballot exists. A fix needs the registrar split across parties, or observers
+co-signing the leaf set before the root freezes. Coercion and credential sale
+need MACI-style key rotation. Ballot secrecy from the operator holds only while
+the relayer runs separately from the registrar, or the voter submits directly.
+The relayer reads the choice and the source IP, and can drop ballots naming
+one candidate. Encrypted ballots or several independent relayers would remove
+both; this project builds neither. Tally secrecy during voting needs
+commit-reveal or homomorphic tallying, and network-level anonymity needs
+anonymizing transport. \projectname{} removes the operator from the ballot box
+and from the count, and leaves one party in control of the franchise.
+
+Nothing here has been measured. Evaluation 2 replaces these expectations with
+numbers against Section~5's parameters. C1 measures registration and ballot gas
+from ten voters to a hundred thousand. Tier 3 should be flat and above tier 2
+throughout: the price of anonymity, not a cost win. C2 and C5 guard the flank
+it leaves open: proving time against tree depth, whether a hundred-thousand-leaf
+roll rebuilds in a browser. A3 prices the A1 gas figure under three fee regimes
+as a band, not a point. D5 needs no graph: with our backend off
+mid-demonstration, the audit dashboard must still read the chain and recompute
+the tally. Missed targets will be reported too.

@@ -1,0 +1,147 @@
+% DVote system architecture.
+% Bare tikzpicture: \input this inside a figure environment.
+% The preamble supplies tikz with arrows.meta, positioning, shapes.geometric,
+% fit, backgrounds and calc.
+%
+% Reading conventions, all greyscale-safe:
+%   rounded outline = browser surface       dashed outline = off-chain service
+%   heavy outline   = on-chain contract     cylinder       = persistent store
+%   thin grey arrow = ordinary traffic
+%   heavy solid     = the sponsored ballot path (voter -> relayer -> chain)
+%   heavy dashed    = the audit path, which never touches the backend
+%   fine dotted     = the escape hatch, a voter submitting their own transaction
+%
+% Every off-chain writer that reaches the chain has its own arrow: the relayer
+% into VoteForwarder, the registrar into VoterRegistry, the authority's own
+% wallet into Election. Nothing in the middle band decides the result.
+\begin{tikzpicture}[
+    font=\footnotesize,
+    uibox/.style    = {draw=black, thick, rounded corners=6pt, fill=white,
+                       align=center, inner sep=3pt},
+    svcbox/.style   = {draw=black, thick, dashed, rounded corners=2pt, fill=white,
+                       align=center, inner sep=3pt},
+    store/.style    = {cylinder, shape border rotate=90, aspect=0.20, draw=black,
+                       thick, fill=white, align=center, inner sep=3pt},
+    cbox/.style     = {draw=black, line width=1.1pt, fill=black!7,
+                       align=center, inner sep=3pt},
+    layer/.style    = {draw=black!30, rounded corners=5pt, fill=black!4, inner sep=0pt},
+    layerlab/.style = {font=\footnotesize\itshape, text=black!60, inner sep=2pt},
+    flow/.style     = {-{Latex[length=2mm,width=1.6mm]}, draw=black!60, semithick},
+    ballot/.style   = {-{Latex[length=2.6mm,width=2.2mm]}, draw=blue!45!black,
+                       line width=1.3pt, rounded corners=4pt},
+    audit/.style    = {-{Latex[length=2.6mm,width=2.2mm]}, draw=blue!45!black,
+                       line width=1.3pt, rounded corners=4pt,
+                       dash pattern=on 4.5pt off 2.5pt},
+    hatch/.style    = {-{Latex[length=2mm,width=1.6mm]}, draw=black!70, semithick,
+                       rounded corners=4pt, dash pattern=on 1pt off 1.7pt},
+    lab/.style      = {align=left, inner sep=1.5pt, font=\footnotesize},
+    keylab/.style   = {align=left, inner sep=1.5pt, font=\footnotesize,
+                       text=blue!45!black},
+    slab/.style     = {align=center, inner sep=1.5pt, font=\scriptsize,
+                       fill=black!4, text=black!70},
+  ]
+
+  % ==== browser layer ====
+  \node[uibox, minimum width=4.6cm, minimum height=1.5cm] (booth) at (3.75,-0.55)
+    {\textbf{Ballot booth}\\rebuilds the tree from the\\published leaf set, proves\\in a Web Worker, no wallet};
+  \node[uibox, minimum width=4.4cm, minimum height=1.5cm] (admin) at (9.2,-0.55)
+    {\textbf{Admin console}\\configure, open each phase,\\cancel before voting;\\the authority wallet signs};
+  \node[uibox, minimum width=4.4cm, minimum height=1.5cm] (audit) at (14.1,-0.55)
+    {\textbf{Audit dashboard}\\tally recomputed from raw\\logs in the browser, over\\a public RPC endpoint};
+
+  % ==== backend layer ====
+  \node[svcbox, minimum width=2.8cm, minimum height=1.9cm] (relayer) at (3.4,-4.8)
+    {\textbf{Relayer}\\verifies the proof\\off-chain, then pays\\the gas; reads the\\choice, can drop it};
+  \node[svcbox, minimum width=2.8cm, minimum height=1.9cm] (registrar) at (7.0,-4.8)
+    {\textbf{Registrar}\\checks eligibility,\\builds the tree\\off-chain; not in\\the ballot path};
+  \node[svcbox, minimum width=2.8cm, minimum height=1.9cm] (indexer) at (10.4,-4.8)
+    {\textbf{Indexer}\\tails events into a\\read cache,\\rebuildable\\from genesis};
+  \node[svcbox, minimum width=2.8cm, minimum height=1.9cm] (pinning) at (13.8,-4.8)
+    {\textbf{Metadata}\\pins the leaf set,\\manifestos and\\ballot descriptions\\to IPFS};
+  \node[store, minimum width=2.8cm, minimum height=1.5cm] (pg) at (6.9,-7.6)
+    {\textbf{PostgreSQL}\\voter records,\\commitments,\\indexed events};
+  \node[store, minimum width=3.0cm, minimum height=1.5cm] (ipfs) at (12.0,-7.6)
+    {\textbf{IPFS (Pinata)}\\published leaf set,\\ballot metadata};
+
+  % ==== contract layer ====
+  \node[cbox, minimum width=3.2cm, minimum height=1.6cm] (fwd) at (3.3,-12.05)
+    {\texttt{VoteForwarder}\\ERC-2771: a\\convenience, not a\\security control};
+  \node[cbox, minimum width=3.6cm, minimum height=1.6cm] (reg) at (3.7,-15.05)
+    {\texttt{VoterRegistry}\\one root, roll size and\\leaf-set CID, frozen\\when registration closes;\\no commitment on-chain};
+  \node[cbox, minimum width=4.0cm, minimum height=1.8cm] (elec) at (8.8,-13.55)
+    {\texttt{Election}\\lifecycle state machine,\\nullifier set, ballot\\ceiling, tallies};
+  \node[cbox, minimum width=3.8cm, minimum height=1.6cm] (ver) at (13.4,-12.05)
+    {\texttt{SemaphoreVerifier}\\Groth16 membership\\proof; no Semaphore\\group contract on-chain};
+  \node[cbox, minimum width=3.4cm, minimum height=1.4cm] (fac) at (13.4,-15.05)
+    {\texttt{ElectionFactory}\\EIP-1167 minimal\\proxy clones};
+  \node[cbox, minimum width=3.4cm, minimum height=1.2cm] (tally) at (8.8,-16.45)
+    {\texttt{TallyLib}\\counting rules};
+
+  % ==== layer bands ====
+  \begin{scope}[on background layer]
+    \node[layer, fit=(booth)(admin)(audit), inner sep=0.35cm] (bandA) {};
+    \node[layer, fit=(relayer)(registrar)(indexer)(pinning)(pg)(ipfs),
+          inner sep=0.35cm] (bandB) {};
+    \node[layer, fit=(fwd)(fac)(elec)(ver)(reg)(tally), inner sep=0.35cm] (bandC) {};
+  \end{scope}
+  \node[layerlab, anchor=south east] at (bandA.north east)
+    {Browser: Next.js 15, wagmi, viem};
+  \node[layerlab, anchor=south west] at (bandB.north west)
+    {Off-chain services: never a source of truth};
+  \node[layerlab, anchor=south east] at (bandC.north east)
+    {Contracts on Polygon Amoy (chain id 80002)};
+
+  % ==== the sponsored ballot path ====
+  \draw[ballot] ([xshift=0.6cm]booth.south) -- ([xshift=0.95cm]relayer.north);
+  \node[keylab, anchor=north west] at (4.5,-1.85)
+    {signed ballot and zk proof,\\as a meta-transaction};
+  \draw[ballot] (relayer.south) -- ([xshift=0.1cm]fwd.north);
+  \draw[ballot] (fwd.east) -- (elec.north west);
+
+  % ==== the audit path: chain read, no backend ====
+  \draw[audit] ([xshift=1.9cm]audit.south) -- ++(0,-12.25) -- (elec.east);
+  \node[keylab, rotate=90, anchor=west] at (15.78,-9.6)
+    {reads the chain directly, never our backend};
+  \node[slab, anchor=south, text=blue!45!black] at (12.9,-13.43)
+    {no backend in this path};
+
+  % ==== escape hatch: voter submits their own transaction ====
+  \draw[hatch] ([xshift=-1.6cm]booth.south) -- ++(0,-1.35) -- (0.7,-2.65)
+    -- (0.7,-13.55) -- (elec.west);
+  \node[lab, rotate=90, anchor=west, text=black!70] at (0.88,-10.0)
+    {a voter holding gas can submit directly};
+
+  % ==== ordinary traffic ====
+  % the authority signs and funds its own transactions: the backend is not in
+  % this path either
+  \draw[flow] ([xshift=-0.5cm]admin.south) -- ([xshift=-0.1cm]elec.north);
+  \node[lab, anchor=north west] at (8.95,-1.85)
+    {the authority pays its own gas:\\create, open a phase, cancel};
+  % the booth fetches the published leaf set itself and rebuilds the tree, so
+  % the registrar never learns which leaf is voting
+  \draw[flow, rounded corners=4pt] ([xshift=1.9cm]booth.south) -- ++(0,-1.55)
+    -- (12.1,-2.85) -- ([xshift=0.1cm]ipfs.north);
+  % the registrar's only transaction
+  \draw[flow, rounded corners=4pt] (registrar.west) -- (5.2,-4.8)
+    -- ([xshift=1.5cm]reg.north);
+  \node[lab, anchor=north west, text width=3.0cm] at (5.4,-9.1)
+    {one transaction: the root, the roll size and the leaf-set CID};
+  \draw[flow] (registrar.south) -- (pg.north);
+  \draw[flow] ([xshift=-0.6cm]indexer.south) -- (pg.north east);
+  \draw[flow] (pinning.south) -- ([xshift=0.9cm]ipfs.north);
+  \draw[flow] ([xshift=0.6cm]elec.north) -- ([xshift=-1.0cm]indexer.south);
+  \node[lab, anchor=north west] at (9.6,-9.1)
+    {\texttt{VoteCast} and\\\texttt{Finalized} logs};
+
+  % ==== inside the contract layer ====
+  \draw[flow] (fac.west) -- (elec.south east);
+  \node[slab, anchor=north, rotate=28] at (11.3,-14.82) {clones};
+  \draw[flow] (elec.north east) -- (ver.west);
+  \node[slab, anchor=north, rotate=40] at (11.2,-12.32) {verifies};
+  \draw[flow, rounded corners=4pt] ([xshift=-1.4cm]elec.south) -- (7.4,-15.05)
+    -- (reg.east);
+  \node[slab, anchor=south] at (6.6,-14.98) {reads the root};
+  \draw[flow] (elec.south) -- (tally.north);
+  \node[slab, anchor=west] at (8.95,-15.1) {counts};
+
+\end{tikzpicture}

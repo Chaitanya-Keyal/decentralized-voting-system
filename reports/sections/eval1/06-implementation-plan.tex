@@ -1,0 +1,135 @@
+% ===========================================================================
+\section{Implementation Plan}
+% Source material: docs/roadmap.md, docs/architecture.md
+% ===========================================================================
+
+Three tiers describe the system (Table~\ref{tab:tiers}); only the last two
+will be built. Tier 1 is the contrast and produces no numbers: its registration
+cost grows with the electorate, and its ballots are attributable.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Build tiers.}
+  \label{tab:tiers}
+  \small
+  \begin{tabular}{@{}lL{3.9cm}L{5.3cm}L{3.0cm}@{}}
+    \toprule
+    \textbf{Tier} & \textbf{Eligibility} & \textbf{Ballot privacy}           & \textbf{Voter pays gas} \\
+    \midrule
+    1             & On-chain roll        & None; ballots linked to addresses & Yes                     \\
+    2             & Merkle root          & None                              & Yes                     \\
+    3             & Zero-knowledge proof & Anonymous, nullifier-protected    & No                      \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Tier 2 eligibility is a published root, roll size and leaf set, from which the
+booth derives its own path, not one the registrar supplies. Tier 3 replaces
+tier 2 rather than extending it: Semaphore's circuit needs Poseidon in a LeanIMT
+where tier 2 uses keccak256, so the tree builder, verification path and registry
+root are rebuilt. The lifecycle, factory, indexer and gas baseline carry
+across.
+
+Neither tier fixes roll correctness: one registrar decides who is enrolled.
+Splitting that role, or observers co-signing the leaf set before the root
+freezes, is future work.
+
+Tier 2 ships whole first because the cost of anonymity is a difference: alone,
+tier 3 reports what a ballot costs, not how much is anonymity. Phase 1's gas
+snapshot is one endpoint, Phase 2's the other. A1 and B3 report the difference,
+B3 separating proof verification from base transaction cost. C1 plots both
+ballot curves: tier 3 should be flat where tier 2 climbs with depth, since tier
+2 carries its path in calldata, and higher for the pairing check. That is the
+price of anonymity, not a saving. Proving has no tier 2 endpoint, so B2 and C2
+measure tier 3 across device classes and depths.
+
+\subsection{Phases and milestones}
+
+Table~\ref{tab:phases} gives the windows.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Phase plan and milestones.}
+  \label{tab:phases}
+  \small
+  \begin{tabular}{@{}lL{3.0cm}L{10.8cm}@{}}
+    \toprule
+    \textbf{Phase} & \textbf{Window}       & \textbf{Milestone}                                                        \\
+    \midrule
+    1              & Late Sep to mid Oct   & A vote works end to end locally: tier 2, no anonymity, no gas sponsorship \\
+    2              & Mid to late Oct       & Anonymous and gasless on the testbed: tier 3                              \\
+    3              & Late Oct to early Nov & Feature freeze; auditing, resilience, usability testing                   \\
+    4              & Early to mid Nov      & Measurement campaign against Section 5                                    \\
+    5              & Mid to late Nov       & Rehearsal and buffer                                                      \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Phase 1 (28 September to 11 October) delivers M1 end to end, since deferred
+integration ends most student projects. The gate is a fresh clone: deploy to
+Anvil, enrol five voters, cast five browser ballots, read the tally back, with
+line coverage above 80\%. The first gas snapshot is committed that day.
+
+Phase 2 (12--25 October) takes the two hardest parts early: the proof path and
+the relayer, with the check that reverts once spent nullifiers would exceed the
+published roll size. Groth16 needs a circuit-specific trusted setup, so we use
+Semaphore's published phase-two artifacts and verify their hashes rather than
+running a ceremony of our own. M2 holds
+when a voter with zero POL casts an anonymous ballot on Amoy and nothing
+on-chain links their address to it.
+
+Phase 3 (26 October to 8 November) is finishing, not function:
+\texttt{TallyLib} shipping plurality, approval voting only if the phase lands
+early, a clean Slither report, coverage above 90\%, reorg handling, a
+backend-down audit path, the E3 usability test. After 8 November, only fixes,
+benchmarks and writing; slip elsewhere is absorbed by that freeze.
+
+Phase 4 (9--15 November) measures against Section~5, recording registrar
+tree-build time, leaf-set size and auditor root-recomputation time beside the
+on-chain figures. Every parameter ends with a number or a reason for none.
+
+Phase 5 (16--19 November) rehearses three times on Amoy. The demonstration
+enrols the room and casts a batch of ballots before any live one, since
+anonymity is bounded by the number of plausible authors.
+
+\subsection{Risks and contingencies}
+
+Browser proving is the principal risk. It fails by exhaustion, not slowness:
+multi-megabyte artifacts against a mobile WASM memory ceiling, and a killed
+tab returns nothing. Proving runs in a Web Worker; artifact size
+and peak memory are recorded beside every B2 timing.
+
+The go or no-go fires one week after M1 lands, or at once if M1 has not landed
+by 18 October. A fixed date could fire before proving work had started, since
+Phase 2 sits on tier 2. If a phone is not producing valid proofs, proving moves
+to the server.
+
+That fallback is weaker and would be reported as weaker. The identity secret
+leaves the device, so the proving service can link voter to ballot. Anonymity
+would hold against the chain but not the operator, who also runs the registrar
+and the relayer. It rescues proving only, not the contract
+wiring or the relayer.
+
+No response in Table~\ref{tab:risks} removes selective censorship. The relayer
+reads the choice, so it can drop one candidate's ballots, and nothing would show
+it: turnout below the roll size is ordinary. Signed receipts and a
+booth deadline warning bound the attack, not remove it; removal needs encrypted
+ballots or several independent relayers, and we build neither.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Risks and responses.}
+  \label{tab:risks}
+  \small
+  \begin{tabular}{@{}L{4.0cm}L{9.8cm}@{}}
+    \toprule
+    \textbf{Risk}            & \textbf{Response}                                                                                                             \\
+    \midrule
+    Tier 3 unfinished        & Gate on 1 November: demonstrate tier 2, report tier 3 unfinished. Tier 2 is a complete system on its own, so the worst case is a demonstration without anonymity \\
+    Relayer down on the day  & Direct submission from funded wallets; the cost is parameter E2, not the election                                              \\
+    Relayer gas drained      & A daily cap does not bound it; an off-chain proof check before spending holds exposure to the roll size, one nullifier per identity per election \\
+    Faucet supply on Amoy    & 200 ballots cost about 1.8 POL, priced from the gas budget, not measured, against roughly 0.1 POL a day claimed. Throughput runs on Anvil; Amoy is kept for latency and the demonstration \\
+    Sepolia dies 30 Sep 2026 & Not used; the first contract lands with M1 on 11 October, after it dies. Identical bytecode burns identical gas, so A3 prices measured gas under several fee regimes \\
+    \bottomrule
+  \end{tabular}
+\end{table}

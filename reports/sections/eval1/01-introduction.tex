@@ -1,0 +1,69 @@
+% ===========================================================================
+\section{Introduction}
+% Source material: README.md, docs/architecture.md
+% ===========================================================================
+
+\projectname{} is a decentralized voting application: smart contracts on a
+public testbed chain hold the roll, the schedule and the count. The Election
+Authority cannot cast or alter a ballot, change the roll after registration
+closes, or stop the count. A voter deposits an identity commitment at
+registration, then proves in zero knowledge that they hold the secret behind one
+commitment under the published root, without revealing which. At close of
+registration the registrar publishes the leaf set to IPFS and writes its
+identifier on-chain beside the root. The booth downloads it, rebuilds the tree
+in the browser and derives its own authentication path; the registrar is not
+contacted at vote time. A ballot carries the proof, the candidate chosen, and a
+nullifier, \texttt{hash(identitySecret, electionId)}, which the contract rejects
+if it has seen it, so nobody votes twice. \texttt{VoterRegistry} stores the roll
+size, and \texttt{castVote} refuses a ballot once spent nullifiers reach it.
+Tallies are contract state, incremented only on acceptance; no separate count
+exists. Anyone can check every proof and recompute the totals without trusting
+the Election Authority, the relayer or us.
+
+Among the domains offered, voting has the widest gap between what the operator
+asserts and what anyone can check. A wrong stock level is contradicted by the
+next physical count; a mis-stated tally has no such later event. A database
+suits data one party is accountable for and others accept. An election breaks
+that: the participants are opponents by construction. Deleting or reordering
+entries is indistinguishable from changing the outcome, so the record must be
+append-only, held by no participant, and checkable by people who trust nobody
+involved. Audit logs are administered by the party in dispute, so auditing moves
+trust rather than removing it. A public chain replaces the administrator with a
+consensus rule and the audit with re-execution.
+
+The design does not solve every problem in electronic voting. Section~3 states each
+limit with its reason; in outline they are these.
+
+\begin{itemize}
+  \item \emph{Ballot secrecy} is unconditional against the chain: no on-chain data
+        links an address or an identity to a ballot. Against the operator it is
+        conditional, because the relayer that sponsors gas reads the candidate and the
+        source IP. It holds only if the relayer runs separately from the registrar, or
+        the voter submits directly.
+  \item \emph{The relayer can censor selectively}, dropping only ballots for the
+        candidate it dislikes. The record shows nothing, because low turnout is normal.
+        Signed receipts and a booth deadline warning bound that attack rather than
+        removing it; removing it needs encrypted ballots or several independent
+        relayers, which we do not build.
+  \item \emph{Roll correctness} is not guaranteed. The registrar can enrol commitments
+        for people who do not exist and omit real registrants. Publishing the roll size
+        does not make stuffing detectable, because the registrar sets that number and
+        nobody else knows the true figure. It only commits the stuffing capacity before
+        any ballot exists. The remedy we do not build is splitting the registrar across
+        parties, or having observers co-sign the leaf set.
+  \item \emph{Coercion} is not resisted. A voter can hand over the identity secret,
+        which both proves their vote and lets the coercer cast it.
+  \item \emph{Eligibility rests on a trusted setup.} Groth16 needs a circuit-specific
+        ceremony, so we use Semaphore's published phase-two artifacts and verify their
+        hashes. Collusion by every contributor would let forged proofs verify, and the
+        roll-size cap limits the damage.
+  \item \emph{Two further exposures:} an RPC provider sees the source IP, and the
+        running tally is visible while voting is open.
+\end{itemize}
+
+Section~2 analyses the domain; Section~3 the requirements, trust model and
+non-guarantees; Section~4 the design and technology choices with the
+alternatives they beat; Section~5 the evaluation parameters and their
+measurement; Section~6 the milestones, risk and fallback.
+Nothing is built yet: every figure in Section~5 is a target for Evaluation~2,
+not a measurement.
