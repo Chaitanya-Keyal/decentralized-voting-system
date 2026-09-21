@@ -6,21 +6,27 @@
 % name.
 % ===========================================================================
 
-This section defines the parameters; Evaluation 2 demonstrates them. Most rows
-carry a quantity, a method and a success condition; security rows carry an
-adversary that must fail instead. The targets are hypotheses; nothing has been
-built, measured or deployed, and a missed target will be reported with its
-measured value and why.
+The design is evaluated against five families of parameter: cost, performance,
+scalability, security, and usability. Each parameter names what is measured, how
+it is measured, and what result counts as success. Security parameters instead
+name an adversary that must fail.
+
+The targets are hypotheses. Nothing has been built, measured or deployed. A
+missed target will be reported with its measured value and the reason it was
+missed.
 
 \subsection{Cost}
 
-Gas is deterministic, so A1 isolates the design from a token price. A2
-converts it through gas price and token price, states both, and illustrates
-arithmetic rather than a forecast. Throughput binds before cost does,
-which C3 locates. A3 prices the one A1 gas figure under three fee regimes,
-Ethereum mainnet, Polygon PoS mainnet and Polygon Amoy, over a range of gas
-prices, and reports a band rather than a point. Identical bytecode burns
-identical gas, so one figure serves all three.
+The same bytecode and calldata consume the same gas on every machine, so A1
+measures the design rather than the market. A2 converts that figure into rupees
+using a gas price and a token price, and states both, so the result can be
+recomputed when prices move. A3 applies three fee regimes to the same A1 figure,
+for Ethereum mainnet, Polygon PoS mainnet and Polygon Amoy, and reports a band
+rather than a single number. One measurement serves all three, because identical
+bytecode burns identical gas.
+
+Cost is unlikely to be the limit that binds first. Throughput is, and C3 locates
+it.
 
 \begin{table}[htbp]
   \centering

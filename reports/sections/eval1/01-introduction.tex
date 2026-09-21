@@ -3,22 +3,26 @@
 % Source material: README.md, docs/architecture.md
 % ===========================================================================
 
-\projectname{} is a decentralized voting application: smart contracts on a
+\projectname{} is a decentralized voting application. Smart contracts on a
 public testbed chain hold the roll, the schedule and the count. The Election
 Authority cannot cast or alter a ballot, change the roll after registration
-closes, or stop the count. A voter deposits an identity commitment at
-registration, then proves in zero knowledge that they hold the secret behind one
-commitment under the published root, without revealing which. At close of
-registration the registrar publishes the leaf set to IPFS and writes its
-identifier on-chain beside the root. The booth downloads it, rebuilds the tree
-in the browser and derives its own authentication path; the registrar is not
-contacted at vote time. A ballot carries the proof, the candidate chosen, and a
-nullifier, \texttt{hash(identitySecret, electionId)}, which the contract rejects
-if it has seen it, so nobody votes twice. \texttt{VoterRegistry} stores the roll
+closes, or stop the count.
+
+A voter deposits an identity commitment at registration. To vote, they prove in
+zero knowledge that they hold the secret behind one commitment under the
+published root, without revealing which one. At the close of registration the
+registrar publishes the leaf set to IPFS and writes its identifier on-chain
+beside the root. The booth downloads that leaf set, rebuilds the tree in the
+browser and derives its own authentication path, so the registrar is not
+contacted at vote time.
+
+A ballot carries the proof, the candidate chosen, and a nullifier,
+\texttt{hash(identitySecret, electionId)}. The contract rejects a nullifier it
+has already seen, so nobody votes twice. \texttt{VoterRegistry} stores the roll
 size, and \texttt{castVote} refuses a ballot once spent nullifiers reach it.
-Tallies are contract state, incremented only on acceptance; no separate count
-exists. Anyone can check every proof and recompute the totals without trusting
-the Election Authority, the relayer or us.
+Tallies are contract state, incremented only on acceptance; there is no separate
+count. Anyone can check every proof and recompute the totals without trusting
+the Election Authority, the relayer, or us.
 
 Among the domains offered, voting has the widest gap between what the operator
 asserts and what anyone can check. A wrong stock level is contradicted by the

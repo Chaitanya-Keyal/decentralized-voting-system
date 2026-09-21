@@ -24,7 +24,8 @@ the contract layer, holding every fact that decides the election
     set from IPFS and derives its own authentication path from the rebuilt
     tree. The secret never leaves the device, and the registrar is not
     contacted at vote time.
-  \item A Web Worker builds a membership proof, a nullifier and a signal encoding
+
+\item A Web Worker builds a membership proof, a nullifier and a signal encoding
     the candidate. Proving should take seconds, not milliseconds, an
     assumption B2 tests on real handsets.
   \item The booth wraps \texttt{castVote} in an ERC-2771 request, signs it with
@@ -33,7 +34,8 @@ the contract layer, holding every fact that decides the election
     through \texttt{VoteForwarder}. Eligibility comes from the proof alone,
     so the appended signer is never checked against the roll: the key can be
     ephemeral and a voter needs no wallet.
-  \item \texttt{castVote} runs only in the \texttt{Voting} phase, verifies the
+
+\item \texttt{castVote} runs only in the \texttt{Voting} phase, verifies the
     proof against the frozen root and reverts on a nullifier already seen or
     one past the declared roll size. Otherwise it records the nullifier,
     increments the tally and emits \texttt{VoteCast} for the indexer.
@@ -68,12 +70,16 @@ directly is a trade, since the funded address stays public.
 
 \texttt{ElectionFactory} is the only route to a new election: it clones one
 deployed \texttt{Election} implementation as an EIP-1167 minimal proxy, so it
-doubles as a registry auditors can check against. \texttt{Election} holds the
+doubles as a registry auditors can check against.
+
+\texttt{Election} holds the
 lifecycle, roster, spent nullifiers and tallies. Its ERC-2771 context makes a
 forwarded ballot identical to a direct one; proofs and nullifiers are scoped
 to the election identifier, so none replays elsewhere; and a standalone
 Semaphore verifier is called with this election's own root, at a tree depth
-pinned in the contract. \texttt{VoterRegistry} holds the membership root, roll
+pinned in the contract.
+
+\texttt{VoterRegistry} holds the membership root, roll
 size and IPFS leaf-set identifier, in one registrar transaction. The root
 freezes at close of registration, fixing the electorate, and \texttt{castVote}
 requires spent nullifiers never to exceed the roll size: a comparison plus a
@@ -195,10 +201,14 @@ rebuild time.
 Semaphore's own group contracts are rejected for that reason. They keep the
 group in storage, where each \texttt{addMember} inserts a leaf and recomputes
 the root: less code, and the roll readable from the chain, but registration
-then costs one transaction per voter, linear in the electorate. Flat
+then costs one transaction per voter, linear in the electorate.
+
+Flat
 registration comes from committing a set by its root, which the tier 2 build
 already does with no zero knowledge, so the anonymity layer changes the
-ballot, not registration. In tier 2 the authentication path travels in
+ballot, not registration.
+
+In tier 2 the authentication path travels in
 calldata, costing a few hundred gas per level of depth; in tier 3 it is
 private witness data and the ballot stops depending on depth. The expectation,
 before measurement, is that the tier 3 line is flat and sits above tier 2 at

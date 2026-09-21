@@ -6,9 +6,9 @@
 
 Institutional elections run on paper, on voting machines, or on a hosted web
 application backed by one party's database. The hosted form wins on cost, speed
-and reach, which decides it for a student senate, club committee or shareholder
-resolution with a few hundred to a hundred thousand voters and a result due
-within hours. National elections are out of scope: statutory procedure,
+and reach. That settles it for a student senate, a club committee or a
+shareholder resolution: a few hundred to a hundred thousand voters, and a result
+due within hours. National elections are out of scope: statutory procedure,
 universal physical access and household coercion are obligations this design
 does not meet.
 
@@ -42,14 +42,14 @@ and what \projectname{} does to it.
   \end{tabular}
 \end{table}
 
-Each row's failure is open to an ordinary administrator. Fabricated or deleted
-roll entries do not show from outside, since nobody else knows the correct
-roll size; unused eligibility can be voted at the close of poll; and a voter's
-only evidence is a screen written by the system that would have dropped the
-ballot.
+Each of these failures is open to an ordinary administrator. Fabricated or
+deleted roll entries do not show from outside, because nobody else knows the
+correct roll size. Unused eligibility can be voted at the close of poll, when
+the gap is known. And a voter's only evidence is a confirmation screen written
+by the same system that would have dropped the ballot.
 
-One qualification. The duplicate-vote row rests on the proof system's
-soundness, and so on its trusted setup, which Section~4 states.
+The duplicate-vote row carries one qualification: it rests on the proof
+system's soundness, and so on the trusted setup that Section~4 states.
 
 \subsection{Why paper is not the answer either}
 
@@ -77,29 +77,28 @@ node operators can check it, and a candidate admitted after setup has no node.
 Four things it does not fix.
 
 \begin{itemize}[leftmargin=1.2em,itemsep=2pt,topsep=2pt]
-  \item \textbf{Eligibility.} A chain records that a proof satisfied a
-        rule, not that the prover is enrolled this semester or is one person
-        rather than three accounts. Eligibility rests on a trusted off-chain
-        check: a registrar verifies institute credentials before accepting an
-        identity commitment. Publication does not repair it: registration is
-        voluntary, so nobody outside the registrar knows the roll size.
-        Publishing the entries, identified on-chain with the root, proves they
-        match the root, not that an entry belongs to a person; fabricated
-        entries get ballots. What changes is timing: the capacity to stuff is
-        fixed and published before any ballot exists, so it is chosen with no
-        information about the result. \texttt{VoterRegistry} stores the
-        declared roll size, and \texttt{castVote} refuses a ballot once spent
+  \item \textbf{Eligibility.} A chain records that a proof satisfied a rule. It
+        does not record that the prover is enrolled this semester, or that they
+        are one person rather than three accounts. Eligibility rests on a
+        trusted off-chain check: the registrar verifies institute credentials
+        before accepting an identity commitment.
+
+        Publishing the entries does not repair this. It proves they match the
+        root, not that each one belongs to a real person, so fabricated entries
+        still get ballots. What publication changes is timing. The capacity to
+        stuff is fixed and published before any ballot exists, so it is chosen
+        with no information about the result. \texttt{VoterRegistry} stores the
+        declared roll size and \texttt{castVote} refuses a ballot once spent
         nullifiers reach it. That is a cap the chain enforces, not detection.
-        Exclusion is the same shape, caught only per voter: the booth
-        downloads the published leaf set from IPFS and derives its own Merkle
-        authentication path, contacting no registrar at vote time, so each
-        voter can check their own commitment. The remedy is to stop trusting
-        one registrar: split it across parties holding shares of the
-        enrolment, or have candidate observers co-sign the entries before the
-        root is frozen. Neither is built; both are future work. So
-        \projectname{} removes the operator from the box and the count and
-        leaves one party in control of the franchise; Section~3 lists roll
-        correctness as a non-guarantee.
+
+        Exclusion is caught only per voter. The booth downloads the published
+        leaf set and derives its own authentication path, so each voter can
+        check that their own commitment is present. The remedy is to stop
+        trusting one registrar: split the role across parties, or have candidate
+        observers co-sign the entries before the root is frozen. Neither is
+        built. So \projectname{} removes the operator from the box and the
+        count, and leaves one party in control of the franchise. Section~3 lists
+        roll correctness as a non-guarantee.
 
   \item \textbf{Ballot design.} Immutability makes a flawed rule permanent: a
         contract implementing an unfair rule is faithfully unfair, whether the
