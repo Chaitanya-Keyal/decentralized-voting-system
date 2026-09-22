@@ -302,7 +302,7 @@ the pairing check is about half):
 ```
 
 On Ethereum at mainnet prices 0.009 ETH is real money, not a fraction of a rupee, which is
-why gas (parameter A1) is the engineering measure and the fiat figure (A2) is reported as an
+why gas (parameter A1) is the engineering measure and any fiat figure is reported as an
 illustration at a stated price rather than against a fixed target. A large production
 electorate would use a cheaper execution layer, which is future work.
 
@@ -1346,7 +1346,7 @@ needs a native balance we did not anticipate, the relayer rejects and the interf
 falls back to asking the user to pay, or registration costs gas even though voting does not. So
 the number reported is the ETH a voter actually needed, across all ten E3 participants.
 
-> *Follow-up.* "Where does the cost go?" To the relayer, as A2. Zero for the voter does not mean
+> *Follow-up.* "Where does the cost go?" To the relayer. Zero for the voter does not mean
 > free; it means the cost moved to a named party running a capped daily budget, and that party is
 > a liveness dependency.
 >
@@ -1405,11 +1405,11 @@ states its environment in the caption.
 > *Trap.* Saying Anvil results "approximate" real-network performance. Anvil mines on demand with
 > no peers, no mempool contention and no fee market.
 
-**What does a ballot cost, and what are you actually claiming with A2?**
+**What does a ballot cost, and what are you actually claiming?**
 
 Gas is the real claim, because it is deterministic: about 300,000 to 400,000 gas for a ballot,
 measured with `forge snapshot`. Turning that into rupees needs two prices we do not control, a
-gas price in gwei and an ETH-to-INR rate, so A2 is a projection, not a measurement, and the
+gas price in gwei and an ETH-to-INR rate, so a fiat cost is a projection, not a measurement, and the
 report labels it that way. On Ethereum at mainnet prices a ballot is real money, not paise, so
 we report gas as the headline and price it at a stated rate as an illustration a reader can
 recompute with their own assumptions.
@@ -1843,7 +1843,7 @@ from Created or Registration and only before voting opens. Every transition is g
 **Events.** `ElectionCreated`, `VoterRootPublished`, `VoteCast`, `Finalized`. These four are what
 the audit dashboard replays.
 
-**Evaluation parameter families.** Fifteen parameters: A1 to A2 cost, B1 to B2 performance, C1 to
+**Evaluation parameter families.** Fourteen parameters: A1 cost, B1 to B2 performance, C1 to
 C3 scalability, D1 to D5 security and correctness, E1 to E3 usability. **C1 is gas against
 voter-roll size at rolls of 10 up to 10^5, and it makes three predictions: registration flat, the
 tier 3 ballot flat, the tier 2 ballot rising slowly because the path travels to the contract. Say
@@ -1861,7 +1861,7 @@ you cannot support, and an examiner who asks where it came from has caught you.
 | :-- | :-- |
 | `castVote` gas budget (A1) | under 400,000, a target rather than a measurement |
 | Groth16 proof | 8 field elements, 256 bytes, constant at every tree depth |
-| Cost per ballot | target under INR 0.50 (A2), with the gas price and token price stated beside it |
+| Cost per ballot | graded as gas (A1); a fiat figure is not a parameter, since it needs a gas price and exchange rate we do not control |
 | Latency targets | B1 p95 under 10 s end to end, B2 p95 under 5 s proving on a mid-range phone |
 | Repetitions | n at least 30 per data point, report median and p95 |
 | Faucet reality | testnet faucets cannot fund a sustained load run, so throughput runs on a local node |

@@ -34,10 +34,10 @@ would drain faucets. The throughput and ceiling runs go here too, so network noi
 mistaken for a system property, and the reorg test needs a chain the harness can
 manipulate. Only end-to-end latency and the live demonstration need Sepolia itself.
 
-A2 converts the measured gas into rupees at a stated gas price, and states the price
-beside the figure so it can be recomputed. Ethereum mainnet gas is not cheap, so A2 is
-reported as measured rather than against a fixed target; the engineering measure is A1,
-the gas itself, which is chain-independent.
+Cost is graded as gas (A1), which is chain-independent. A fiat cost per vote is not a
+parameter, because converting gas to money needs a gas price and an exchange rate the
+project does not control; Ethereum mainnet gas is not cheap, so any rupee figure the report
+quotes is a stated illustration rather than a target.
 
 ## Frontend
 

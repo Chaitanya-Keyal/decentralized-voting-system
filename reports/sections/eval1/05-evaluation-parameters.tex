@@ -14,11 +14,14 @@ missed.
 
 \subsection{Cost}
 
-Gas is deterministic: the same contract consumes the same gas on every machine,
-so A1 measures the design rather than the market. A2 converts that into rupees
-using a gas price and a token price, and states both, so the figure can be
-recomputed when prices move. Cost is unlikely to be the limit that binds first.
-Throughput is, and C3 locates it.
+Cost is measured as gas per operation (A1). Gas is deterministic: the same
+contract consumes the same gas on every machine, so A1 measures the design
+rather than the market. We deliberately do not grade a rupee figure. Converting
+gas to money needs a gas price and an exchange rate the project does not
+control, so a fiat cost measures the market on a given day, not the system;
+where the report gives one it is a stated illustration, not a parameter with a
+target. Cost is unlikely to be the limit that binds first. Throughput is, and C3
+locates it.
 
 \begin{table}[htbp]
   \centering
@@ -30,7 +33,6 @@ Throughput is, and C3 locates it.
     \textbf{ID} & \textbf{Parameter}   & \textbf{Measurement}                  & \textbf{Target}       \\
     \midrule
     A1          & Gas per operation    & Gas snapshot per contract entry point & Ballot under 400k gas \\
-    A2          & Cost per vote in INR & A1 times gas price times token price  & Reported at a stated price \\
     \bottomrule
   \end{tabular}
 \end{table}

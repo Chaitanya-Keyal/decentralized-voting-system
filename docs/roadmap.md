@@ -174,9 +174,9 @@ No feature work. Run the full measurement campaign from
 - Full sweep of the A, B, C, D and E families, with no parameter left without either a
   committed number or a written statement of why it has none
 - Raw CSVs committed to `bench/results/`; graphs generated from them by script, not by hand
-- A2 prices the measured A1 gas in rupees at a stated gas price. Ethereum gas is not
-  cheap, so A2 is reported as measured rather than against a fixed target; the
-  chain-independent engineering measure is A1, the gas itself
+- Cost is graded as gas (A1) only. A fiat cost per vote is not a parameter, since it
+  needs a gas price and an exchange rate the project does not control; any rupee figure is
+  a stated illustration
 - Eval 2 report drafted section by section against the template
 
 Build the C1 graph (gas vs voter-roll size) first, and state what it carries. The

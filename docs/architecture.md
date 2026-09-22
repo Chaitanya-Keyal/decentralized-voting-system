@@ -427,8 +427,8 @@ That belongs in the risk table alongside slow proving.
 Gas parameters (A1, C1) are measured locally, because gas is deterministic given the same
 bytecode and calldata and a sweep over roll sizes from ten to a hundred thousand would
 otherwise drain testnet faucets. Only end-to-end latency and the live demonstration need
-Sepolia itself. A2 prices the measured gas in rupees at a stated gas price; the figure is
-reported as measured rather than against a fixed target, since Ethereum gas is not cheap
-and the engineering measure is A1, the gas itself.
+Sepolia itself. Cost is graded as gas (A1) only. A fiat cost per vote is not a parameter,
+because converting gas to money needs a gas price and an exchange rate the project does not
+control; where the report quotes a rupee figure it is a stated illustration, not a target.
 
 See [tech-stack.md](tech-stack.md) for the testbed reasoning in full.

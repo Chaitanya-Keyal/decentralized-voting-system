@@ -15,11 +15,11 @@ agreement.
 | # | Parameter | Measurement | Target |
 |---|---|---|---|
 | A1 | Gas per operation | Gas snapshot per contract entry point, measured locally | Ballot under 400k gas |
-| A2 | Cost per vote in INR | A1 times gas price times token price, both stated | Under INR 0.50 |
 
-Gas is deterministic, so A1 measures the design rather than the market. A2 is an
-illustration, not a forecast: it moves with prices, which is why both inputs are
-recorded beside the result.
+Gas is deterministic, so A1 measures the design rather than the market. A fiat cost per
+vote is not a parameter: converting gas to money needs a gas price and an exchange rate the
+project does not control, so it measures the market on a given day, not the system. Where
+the report quotes a rupee figure it is a stated illustration.
 
 There is no cross-network cost comparison. Identical EVM bytecode burns identical
 gas on any EVM chain, so a second deployment would only reproduce A1.

@@ -264,7 +264,8 @@ Table~\ref{tab:stack} gives the choices, alternatives and why they lost.
 \end{table}
 
 Four rows need more. Vyper's library ecosystem is thin, and a non-EVM platform
-would have cost identical contracts on a local node and a public network.
+would give up EVM portability: the same bytecode runs on a local node and on the
+testnet, which is what lets gas be measured locally.
 \texttt{forge snapshot} yields A1 and C1 from the suite, and
 Foundry's fuzzer supplies the adversarial ballot tests D1 needs; Hardhat 3
 wins on TypeScript coupling, but wagmi types Foundry ABIs anyway.
@@ -307,7 +308,7 @@ mistaken for a system property, and the reorg test needs a chain the harness can
 manipulate. Only end-to-end latency and the live demonstration need Sepolia
 itself.
 
-A2 converts the measured gas into rupees at a stated gas price. Ethereum
-mainnet gas is not cheap, so the figure is reported as measured rather than
-against a fixed target, and it moves with the market, which is why the price it
-assumes is stated beside it.
+The engineering cost measure is gas (A1). A rupee figure is not a graded
+parameter, because converting gas to money needs a gas price and an exchange
+rate the project does not control; Ethereum mainnet gas is not cheap, so any
+fiat cost the report quotes is a stated illustration rather than a target.
