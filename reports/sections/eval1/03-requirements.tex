@@ -92,35 +92,21 @@ is conceded below as one attack.
   \endhead
   \bottomrule
   \endlastfoot
-  FR1 & Let the Authority create an election through \texttt{ElectionFactory} with the roster, two windows and metadata identifier. & Only the Authority may define what is decided; on-chain first, so changes stay visible. \\
+  FR1 & Let the Authority create an election with its candidate roster, its registration and voting windows, and a published ballot description; and permit roster changes only before voting opens. & Only the Authority may define what is decided, and doing it on-chain keeps changes visible. A roster that changed mid-vote would alter the meaning of ballots already cast. \\
   \addlinespace[2pt]
-  FR2 & Permit candidate changes only in \texttt{Created} or \texttt{Registration}. & Errors must be fixable, but a roster changing mid-vote alters the meaning of ballots already cast. \\
+  FR2 & Let the Registrar verify eligibility off-chain, accept each identity commitment without writing personal data on-chain, and return a receipt signed over the accepted commitment. & Only the Registrar can establish eligibility, and its evidence must never reach a public ledger. Without a receipt the Voter holds no proof of having registered. \\
   \addlinespace[2pt]
-  FR3 & Publish the ballot description and each manifesto to IPFS, storing the content identifier on-chain. & Voters need a readable statement; the committed identifier makes substitution detectable. \\
+  FR3 & Have the Registrar publish the leaf set and write its identifier, the membership root and the roll size in one transaction when registration closes, after which none may change. & Auditors cannot recompute an unpublished root, and the booth cannot build a path without the leaves. Freezing blocks mid-vote appends. \\
   \addlinespace[2pt]
-  FR4 & Let the Registrar check eligibility off-chain and accept each identity commitment, writing no personal data on-chain. & Only the Registrar can establish this off-chain fact, whose evidence must never reach a public ledger. \\
+  FR4 & Require an explicit, irreversible transaction per phase transition, rejected before its scheduled time; reserve configuration and cancellation to the Authority before voting opens, and let any account close voting and finalize afterwards. & Stops the Authority reopening a poll it dislikes or cancelling after ballots exist, and permissionless closing stops it stalling an election by never calling. \\
   \addlinespace[2pt]
-  FR5 & Have the Registrar write the root, roll size and leaf set identifier to \texttt{VoterRegistry} in one transaction when registration closes, publish the leaf set to IPFS, and reject later root changes. & Auditors cannot recompute an unpublished root, the booth cannot build a path without the leaves, and freezing blocks mid-vote appends. \\
+  FR5 & Accept a ballot only on a zero-knowledge proof of membership of the published root carrying a nullifier and the chosen candidate; record every nullifier, reject a repeat, and reject once accepted ballots would exceed the roll size. & The Voter must vote without revealing who they are, and every other actor needs each ballot provably from the committed roll. One ballot per voter without recording addresses, which would defeat secrecy. \\
   \addlinespace[2pt]
-  FR6 & Require an explicit, irreversible transaction per phase transition, rejected before its block timestamp; reserve configuration and cancellation to the Authority before voting; any account may close and finalize. & Stops the Authority reopening a poll it dislikes or cancelling after ballots exist, and stops it stalling by never calling. \\
+  FR6 & Have the booth download the published leaf set, confirm the Voter's commitment is present, and derive the authentication path locally, asking the Registrar for nothing at vote time. & A path supplied by the Registrar would reveal which leaf was voting, and the Relayer sees the choice, so the two records together would deanonymize the Voter. \\
   \addlinespace[2pt]
-  FR7 & Accept a ballot only with a zero-knowledge membership proof against the published root, a nullifier and a signal encoding the choice, verified before the tally moves. & The Voter must vote without revealing who they are; others need each ballot provably from the roll. \\
+  FR7 & Let the Relayer verify a ballot's proof off-chain, pay its gas, and return a signed receipt; warn the Voter and offer direct submission if no transaction arrives by a stated deadline; and let a Voter holding gas bypass the Relayer entirely. & The Voter must hold no cryptocurrency. Pre-verification stops junk proofs draining the Relayer, and the receipt plus the bypass mean a Relayer that drops ballots leaves evidence rather than silence. \\
   \addlinespace[2pt]
-  FR8 & Record every accepted nullifier, revert on a repeat, and revert once spent nullifiers would exceed the roll size stored beside the root. & One ballot per voter without recording addresses, which would defeat secrecy; the cap makes capacity a contract invariant. \\
-  \addlinespace[2pt]
-  FR9 & Let a Voter holding gas call \texttt{castVote} directly, without the Relayer. & A Relayer that reads the choice and refuses to forward could otherwise alter the result unobserved. \\
-  \addlinespace[2pt]
-  FR10 & Let the Relayer accept a signed ballot, verify its proof off-chain, pre-check its nullifier, return a signed receipt, and forward it through \texttt{VoteForwarder} under ERC-2771, paying the gas. & The Voter must hold no cryptocurrency (E2); pre-verification stops junk proofs draining the Relayer, and the receipt makes a dropped ballot evidence. \\
-  \addlinespace[2pt]
-  FR11 & Increment tallies through \texttt{TallyLib} in the transaction accepting a ballot, and let any account finalize once voting closes; the result is then immutable. & No actor may adjust the count between the last ballot and the announcement, or leave it unannounced. \\
-  \addlinespace[2pt]
-  FR12 & Make every ballot event, the tally, the root, the roll size and the result readable from chain data by anyone, needing nothing this project runs. & The Auditor is permissionless; an audit needing the operator's cooperation audits the operator. \\
-  \addlinespace[2pt]
-  FR13 & Return the Voter their ballot's transaction identifier, and warn them and offer direct submission when none arrives before a stated deadline. & The Voter's only direct evidence of acceptance; a ballot never forwarded should leave a signed promise, not silence. \\
-  \addlinespace[2pt]
-  FR14 & Have the Registrar return a receipt signed over the accepted commitment and the election identifier at registration. & The Voter otherwise holds no evidence of registering; with it, exclusion from the leaf set can be contradicted. \\
-  \addlinespace[2pt]
-  FR15 & Have the booth download the published leaf set, confirm the Voter's commitment is present, rebuild the tree and derive the authentication path locally, asking the Registrar for nothing at vote time. & A path from the Registrar would reveal which leaf was voting, and the Relayer sees the choice, so the two records deanonymize the Voter. It also drops the Registrar as a liveness dependency, and the presence check catches substitution. \\
+  FR8 & Move tallies only in the transaction accepting a ballot, make the result immutable once finalized, and keep every ballot, the tally, the root, the roll size and the result readable from chain data alone. & No actor may adjust the count between the last ballot and the announcement. The Auditor is permissionless, and an audit that needed this project's cooperation would audit the operator rather than the chain. \\
 \end{longtable}
 
 \subsection{Non-functional requirements}
@@ -133,36 +119,28 @@ is conceded below as one attack.
   \endhead
   \bottomrule
   \endlastfoot
-  NFR1 & \emph{Ballot secrecy, conditional.} No chain data ties a ballot to a commitment or registration record; the sender is an ephemeral key never checked against the roll. Two qualifications belong to the requirement: it is anonymity within the roll, not secrecy of ballot contents; and it is unconditional only against the chain, holding against the operator while the Relayer runs separately from the Registrar, or the voter submits directly. & D3, a deanonymization attempt on full chain data, reporting the anonymity set left \\
+  NFR1 & \emph{Ballot secrecy, conditional.} No chain data ties a ballot to a commitment or a registration record. Two qualifications belong to the requirement: this is anonymity within the roll, not secrecy of ballot contents; and it is unconditional only against the chain, holding against the operator while the Relayer runs separately from the Registrar, or the Voter submits directly. & D3, a deanonymization attempt on full chain data, reporting the anonymity set left \\
   \addlinespace[2pt]
   NFR2 & \emph{Eligibility enforcement.} A ballot is accepted only on proof of membership of the published root, subject to the trusted setup assumption below. & D2: a proof against the wrong root must revert \\
   \addlinespace[2pt]
   NFR3 & \emph{One ballot per voter.} A second ballot from the same identity secret is rejected, and accepted ballots never exceed the published roll size. & D1, with fuzzing over nullifier collisions \\
   \addlinespace[2pt]
-  NFR4 & \emph{Individual verifiability.} A voter can locate their own ballot in chain data using only what their client holds, and confirm their commitment in the leaves beforehand. & D4 \\
+  NFR4 & \emph{Verifiability.} A Voter can find their own ballot and confirm their commitment among the published leaves; anyone can recompute the root and the tally from chain data and reach the published result, while every service this project runs is offline. & D4, with this project's backend off \\
   \addlinespace[2pt]
-  NFR5 & \emph{Universal verifiability.} Any party can recompute the tally from raw chain logs and reach the published result. & D4, with this project's backend off \\
+  NFR5 & \emph{Integrity of the count.} Tallies move only on the ballot-acceptance path, and no role, the Authority included, can alter a tally, stop the count or withhold finalization. & D5 \\
   \addlinespace[2pt]
-  NFR6 & \emph{Integrity of the count.} Tallies move only on the ballot-acceptance path, and no role, the Authority included, can alter a tally, stop the count or withhold finalization. & D5 \\
+  NFR6 & \emph{Cost of running an election.} A ballot including proof verification stays under 400,000 gas and under INR 0.50 on Polygon Amoy. & A1 and A2 \\
   \addlinespace[2pt]
-  NFR7 & \emph{Cost of running an election.} A ballot including proof verification stays under 400,000 gas and under INR 0.50 on Polygon Amoy; a new election deploys as a clone. & A1 and A2 \\
+  NFR7 & \emph{End-to-end latency.} The 95th percentile from click to on-chain inclusion stays under 10 seconds, of which browser proving is under 5 seconds on a mid-range phone. & B1 and B2 \\
   \addlinespace[2pt]
-  NFR8 & \emph{End-to-end latency.} The 95th percentile from click to on-chain inclusion on Polygon Amoy stays under 10 seconds, of which browser proving is under 5 seconds on a mid-range phone. & B1 and B2 \\
+  NFR8 & \emph{Scalability in the electorate.} Gas per operation is constant in the number of enrolled voters once a ballot carries FR5's proof, since neither the root nor the proof grows with the roll. The plain Merkle-proof baseline differs at the ballot, whose authentication path grows with the roll. The claim is per operation: election cost stays linear in ballots cast. & C1 and C2, with C3 for the concurrency ceiling \\
   \addlinespace[2pt]
-  NFR9 & \emph{Scalability in the electorate.} Gas per operation is constant in the number of enrolled voters once a ballot carries FR7's proof, since neither the root nor the proof grows with the roll. The plain Merkle-proof baseline differs at the ballot, whose authentication path grows with tree depth. Browser proving time grows with the logarithm of the roll. The claim is per operation: election cost stays linear in ballots cast. & C1 and C2, with C3 for the concurrency ceiling \\
+  NFR9 & \emph{No cryptocurrency held by the voter.} Registration and voting complete while the Voter holds a zero balance. & E2 \\
   \addlinespace[2pt]
-  NFR10 & \emph{No cryptocurrency held by the voter.} Registration and voting complete while the voter holds a zero balance. & E2, with E1 for actions \\
-  \addlinespace[2pt]
-  NFR11 & \emph{Auditability of the voter roll.} The root, roll size and leaf set identifier are on-chain and the leaves published, so anyone can recompute the root and compare it, and a voter can find their commitment. Two limits belong to the requirement: the check costs work linear in the roll, paid by each auditor separately; and it shows only that the leaves produce the root, never that they are real people. & D4 extended to the root \\
-  \addlinespace[2pt]
-  NFR12 & \emph{Availability of the public result path.} The result stays readable and verifiable while every service this project runs is offline. & D4 \\
-  \addlinespace[2pt]
-  NFR13 & \emph{Operability by a non-specialist.} A voter with no cryptocurrency experience casts a ballot unaided, read as more than eight of ten E3 participants finishing without help. & E3 for completion, E1 capping actions at four \\
+  NFR10 & \emph{Operability by a non-specialist.} A Voter with no cryptocurrency experience casts a ballot unaided, read as more than eight of ten E3 participants finishing without help. & E3, with E1 capping actions at four \\
 \end{longtable}
 
-NFR2, NFR3 and NFR9 are load-bearing: ineligible or duplicate ballots make the
-number meaningless, and NFR9 is the decision the architecture rests on, with C2
-the half that can genuinely fail. Every target is a hypothesis, to be reported
+NFR2, NFR3 and NFR8 are load-bearing. Ineligible or duplicate ballots make the number meaningless, and NFR8 is the decision the architecture rests on, with C2 the half that can genuinely fail. Every target is a hypothesis, to be reported
 as measured in Evaluation 2, including where missed.
 
 \subsection{Trust model and explicit non-goals}
@@ -171,10 +149,9 @@ Groth16 needs a circuit-specific trusted setup, so eligibility rests on the
 phase-two ceremony for the Semaphore circuit; this project uses the published
 artifacts and verifies their hashes against the Semaphore repository rather
 than running one. If every contributor colluded, forged membership proofs would
-verify and nothing in the proofs would reveal it. FR8's on-chain cap against
-the declared roll size does not depend on the ceremony.
+verify and nothing in the proofs would reveal it. FR5's on-chain cap against the declared roll size does not depend on the ceremony.
 
-Six guarantees, NFR1 to NFR6 as claims, each paired in Section~5 with a test.
+Five guarantees, NFR1 to NFR5 as claims, each paired in Section~5 with a test.
 
 \begin{itemize}
   \item \emph{Eligibility.} Only an identity in the published root can produce
@@ -185,10 +162,9 @@ Six guarantees, NFR1 to NFR6 as claims, each paired in Section~5 with a test.
         is an anonymity set, worth nothing for a lone ballot in a quiet hour,
         and unconditional only against the chain: against the operator it needs
         the relayer run separately from the registrar, or direct submission.
-  \item \emph{Individual verifiability.} A voter can find their own ballot
-        transaction, and their commitment in the leaves.
-  \item \emph{Universal verifiability.} Anyone can recompute the tally from
-        public chain data, unaided.
+  \item \emph{Verifiability.} A voter can find their own ballot transaction and
+        their commitment among the leaves, and anyone can recompute the tally
+        from public chain data, unaided.
   \item \emph{Integrity of the count.} The tally moves only on the
         ballot-acceptance path, and closing and finalizing are permissionless,
         so no operator can adjust or withhold it.
@@ -214,17 +190,14 @@ Six properties \projectname{} does not guarantee:
   \item \emph{Roll correctness.} Nothing forces the frozen roll to match who
         actually registered: a registrar can drop or substitute a commitment
         and the leaf set still reproduces the published root, since recomputing
-        a root proves only that the leaves match it. FR14 and FR15 make that
-        provable rather than invisible, and the window to act closes when
-        voting opens. Neither makes the registrar honest.
+        a root proves only that the leaves match it. FR2's receipt and FR6's presence check make that provable rather than invisible, and the window to act closes when voting opens. Neither makes the registrar honest.
   \item \emph{Privacy from the relayer, and selective censorship.} The relayer
         reads the candidate choice in every ballot and sees the source IP. The
         payload names nobody, but one operator running the registrar and the
         relayer can correlate its own two logs, so secrecy from the operator is
         conditional on separation. With the freedom to refuse, this is one
         attack: dropping only the ballots naming one candidate alters the
-        result, and turnout below the roll size hides it. FR10's receipt and
-        FR13's deadline warning bound it, and FR9 only helps a voter holding gas. Removing the attack rather than bounding it is out of scope.
+        result, and turnout below the roll size hides it. FR7's receipt and deadline warning bound it, and its bypass only helps a voter holding gas. Removing the attack rather than bounding it is out of scope.
   \item \emph{Network-level anonymity.} A relayer or RPC provider sees the IP a
         ballot arrives from, and an operator that also ran registration holds
         the address that person registered from. The relayer strips what

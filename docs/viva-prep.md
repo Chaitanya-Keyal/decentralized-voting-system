@@ -1003,7 +1003,7 @@ the count.
 > *Follow-up.* "Can the authority stall forever by never opening voting?" No: transitions are
 > permissionless once their timestamp has passed, so any observer can close voting and
 > finalize, and the authority is restricted to configuration before registration opens and
-> cancellation before voting opens. FR11 is written that way on purpose: an authority-only
+> cancellation before voting opens. FR4 is written that way on purpose: an authority-only
 > finalization would be a silent veto, because the time gate only stops a transition happening
 > earlier than announced, never later.
 >
