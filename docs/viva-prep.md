@@ -856,18 +856,16 @@ a capacity fixed before any ballot exists, which `castVote` then enforces.
 **Does proof generation time grow with the size of the tree? What did you predict, and what if
 the measurement disagrees?**
 
-We predicted logarithmic and we are not certain that is what we will measure. In principle the
-circuit computes one Poseidon hash per level, depth 17 for 100,000 against depth 4 for 10. But
-Semaphore v4 compiles to a fixed maximum depth and pads shorter proofs, so the circuit may do
-the same work regardless of the real roll size. If that is what we see, C2 comes out flat
-rather than logarithmic and the correct report shows the flat line and explains why. What
-genuinely grows on a real device is memory pressure and the proving key download, which is why
-B2 is measured by device class.
+We predict it grows slowly with depth, and only with depth. Semaphore v4 ships a separate
+circuit and proving key for each tree depth from 1 to 32, so a deeper tree means a slightly
+bigger circuit: one more Poseidon hash per level, depth 17 for 100,000 voters against depth 4
+for 10. What grows with the roll itself is the tree rebuild in the booth, which is linear, so
+C2 times the two separately. On a real device memory pressure and the proving key download
+also matter, which is why B2 is measured by device class.
 
-> *Follow-up.* "If C2 comes out flat, is the parameter wasted?" No. The question a reader has
-> is whether a bigger electorate makes voting slower for the individual voter, and flat is a
-> stronger answer than logarithmic. We keep the parameter and change the claim. C2 also
-> times the tree rebuild separately, and that part is linear in the roll whatever proving does.
+> *Follow-up.* "So what limits the roll size for a voter on a phone?" The rebuild, not the
+> proof. That is why C2's target is set at ten thousand voters, with a hundred thousand reported
+> rather than promised.
 >
 > *Trap.* "Proving time is constant because zero-knowledge proofs are constant size." That
 > confuses proof size and verification cost, which are constant, with proving time, which is a

@@ -93,7 +93,7 @@ saving, and C1 is where that price becomes visible.
     \textbf{ID} & \textbf{Parameter}       & \textbf{Measurement}                                                    & \textbf{Target}                                    \\
     \midrule
     C1          & Gas vs voter-roll size   & Rolls from $10^1$ to $10^5$: registration, tier 2 ballot, tier 3 ballot & Registration and tier 3 flat; tier 2 rising slowly \\
-    C2          & Booth time vs roll size  & Tree rebuild and proving, timed separately, across the same roll sizes  & Rebuild linear, under 5 s at $10^5$; proving grows with depth only \\
+    C2          & Booth time vs roll size  & Tree rebuild and proving, timed separately, across the same roll sizes  & Rebuild under 5 s at $10^4$ on a phone, reported at $10^5$; proving grows with depth only \\
     C3          & Concurrent-voter ceiling & Load until failure                                                      & Name the bottleneck                                \\
     \bottomrule
   \end{tabular}

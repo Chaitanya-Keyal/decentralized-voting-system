@@ -45,7 +45,7 @@ B2 decides the proving go/no-go in the roadmap.
 | # | Parameter | Measurement | Target |
 |---|---|---|---|
 | C1 | Gas vs voter-roll size | Rolls of 10 to 10^5: registration, tier 2 ballot, tier 3 ballot | Registration and tier 3 flat; tier 2 rising slowly |
-| C2 | Booth time vs roll size | Tree rebuild and proving, timed separately, across the same roll sizes | Rebuild linear, under 5 s at 10^5; proving grows with depth only |
+| C2 | Booth time vs roll size | Tree rebuild and proving, timed separately, across the same roll sizes | Rebuild under 5 s at 10^4 on a phone, reported at 10^5; proving grows with depth only |
 | C3 | Concurrent-voter ceiling | Load until failure on a local node | Name the bottleneck |
 
 C1 is the central claim, and it is narrower than "gas does not grow with the
