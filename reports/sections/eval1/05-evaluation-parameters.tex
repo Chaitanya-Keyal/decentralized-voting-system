@@ -43,6 +43,8 @@ B1 and B2 report the 95th percentile beside the median, because the voter who
 waited is the one who abandons the ballot. B2 names its device class, since the
 project does not choose the voter's hardware, and a device that cannot finish a
 proof at all counts as a failure.
+B1's target allows for Sepolia's 12-second blocks: waiting for the next block
+alone averages about 6 s and reaches about 11 s at the 95th percentile.
 
 B2 decides the Section~6 gate. In-browser proving is the principal technical
 risk, so a 95th percentile in tens of seconds, or a device that cannot finish,
@@ -58,7 +60,7 @@ secret onto the operator the design exists to remove.
     \toprule
     \textbf{ID} & \textbf{Parameter}           & \textbf{Measurement}              & \textbf{Target}                \\
     \midrule
-    B1          & End-to-end vote latency      & Wall clock, click to confirmation & 95th percentile under 10 s     \\
+    B1          & End-to-end vote latency      & Wall clock, click to confirmation & 95th percentile under 30 s     \\
     B2          & Client proof generation time & Timed in-browser, by device class & Under 5 s on a mid-range phone \\
     \bottomrule
   \end{tabular}
@@ -91,7 +93,7 @@ saving, and C1 is where that price becomes visible.
     \textbf{ID} & \textbf{Parameter}       & \textbf{Measurement}                                                    & \textbf{Target}                                    \\
     \midrule
     C1          & Gas vs voter-roll size   & Rolls from $10^1$ to $10^5$: registration, tier 2 ballot, tier 3 ballot & Registration and tier 3 flat; tier 2 rising slowly \\
-    C2          & Proof time vs roll size  & B2 across the same roll sizes                                           & Grows slowly, not linearly                         \\
+    C2          & Booth time vs roll size  & Tree rebuild and proving, timed separately, across the same roll sizes  & Rebuild linear, under 5 s at $10^5$; proving grows with depth only \\
     C3          & Concurrent-voter ceiling & Load until failure                                                      & Name the bottleneck                                \\
     \bottomrule
   \end{tabular}
@@ -99,7 +101,7 @@ saving, and C1 is where that price becomes visible.
 
 C2 exists to check that the cost did not simply move to the client. The booth
 rebuilds the tree locally so the registrar never learns who is voting, and that
-work grows with the roll. C2 is where the design is most likely to fail.
+work is linear in the roll; proving grows only with the tree's depth. C2 is where the design is most likely to fail.
 
 \subsection{Security and correctness}
 
@@ -115,7 +117,7 @@ Each property is paired with an adversary that must fail.
     \textbf{ID} & \textbf{Property}       & \textbf{How it is demonstrated}                                                               \\
     \midrule
     D1          & Double-vote resistance  & Replaying a nullifier must revert, as must a ballot past the declared roll size                \\
-    D2          & Eligibility enforcement & A valid proof against the wrong root must revert                                               \\
+    D2          & Eligibility enforcement & A valid proof against the wrong root, and a tampered proof, must revert                        \\
     D3          & Ballot secrecy          & Deanonymization attempt over all chain data; the operator condition reported beside the result \\
     D4          & Verifiability           & A voter finds their own ballot; an observer recomputes the tally with our backend switched off \\
     D5          & Authority containment   & An observer closes voting and finalizes; the authority cannot vote or alter a frozen root      \\

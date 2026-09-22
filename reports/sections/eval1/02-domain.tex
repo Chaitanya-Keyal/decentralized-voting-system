@@ -83,19 +83,9 @@ Four things it does not fix.
         trusted off-chain check: the registrar verifies institute credentials
         before accepting an identity commitment.
 
-        Publishing the entries does not repair this. It proves they match the
-        root, not that each one belongs to a real person, so fabricated entries
-        still get ballots. What publication changes is timing. The capacity to
-        stuff is fixed and published before any ballot exists, so it is chosen
-        with no information about the result. \texttt{VoterRegistry} stores the
-        declared roll size and \texttt{castVote} refuses a ballot once spent
-        nullifiers reach it. That is a cap the chain enforces, not detection.
-
-        Exclusion is caught only per voter. The booth downloads the published
-        leaf set and derives its own authentication path, so each voter can
-        check that their own commitment is present. Removing it means not trusting a single registrar, which is out of scope here. So \projectname{} removes the operator from the box and the
-        count, and leaves one party in control of the franchise. Section~3 lists
-        roll correctness as a non-guarantee.
+        Publishing the entries proves they match the root, not that each one
+        belongs to a real person. So \projectname{} removes the operator from
+        the box and the count, and leaves one party in control of the franchise.
 
   \item \textbf{Ballot design.} Immutability makes a flawed rule permanent: a
         contract implementing an unfair rule is faithfully unfair, whether the
@@ -118,18 +108,13 @@ Four things it does not fix.
         nullifier. That works remotely and in bulk, and anonymity removes the
         forensic trail logs would have left. It is the right trade against an
         operator who controls the roll, box and count, and the wrong one
-        against a candidate with cash and a small electorate. Section~3 records coercion and the sale of a credential as non-guarantees.
+        against a candidate with cash and a small electorate.
 \end{itemize}
 
 Section~4's design attempts transparency and secrecy together: eligibility
 proved in zero knowledge against a roll committed as one 32-byte root, ballots
 from voters holding no cryptocurrency, and a count any observer can recompute
-from public data. Two qualifications. Secrecy is unconditional against the
-chain, where nothing published ties a ballot to an identity commitment. Against
-the operator it is conditional: the relayer paying for a gasless ballot reads
-the choice and sees the source IP address, so secrecy holds only if the relayer
-runs separately from the registrar, or the voter submits directly. The cost
-claim is per operation: one ballot should cost the same gas whether the roll
-holds a hundred or a hundred thousand voters, while an election's cost stays
-linear in ballots cast. Whether it stays flat as the roll grows is parameter C1
-in Table~\ref{tab:eval-scale}, a target for Evaluation 2, not a result.
+from public data. The cost claim is per operation: one ballot should cost the
+same gas whether the roll holds a hundred or a hundred thousand voters, while an
+election's cost stays linear in ballots cast. Whether it does is parameter C1 in
+Table~\ref{tab:eval-scale}, a target for Evaluation~2, not a result.

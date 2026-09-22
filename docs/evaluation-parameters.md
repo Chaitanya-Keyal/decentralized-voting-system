@@ -28,12 +28,15 @@ gas on any EVM chain, so a second deployment would only reproduce A1.
 
 | # | Parameter | Measurement | Target |
 |---|---|---|---|
-| B1 | End-to-end vote latency | Wall clock, click to confirmation, on Ethereum Sepolia | 95th percentile under 10 s |
+| B1 | End-to-end vote latency | Wall clock, click to confirmation, on Ethereum Sepolia | 95th percentile under 30 s |
 | B2 | Client proof generation time | Timed in-browser, by device class | Under 5 s on a mid-range phone |
 
 Both report the 95th percentile beside the median: the voter who waited is the
 one who abandons the ballot. A device that cannot finish a proof at all counts as
 a B2 failure, not a slow result.
+
+B1's target allows for Sepolia's 12-second blocks: waiting for the next block
+alone averages about 6 s and reaches about 11 s at the 95th percentile.
 
 B2 decides the proving go/no-go in the roadmap.
 
@@ -42,7 +45,7 @@ B2 decides the proving go/no-go in the roadmap.
 | # | Parameter | Measurement | Target |
 |---|---|---|---|
 | C1 | Gas vs voter-roll size | Rolls of 10 to 10^5: registration, tier 2 ballot, tier 3 ballot | Registration and tier 3 flat; tier 2 rising slowly |
-| C2 | Proof time vs roll size | B2 across the same roll sizes | Grows slowly, not linearly |
+| C2 | Booth time vs roll size | Tree rebuild and proving, timed separately, across the same roll sizes | Rebuild linear, under 5 s at 10^5; proving grows with depth only |
 | C3 | Concurrent-voter ceiling | Load until failure on a local node | Name the bottleneck |
 
 C1 is the central claim, and it is narrower than "gas does not grow with the
@@ -51,15 +54,15 @@ casting a tier 3 ballot. Total election gas still grows with ballots cast, and
 off-chain work still grows with the roll.
 
 C2 checks that the cost did not simply move to the client. The booth rebuilds the
-tree locally so the registrar never learns who is voting, and that work grows
-with the roll. This is the most likely place for the design to fail.
+tree locally so the registrar never learns who is voting, and that work is
+linear in the roll; proving grows only with the tree's depth. This is the most likely place for the design to fail.
 
 ## D. Security and correctness
 
 | # | Property | How it is demonstrated |
 |---|---|---|
 | D1 | Double-vote resistance | A replayed nullifier must revert, as must a ballot past the declared roll size |
-| D2 | Eligibility enforcement | A valid proof against the wrong root must revert |
+| D2 | Eligibility enforcement | A valid proof against the wrong root, and a tampered proof, must revert |
 | D3 | Ballot secrecy | Deanonymization attempt over all chain data; the operator condition reported beside the result |
 | D4 | Verifiability | A voter finds their own ballot; an observer recomputes the tally with our backend off |
 | D5 | Authority containment | An observer closes voting and finalizes; the authority cannot vote or alter a frozen root |

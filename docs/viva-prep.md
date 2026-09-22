@@ -415,7 +415,7 @@ yet. An examiner who finds a gap you already conceded scores it as understanding
 who finds one you claimed not to have scores it as overclaiming, and then doubts the claims
 you did make.
 
-The six in the report:
+The report lists seven. The first six:
 
 | Non-guarantee | Why out of scope | The one-line answer |
 | :-- | :-- | :-- |
@@ -431,7 +431,7 @@ Three more to concede in the first sentence if they come up:
 | Gap | The one-line answer |
 | :-- | :-- |
 | **Credential transfer and organised vote farming** | "The identity secret is a bearer credential with nothing binding it to a person, so it can be sold or generated in bulk by an operator registering on voters' behalf. Anonymity also removes the forensic trail a centralized system would leave, which is a genuine cost of the design." |
-| **A lost identity secret** | "The secret lives in browser storage and the root freezes at the close of registration, so a cleared browser between registration and voting is permanent disenfranchisement. The standard fix is deriving the identity deterministically from a wallet signature so it is reproducible and never stored at rest, and whether a voter enrolled in one browser profile can vote from another is a known gap." |
+| **A lost identity secret** (the seventh in the report) | "The secret lives in browser storage and the root freezes at the close of registration, so a cleared browser between registration and voting is permanent disenfranchisement. The standard fix is deriving the identity deterministically from a wallet signature so it is reproducible and never stored at rest, and whether a voter enrolled in one browser profile can vote from another is a known gap." |
 | **Availability of the published leaf set** | "The CID is on-chain, so a registrar who publishes a leaf set that does not reproduce the root is caught immediately. One who publishes nothing, or unpins it later, is not caught by that check, and since the booth builds its authentication path from that file, withholding it blocks voting rather than only blocking audit. We expect observers to fetch and pin their own copy at publication time, and a non-empty CID is a precondition for opening the voting window." |
 
 Three framings worth memorising. First: the verification path is decentralized while parts
@@ -558,7 +558,7 @@ Sepolia runs Ethereum's own proof-of-stake consensus: validators propose and att
 blocks in twelve-second slots, and a block is finalized once two epochs have attested to it,
 after roughly thirteen minutes. We care because of finality: a freshly included block is not
 final, and a short reorg can drop a recent one. That is why reorg handling is on the Phase 3
-checklist, and why our B1 target of p95 under ten seconds is confirmation time, not
+checklist, and why our B1 target of p95 under thirty seconds is inclusion time, not
 settlement time.
 
 > *Follow-up.* "Your voter gets a receipt at one confirmation. What do you tell them?" That
@@ -866,7 +866,8 @@ B2 is measured by device class.
 
 > *Follow-up.* "If C2 comes out flat, is the parameter wasted?" No. The question a reader has
 > is whether a bigger electorate makes voting slower for the individual voter, and flat is a
-> stronger answer than logarithmic. We keep the parameter and change the claim.
+> stronger answer than logarithmic. We keep the parameter and change the claim. C2 also
+> times the tree rebuild separately, and that part is linear in the roll whatever proving does.
 >
 > *Trap.* "Proving time is constant because zero-knowledge proofs are constant size." That
 > confuses proof size and verification cost, which are constant, with proving time, which is a
@@ -1321,13 +1322,15 @@ devices we do not control.
 > more per ballot than tier 2 at every roll size we can measure, and that is the price of
 > anonymity rather than a saving.
 
-**B1 says 95th percentile under ten seconds. Most people report an average. Why the tail?**
+**B1 says 95th percentile under thirty seconds. Most people report an average. Why the tail, and why thirty?**
 
 Because a voter experiences their own wait, not the mean. Confirmation latency is right-skewed:
 most transactions land in one or two blocks and a small fraction wait on a repriced mempool or
-a slow RPC. A mean of four seconds can hide one voter in twenty waiting forty seconds, and that
+a slow RPC. A mean of fifteen seconds can hide one voter in twenty waiting a minute, and that
 voter is the one who decides the site is broken. We report p50 alongside p95 so the shape is
-visible.
+visible. Thirty is set by the chain: Sepolia makes a block every twelve seconds, so waiting
+for the next block alone averages about six seconds and reaches about eleven at p95, before
+proving and relaying are added.
 
 > *Follow-up.* "Why not p99?" It needs a few hundred samples to mean anything and the faucet
 > budget will not fund that on the testnet. We report the percentile our sample size supports and state
@@ -1862,7 +1865,7 @@ you cannot support, and an examiner who asks where it came from has caught you.
 | `castVote` gas budget (A1) | under 400,000, a target rather than a measurement |
 | Groth16 proof | 8 field elements, 256 bytes, constant at every tree depth |
 | Cost per ballot | graded as gas (A1); a fiat figure is not a parameter, since it needs a gas price and exchange rate we do not control |
-| Latency targets | B1 p95 under 10 s end to end, B2 p95 under 5 s proving on a mid-range phone |
+| Latency targets | B1 p95 under 30 s end to end, B2 p95 under 5 s proving on a mid-range phone |
 | Repetitions | n at least 30 per data point, report median and p95 |
 | Faucet reality | testnet faucets cannot fund a sustained load run, so throughput runs on a local node |
 | Usability targets | E1 at most 4 steps, E2 zero ETH held, E3 over 80 percent of 10 users unaided |

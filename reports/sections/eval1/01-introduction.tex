@@ -3,10 +3,14 @@
 % Source material: README.md, docs/architecture.md
 % ===========================================================================
 
-\projectname{} is a decentralized voting application. Smart contracts on a
-public testbed chain hold the roll, the schedule and the count. The Election
-Authority cannot cast or alter a ballot, change the roll after registration
-closes, or stop the count.
+Institutional elections run on one operator's database. Voters must trust that
+operator with the roll, the ballot box, the count and the log, and nobody
+outside can check any of them.
+
+\projectname{} is a decentralized voting application that removes that operator
+from the box and the count. Smart contracts on a public testbed chain hold the
+roll, the schedule and the count. The Election Authority cannot cast or alter a
+ballot, change the roll after registration closes, or stop the count.
 
 A voter deposits an identity commitment at registration. To vote, they prove in
 zero knowledge that they hold the secret behind one commitment under the
@@ -35,31 +39,9 @@ involved. Audit logs are administered by the party in dispute, so auditing moves
 trust rather than removing it. A public chain replaces the administrator with a
 consensus rule and the audit with re-execution.
 
-The design does not solve every problem in electronic voting. Section~3 states each
-limit with its reason; in outline they are these.
-
-\begin{itemize}
-  \item \emph{Ballot secrecy} is unconditional against the chain: no on-chain data
-        links an address or an identity to a ballot. Against the operator it is
-        conditional, because the relayer that sponsors gas reads the candidate and the
-        source IP. It holds only if the relayer runs separately from the registrar, or
-        the voter submits directly.
-  \item \emph{The relayer can censor selectively}, dropping only ballots for the
-        candidate it dislikes. The record shows nothing, because low turnout is normal.
-        Signed receipts and a booth deadline warning bound that attack rather
-        than removing it.
-  \item \emph{Roll correctness} is not guaranteed. The registrar can enrol commitments
-        for people who do not exist and omit real registrants. Publishing the roll size
-        does not make stuffing detectable, because the registrar sets that number and
-        nobody else knows the true figure. It only commits the stuffing capacity before
-        any ballot exists.
-  \item \emph{Coercion} is not resisted. A voter can hand over the identity secret,
-        which both proves their vote and lets the coercer cast it.
-  \item \emph{Eligibility rests on a trusted setup} that this group did not run.
-        If it was compromised, forged proofs would verify.
-  \item \emph{Two further exposures:} an RPC provider sees the source IP, and the
-        running tally is visible while voting is open.
-\end{itemize}
+The design does not solve every problem in electronic voting. Its limits
+(roll correctness, coercion, the trusted setup, and privacy from the relayer)
+are stated once, with their reasons, in Section~\ref{sec:trust}.
 
 Section~2 analyses the domain; Section~3 the requirements, trust model and
 non-guarantees; Section~4 the design and technology choices with the

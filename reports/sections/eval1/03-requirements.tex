@@ -58,9 +58,7 @@ The identity secret is generated in the browser; only its commitment reaches
 the registrar, except under Section~6's proving fallback, which merges
 registration, proving and relaying into one trust domain. A voter who cannot
 check that their ballot landed has only moved trust to a contract; a provable
-ballot is also a coercible one. A lost secret cannot be replaced once the root
-freezes, so the booth exports a copy and re-registration closes with the
-window.
+ballot is also a coercible one.
 
 \paragraph{Candidate.}
 The candidate holds no privileged capability: every privileged operation
@@ -104,7 +102,7 @@ is conceded below as one attack.
   \addlinespace[2pt]
   FR6 & Have the booth download the published leaf set, confirm the Voter's commitment is present, and derive the authentication path locally, asking the Registrar for nothing at vote time. & A path supplied by the Registrar would reveal which leaf was voting, and the Relayer sees the choice, so the two records together would deanonymize the Voter. \\
   \addlinespace[2pt]
-  FR7 & Let the Relayer verify a ballot's proof off-chain, pay its gas, and return a signed receipt; warn the Voter and offer direct submission if no transaction arrives by a stated deadline; and let a Voter holding gas bypass the Relayer entirely. & The Voter must hold no cryptocurrency. Pre-verification stops junk proofs draining the Relayer, and the receipt plus the bypass mean a Relayer that drops ballots leaves evidence rather than silence. \\
+  FR7 & Let the Relayer check a ballot's proof and that its nullifier is unspent off-chain, pay its gas, and return a signed receipt; warn the Voter and offer direct submission if no transaction arrives by a stated deadline; and let a Voter holding gas bypass the Relayer entirely. & The Voter must hold no cryptocurrency. Pre-verification stops junk proofs draining the Relayer, and the receipt plus the bypass mean a Relayer that drops ballots leaves evidence rather than silence. \\
   \addlinespace[2pt]
   FR8 & Move tallies only in the transaction accepting a ballot, make the result immutable once finalized, and keep every ballot, the tally, the root, the roll size and the result readable from chain data alone. & No actor may adjust the count between the last ballot and the announcement. The Auditor is permissionless, and an audit that needed this project's cooperation would audit the operator rather than the chain. \\
 \end{longtable}
@@ -121,7 +119,7 @@ is conceded below as one attack.
   \endlastfoot
   NFR1 & \emph{Ballot secrecy, conditional.} No chain data ties a ballot to a commitment or a registration record. Two qualifications belong to the requirement: this is anonymity within the roll, not secrecy of ballot contents; and it is unconditional only against the chain, holding against the operator while the Relayer runs separately from the Registrar, or the Voter submits directly. & D3, a deanonymization attempt on full chain data, reporting the anonymity set left \\
   \addlinespace[2pt]
-  NFR2 & \emph{Eligibility enforcement.} A ballot is accepted only on proof of membership of the published root, subject to the trusted setup assumption below. & D2: a proof against the wrong root must revert \\
+  NFR2 & \emph{Eligibility enforcement.} A ballot is accepted only on proof of membership of the published root, subject to the trusted setup assumption below. & D2: a proof against the wrong root, or a tampered proof, must revert \\
   \addlinespace[2pt]
   NFR3 & \emph{One ballot per voter.} A second ballot from the same identity secret is rejected, and accepted ballots never exceed the published roll size. & D1, with fuzzing over nullifier collisions \\
   \addlinespace[2pt]
@@ -131,7 +129,7 @@ is conceded below as one attack.
   \addlinespace[2pt]
   NFR6 & \emph{Cost of running an election.} A ballot including proof verification stays under 400,000 gas. Cost in fiat is not graded, since it depends on a gas price and an exchange rate the project does not control. & A1 \\
   \addlinespace[2pt]
-  NFR7 & \emph{End-to-end latency.} The 95th percentile from click to on-chain inclusion stays under 10 seconds, of which browser proving is under 5 seconds on a mid-range phone. & B1 and B2 \\
+  NFR7 & \emph{End-to-end latency.} The 95th percentile from click to on-chain inclusion stays under 30 seconds, about two 12-second Sepolia blocks plus proving, of which browser proving is under 5 seconds on a mid-range phone. & B1 and B2 \\
   \addlinespace[2pt]
   NFR8 & \emph{Scalability in the electorate.} Gas per operation is constant in the number of enrolled voters once a ballot carries FR5's proof, since neither the root nor the proof grows with the roll. The plain Merkle-proof baseline differs at the ballot, whose authentication path grows with the roll. The claim is per operation: election cost stays linear in ballots cast. & C1 and C2, with C3 for the concurrency ceiling \\
   \addlinespace[2pt]
@@ -143,7 +141,7 @@ is conceded below as one attack.
 NFR2, NFR3 and NFR8 are load-bearing. Ineligible or duplicate ballots make the number meaningless, and NFR8 is the decision the architecture rests on, with C2 the half that can genuinely fail. Every target is a hypothesis, to be reported
 as measured in Evaluation 2, including where missed.
 
-\subsection{Trust model and explicit non-goals}
+\subsection{Trust model and explicit non-goals}\label{sec:trust}
 
 Groth16 needs a circuit-specific trusted setup, so eligibility rests on the
 phase-two ceremony for the Semaphore circuit; this project uses the published
@@ -170,7 +168,7 @@ Five guarantees, NFR1 to NFR5 as claims, each paired in Section~5 with a test.
         so no operator can adjust or withhold it.
 \end{itemize}
 
-Six properties \projectname{} does not guarantee:
+Seven properties \projectname{} does not guarantee:
 
 \begin{itemize}
   \item \emph{Coercion resistance, and the sale of a credential.} The identity
@@ -209,6 +207,10 @@ Six properties \projectname{} does not guarantee:
         can sway voters yet to cast. It also erodes ballot secrecy: timestamped
         \texttt{VoteCast} events with a public counter let anyone who knows
         when a person voted narrow the anonymity set. Hiding it would need a tallying scheme this design does not implement.
+  \item \emph{Recovery of a lost secret.} Once the root freezes, a voter who
+        lost their identity secret cannot vote, because adding a leaf is the
+        one change the design refuses. The booth exports a copy at registration
+        and says it is the only one.
 \end{itemize}
 
-Each follows from a scope decision; the remedies above are future work.
+All seven are future work.

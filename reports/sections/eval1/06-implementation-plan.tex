@@ -3,34 +3,9 @@
 % Source material: docs/roadmap.md, docs/architecture.md
 % ===========================================================================
 
-Three tiers describe the system (Table~\ref{tab:tiers}); only the last two
-will be built. Tier 1 is the contrast and produces no numbers: its registration
-cost grows with the electorate, and its ballots are attributable.
-
-\begin{table}[htbp]
-  \centering
-  \caption{Build tiers.}
-  \label{tab:tiers}
-  \small
-  \begin{tabular}{@{}lL{3.9cm}L{5.3cm}L{3.0cm}@{}}
-    \toprule
-    \textbf{Tier} & \textbf{Eligibility} & \textbf{Ballot privacy}           & \textbf{Voter pays gas} \\
-    \midrule
-    1             & On-chain roll        & None; ballots linked to addresses & Yes                     \\
-    2             & Merkle root          & None                              & Yes                     \\
-    3             & Zero-knowledge proof & Anonymous, nullifier-protected    & No                      \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-Tier 2 eligibility is a published root, roll size and leaf set, from which the
-booth derives its own path, not one the registrar supplies. Tier 3 replaces
-tier 2 rather than extending it: the two hash their trees differently, so the
-tree builder, verification path and registry root are rebuilt. The lifecycle, factory, indexer and gas baseline carry
-across.
-
-Neither tier fixes roll correctness: one registrar decides who is enrolled.
-That is out of scope here.
+The build follows the tiers of Table~\ref{tab:tiers}: tier 2, then tier 3.
+Tier 3 replaces tier 2's tree rather than extending it; the lifecycle, factory,
+indexer and gas baseline carry across.
 
 Tier 2 ships whole first because the cost of anonymity is a difference: alone,
 tier 3 reports what a ballot costs, not how much is anonymity. Phase 1's gas
@@ -103,11 +78,6 @@ would hold against the chain but not the operator, who also runs the registrar
 and the relayer. It rescues proving only, not the contract
 wiring or the relayer.
 
-No response in Table~\ref{tab:risks} removes selective censorship. The relayer
-reads the choice, so it can drop one candidate's ballots, and nothing would show
-it: turnout below the roll size is ordinary. Signed receipts and a
-booth deadline warning bound the attack, not remove it; removing it is out of scope.
-
 \begin{table}[htbp]
   \centering
   \caption{Risks and responses.}
@@ -119,7 +89,7 @@ booth deadline warning bound the attack, not remove it; removing it is out of sc
     \midrule
     Tier 3 unfinished        & Gate on 1 November: demonstrate tier 2, report tier 3 unfinished. Tier 2 is a complete system on its own, so the worst case is a demonstration without anonymity \\
     Relayer down on the day  & Direct submission from funded wallets; the cost is parameter E2, not the election                                              \\
-    Relayer gas drained      & A daily cap does not bound it; an off-chain proof check before spending holds exposure to the roll size, one nullifier per identity per election \\
+    Relayer gas drained      & A daily cap does not bound it; checking the proof and that the nullifier is unspent before spending holds exposure to the roll size, one nullifier per identity per election \\
     Faucet supply on Sepolia & Testnet faucets cannot fund sustained load, so throughput and the gas sweep run on a local node; Sepolia is kept for latency and the demonstration \\
     \bottomrule
   \end{tabular}
