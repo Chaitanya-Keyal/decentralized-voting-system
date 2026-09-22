@@ -21,54 +21,23 @@ carries its reasoning and the alternative it beat.
 
 ## Blockchain testbed
 
-**Deployment target: Polygon Amoy (chain 80002), and nothing else.** Amoy is the
-officially maintained Polygon PoS testnet, its lifecycle is independent of the Sepolia
-sunset, and blocks of about 2s keep the demo responsive. Faucets: Alchemy, QuickNode,
-Chainlink, ETHGlobal. (The *official* Polygon faucet is deprecated; use the third-party
-ones.)
+**Deployment target: Ethereum Sepolia.** Sepolia is the Ethereum Foundation's recommended
+testnet for application and smart-contract development. It has the deepest faucet and
+tooling support of any testnet (Alchemy, QuickNode, Google Cloud, Chainlink, Infura),
+which matters for a project that funds many test ballots, and its execution matches
+Ethereum mainnet, so what we observe on it is what a production deployment would see.
 
-One naming point, because the report is graded on precision: Polygon PoS is a
-**checkpointed sidechain, not a rollup**. It runs its own validator set and its own
-consensus and periodically checkpoints state to Ethereum; it does not publish transaction
-data to Ethereum and does not inherit Ethereum's security for execution. We describe it
-that way throughout and we do not call it a Layer-2.
+**Local: a Foundry node (Anvil).** Development, and the gas parameters. Gas is
+deterministic given the same bytecode and calldata, so a local sweep over roll sizes from
+ten to a hundred thousand (C1) is exact, instant and free, where the same run on a testnet
+would drain faucets. The throughput and ceiling runs go here too, so network noise is not
+mistaken for a system property, and the reorg test needs a chain the harness can
+manipulate. Only end-to-end latency and the live demonstration need Sepolia itself.
 
-**Ethereum Sepolia: not used.** Sepolia reaches end-of-life on 30 September 2026, four
-days after Eval 1, and the first deployable contract does not exist until milestone M1 in
-October. There is therefore no day on which both a live Sepolia and a working contract
-exist, and a secondary target we can never deploy to is not a target. Base Sepolia does
-not rescue it, because Base Sepolia settles to Sepolia and has published no migration plan
-of its own, so that whole family inherits the same schedule.
-
-**Local: Anvil.** Development, the gas parameters (gas is deterministic given the same
-bytecode and calldata, so local measurement is exact rather than approximate), the
-throughput and ceiling runs, and the reorg test, which needs a chain that can be
-manipulated.
-
-### Why the L1-versus-L2 comparison was dropped
-
-The calendar is the smaller reason. The larger one is that the comparison was never an
-experiment. Gas is a function of the EVM and of the bytecode, so an identical suite
-consumes identical gas on Ethereum and on Polygon, and running it on both would have
-produced two copies of the same A1 number. The entire difference between the two networks
-is a fee market, gas price multiplied by token price, and both networks hand out
-valueless test tokens, so any rupee figure has to be imported from mainnet price feeds
-wherever the transaction ran. The second reason is the naming point above: Polygon PoS is
-a sidechain, so pricing it against Ethereum compares two EVM fee markets and is not a
-result about rollup economics.
-
-A2 states the gas price and token price it used, so the rupee figure can be recomputed. It prices the single gas figure A1 produces under several fee
-regimes (Ethereum mainnet, Polygon PoS mainnet, Polygon Amoy) and reports a band across a
-range of gas prices instead of one number, because a quote taken on one afternoon is a
-screenshot rather than a cost. It needs no second network, which is why dropping Sepolia
-costs the report nothing. If a live layer-1 figure is still wanted in November, we name a
-successor testnet rather than one with a published shutdown date.
-
-Faucet drip, not price, is the binding constraint on Amoy: roughly 0.009 POL per vote
-against roughly 0.1 POL per claim per day means a sustained load run is not fundable on a
-testnet inside this project's window. That is why the gas and throughput parameters run on
-Anvil, and Amoy carries only end-to-end latency, indexer lag and the live demo. See the
-benchmark methodology in [evaluation-parameters.md](evaluation-parameters.md).
+A2 converts the measured gas into rupees at a stated gas price, and states the price
+beside the figure so it can be recomputed. Ethereum mainnet gas is not cheap, so A2 is
+reported as measured rather than against a fixed target; the engineering measure is A1,
+the gas itself, which is chain-independent.
 
 ## Frontend
 

@@ -290,24 +290,26 @@ result permanently, so the network charges per unit of work instead of per month
 is **gas**, and each EVM operation has a fixed gas cost set by the protocol: adding two
 numbers is 3 gas, writing to a previously empty storage slot is about 20,000, and a pairing
 check is roughly 200,000. Gas is the unit; the **gas price** is a per-unit bid that buys
-inclusion; the **fee** is gas used times gas price, paid in the chain's native token, POL on
-Amoy. Post-EIP-1559 the base fee is burned and only the priority tip reaches a validator. If
+inclusion; the **fee** is gas used times gas price, paid in the chain's native token, ETH on
+Ethereum. Post-EIP-1559 the base fee is burned and only the priority tip reaches a validator. If
 execution runs out of gas everything reverts and the gas is still spent.
 
 Worked example against our own budget (parameter A1 caps `castVote` at 400,000 gas, of which
 the pairing check is about half):
 
 ```
-300,000 gas x 30 gwei = 9,000,000 gwei = 0.009 POL per ballot
+300,000 gas x 30 gwei = 9,000,000 gwei = 0.009 ETH per ballot
 ```
 
-which is the per-ballot figure used throughout the report, and a fraction of a rupee
-(parameter A2 targets under INR 0.50).
+On Ethereum at mainnet prices 0.009 ETH is real money, not a fraction of a rupee, which is
+why gas (parameter A1) is the engineering measure and the fiat figure (A2) is reported as an
+illustration at a stated price rather than against a fixed target. A large production
+electorate would use a cheaper execution layer, which is future work.
 
 The fee is taken from the account that signed and submitted the transaction, which in
-Solidity is `msg.sender`. In the obvious design every voter installs a wallet, gets POL from
+Solidity is `msg.sender`. In the obvious design every voter installs a wallet, gets ETH from
 a faucet, and holds a balance. That is most of the turnout gone, and it makes acquiring
-cryptocurrency a precondition for voting. The naive fix of sending each voter 0.01 POL first
+cryptocurrency a precondition for voting. The naive fix of sending each voter a little ETH first
 is worse: the funding transfer is public, so it links the registrar's address to the address
 that later casts a ballot, which is exactly the deanonymization the cryptography exists to
 prevent.
@@ -389,9 +391,8 @@ reason, not the row.
 | Decision | Alternative rejected | Why |
 | :-- | :-- | :-- |
 | A public blockchain at all | A signed, append-only log on a server we run | A signed log still has an operator who decides what goes into it and can show two different logs to two readers; a chain agrees inclusion and ordering among parties who do not work for us, and enforces the acceptance rule at write time instead of auditing it afterwards |
-| Polygon Amoy, chain id 80002, as the primary testbed | Ethereum Sepolia, Base Sepolia | Sepolia reaches end-of-life on 30 September 2026, seven weeks before the demonstration, and Base Sepolia settles to it; Amoy is the maintained Polygon PoS testnet with about 2 s blocks and an independent lifecycle |
-| Pricing one measured gas figure rather than deploying twice | Deploying to a second network and measuring it there | Gas is a function of the EVM and the bytecode, so an identical suite consumes identical gas on any EVM chain and a second deployment would measure a fee market rather than a property of the design. Sepolia is not a deployment target at all, because it reaches end-of-life on 30 September 2026 and the first deployable contract lands with M1 in October. A2 states the gas price and token price behind its rupee figure, under Ethereum mainnet, Polygon PoS mainnet and Amoy conditions, and reports a band across gas prices (see "The hard ones", item 8) |
-| Anvil for gas and throughput | Measuring everything on Amoy | Gas is deterministic given the bytecode and the calldata, so local measurement is exact rather than approximate; and at 0.009 POL a ballot against about 0.1 POL a day from a faucet, a 200-ballot load run is not fundable |
+| Ethereum Sepolia as the testbed | Other testnets | Sepolia is the Ethereum Foundation's recommended testnet for application and contract development; it has the deepest faucet and tooling support and its execution matches Ethereum mainnet |
+| A local Foundry node for gas and throughput | Measuring everything on the testnet | Gas is deterministic given the bytecode and calldata, so local measurement is exact and a sweep over roll sizes from ten to a hundred thousand is instant and free, where the same run on a testnet would drain faucets |
 | Semaphore v4 | Custom circom circuits | It is exactly the primitive we need, anonymous group membership with a scoped nullifier, audited and maintained; writing our own circuits would consume the project budget and put unaudited cryptography at the centre of a security project |
 | Semaphore's circuits, verifier and nullifier scheme, but **not** its on-chain group management | Using Semaphore's group contracts | Their `addMember` inserts a leaf into contract storage, so registration would cost gas per voter and be linear in the electorate, which is the exact curve this design exists to flatten |
 | Semaphore rather than MACI | MACI | MACI adds the coercion resistance we lack, but it needs a coordinator, encrypted messages and key rotation, and its coordinator is itself trusted for privacy, so it trades one trust assumption for another |
@@ -474,11 +475,11 @@ validator re-runs, which is why nobody including us can make it treat one voter 
 Gas is a unit charged per EVM operation so that computation and storage on a shared machine
 are not free. Each opcode has a fixed cost, storage writes are the expensive ones, and the
 transaction carries a gas limit; exceeding it reverts everything but still spends the gas.
-The fee is gas used times gas price, in POL on Amoy. In our system the voter pays nothing:
-the ballot goes through an ERC-2771 forwarder and our relayer submits the transaction. A
-voter who does hold POL can submit straight to the contract, which is our escape hatch, and
-which is only available to a voter who already holds POL, so it bounds a censoring relayer
-rather than defeating one.
+The fee is gas used times gas price, in ETH. In our system the voter pays nothing: the
+ballot goes through an ERC-2771 forwarder and our relayer submits the transaction. A voter
+who does hold ETH can submit straight to the contract, which is our escape hatch, and which
+is only available to a voter who already holds ETH, so it bounds a censoring relayer rather
+than defeating one.
 
 > *Follow-up.* "Under the forwarder, inside `castVote`, what does `msg.sender` equal?" The
 > forwarder's address. `ERC2771Context` recovers the real signer from the end of the
@@ -497,7 +498,7 @@ so altering an old transaction breaks every hash after it, but that only makes t
 detectable. What makes it impractical is consensus: getting the altered chain accepted means
 rebuilding every later block and out-weighing the honest chain under the fork-choice rule,
 which on a proof-of-stake network means controlling a large fraction of stake and losing it
-if you are caught. Our authority holds no stake on Amoy, which is precisely why we do not run
+if you are caught. Our authority holds no stake in the validator set, which is precisely why we do not run
 our own chain.
 
 > *Follow-up.* "Would a private chain your group operates give the same guarantee?" No, and
@@ -553,41 +554,20 @@ on-chain depends on them. The dashboard replays `ElectionCreated`, `VoterRootPub
 
 **What consensus algorithm secures the chain you are deploying to, and why should you care?**
 
-Polygon PoS, which Amoy is the testnet for, runs proof of stake in two layers: Heimdall, a
-Tendermint-based validator layer that selects proposers and produces checkpoints, and Bor,
-the EVM block producer with roughly two-second blocks. Checkpoints of the Bor chain are
-periodically committed to Ethereum. We care because of finality: two-second blocks make the
-demo responsive, but a freshly included block is not final and a short reorg can drop it.
-That is why reorg handling is on the Phase 3 checklist, and why our B1 target of p95 under ten seconds is
-confirmation time, not block time.
+Sepolia runs Ethereum's own proof-of-stake consensus: validators propose and attest to
+blocks in twelve-second slots, and a block is finalized once two epochs have attested to it,
+after roughly thirteen minutes. We care because of finality: a freshly included block is not
+final, and a short reorg can drop a recent one. That is why reorg handling is on the Phase 3
+checklist, and why our B1 target of p95 under ten seconds is confirmation time, not
+settlement time.
 
 > *Follow-up.* "Your voter gets a receipt at one confirmation. What do you tell them?" That
-> the ballot is included, not settled. We show a confirmation count and implement no
-> finality-gadget check; the receipt is a pointer to a transaction, not a promise about
-> permanence.
+> the ballot is included, not yet finalized. We show a confirmation count; the receipt is a
+> pointer to a transaction, not a promise about permanence.
 >
-> *Trap.* "Proof of work" (Polygon PoS never was) or "whoever holds the most tokens controls
-> it" (stake selects proposers and secures the fork choice; it does not let a wealthy party
-> silently rewrite accepted blocks).
-
-**Polygon PoS is usually filed under "Layer 2". Is it one?**
-
-It is a sidechain, and calling it a Layer 2 is loose, so we do not. A rollup posts its
-transaction data to Ethereum and inherits Ethereum's security, so anyone can reconstruct its
-state from L1 data alone. Polygon PoS has its own validator set and its own security budget,
-and it checkpoints state roots to Ethereum without posting the data needed to reconstruct
-state. That wording matters for cost as well: we do not present it as a Layer-1 against
-Layer-2 result. Gas is identical across EVM chains, so a second deployment would only have
-produced a second copy of the same number. A2 instead prices the one measured gas figure
-under several fee regimes and reports a band.
-
-> *Follow-up.* "Does the distinction matter for an election?" Yes. On a sidechain, that
-> chain's validator set becomes a trust assumption for the election record. For a course
-> project on a testnet that is acceptable and we say why; a production deployment belongs on
-> a rollup or on L1, and that is future work rather than a security-neutral choice.
->
-> *Trap.* "Layer 2 means built on top of Ethereum, so cheaper and faster." That sentence has
-> the security question removed from it.
+> *Trap.* "Proof of work" (Ethereum moved to proof of stake at the Merge) or "whoever holds
+> the most tokens controls it" (stake selects proposers and secures the fork choice; it does
+> not let a wealthy party silently rewrite finalized blocks).
 
 **Mid-demo a voter gets their receipt, and then the chain reorgs that block out. What happens
 to their vote and to your dashboard?**
@@ -599,10 +579,10 @@ precisely because the nullifier was never recorded, since our double-vote check 
 not receipts. The indexer has to detect the reorg through a parent-hash mismatch and roll
 back the rows it materialized, which Phase 3 tests by forcing a reorg on Anvil.
 
-> *Follow-up.* "How deep a reorg are you exposed to on Amoy?" Realistically a few blocks, and
-> we plan to wait several confirmations before presenting a receipt as settled. We have not
-> quantified it, and Phase 3 tests that the indexer self-heals rather than measuring Amoy's real
-> reorg distribution.
+> *Follow-up.* "How deep a reorg are you exposed to on Sepolia?" Recent unfinalized blocks
+> only, so a few blocks in practice, and we wait several confirmations before presenting a
+> receipt as settled. Phase 3 tests that the indexer self-heals rather than measuring the
+> chain's real reorg distribution.
 >
 > *Trap.* "It is on the blockchain, so it cannot be lost" treats inclusion as finality.
 > Worse: "our database still has the ballot, so we would replay it". The backend holds no
@@ -898,25 +878,25 @@ Not the contract. Gas per ballot is flat, so chain cost at 100,000 is the same a
 things break before it. The relayer signs from one address, so its nonce is a global lock and
 transactions serialize behind it; that is the knee C3 should find, and the fix is a pool of
 relayer keys with independent nonces. Then the RPC provider's rate limit, since we are on a
-hosted tier. Then the chain: about 30 million gas per two-second block at 400,000 gas a ballot
-is roughly 37 ballots a second if we owned the whole chain, which we do not. Registration is
+hosted tier. Then the chain: about 30 million gas per twelve-second slot at 400,000 gas a ballot
+is roughly 6 ballots a second if we owned the whole chain, which we do not. Registration is
 fine, because the tree build is off-chain.
 
-> *Follow-up.* "Thirty-seven a second sounds like plenty." It is about 45 minutes of
-> continuous block space for the whole roll, assuming we own the chain. For a campus election
-> that is comfortable; it stops being comfortable three orders of magnitude further up.
+> *Follow-up.* "Six a second sounds low." For a roll of a hundred thousand it is a few hours
+> of continuous block space, assuming we own the chain. For a campus election that is
+> comfortable; it stops being comfortable several orders of magnitude further up.
 >
 > *Trap.* Naming the contract or gas as the bottleneck. That is the one thing this design made
 > flat, so naming it shows the scalability story was recited rather than reasoned about.
 
 **It is election day and your relayer is down or its wallet is empty. What happens to a voter
-holding no POL?**
+holding no ETH?**
 
 Two things. The ballot is an ERC-2771 signed request, so it is not bound to our relayer:
 anyone can submit it to the forwarder, because the signature and the proof are over the
 payload, not over who pays. The request carries a deadline, so it is not replayable forever.
-Second, a voter who holds POL can call `Election` directly and skip the forwarder. The honest
-limitation is that this preserves censorship resistance, not usability: a voter with no POL
+Second, a voter who holds ETH can call `Election` directly and skip the forwarder. The honest
+limitation is that this preserves censorship resistance, not usability: a voter with no ETH
 and no way to get it inside the voting window is stuck, and E2 claims the voter needs zero
 cryptocurrency. For the demo we pre-fund audience wallets and keep a second relayer wallet.
 
@@ -929,7 +909,7 @@ cryptocurrency. For the demo we pre-fund audience wallets and keep a second rela
 > direct submission bound rather than remove.
 >
 > *Trap.* "The voter just pays their own gas", said casually. It breaks E2, and a voter
-> recruited on the promise of needing no cryptocurrency cannot go and acquire POL mid-window.
+> recruited on the promise of needing no cryptocurrency cannot go and acquire ETH mid-window.
 
 **Your indexer caches chain events into PostgreSQL. How do you know that cache agrees with the
 chain?**
@@ -952,9 +932,9 @@ recovery are Phase 3 checklist items rather than reported parameters.
 **Could this architecture run a national election? India, roughly 970 million registered
 voters. I want the arithmetic.**
 
-No. Polygon gives roughly 30 million gas per block at about two seconds, so 15 million gas a
-second. At our 400,000 gas target that is about 37 ballots a second if we owned the entire
-chain. India cast roughly 640 million votes in 2024, which is around 200 days of continuous
+No. Ethereum gives roughly 30 million gas per slot at about twelve seconds, so about 2.5
+million gas a second. At our 400,000 gas target that is about 6 ballots a second if we owned
+the entire chain. India cast roughly 640 million votes in 2024, which is over three years of continuous
 block space with nothing else running. So the design is right for elections of thousands, a
 campus, a society, a shareholder vote, and it is off by about three orders of magnitude for a
 country. The honest fix is aggregating many ballots into one proof, or settling on a rollup,
@@ -1126,7 +1106,7 @@ because that needs my secret. The real leak is informational: the choice is visi
 inclusion.
 
 > *Follow-up.* "Can a block producer censor selectively by content?" Yes. The choice is in the
-> clear, so censorship by content is possible and we cannot prevent it on Amoy. Encrypted
+> clear, so censorship by content is possible and we cannot prevent it. Encrypted
 > ballots with homomorphic tallying would remove it, and that is out of scope; it is a direct
 > consequence of a plaintext signal and we should name it.
 >
@@ -1262,15 +1242,15 @@ MACI-style key rotation, which needs a coordinator and a much larger circuit bud
 **Who actually runs the nodes your election depends on, and why should a voter trust them more
 than the university IT department?**
 
-On Amoy, a validator set we do not control and did not choose, which is the point: they have no
-stake in our election. But I would not pretend it is the same as a large mainnet. Amoy is a
-testnet, the validator set is small, and a reorg or a stall would hurt us. We picked it because
-Sepolia reaches end-of-life on 30 September 2026, seven weeks before the demo, and building a
-graded November demo on a network scheduled to die in September is the larger risk. A production
-deployment is a deliberate decision about whose security you are buying.
+On Sepolia, a validator set we do not control and did not choose, which is the point: they have
+no stake in our election. But I would not pretend a testnet is the same as Ethereum mainnet.
+Sepolia's validator set is permissioned and smaller, and a reorg or a stall would hurt us. For a
+graded course project that is acceptable and we say so. A production deployment is a deliberate
+decision about whose security you are buying, and it belongs on mainnet or a well-secured layer,
+which is future work.
 
-> *Follow-up.* "So your integrity guarantee is only as strong as Amoy's validators. What happens
-> on a reorg?" Phase 3 covers it: we simulate a reorg on Anvil and check the indexer heals rather than
+> *Follow-up.* "So your integrity guarantee is only as strong as Sepolia's validators. What
+> happens on a reorg?" Phase 3 covers it: we simulate a reorg locally and check the indexer heals rather than
 > serving a stale tally. A deep reorg on a small validator set is a real risk and we name it
 > rather than claim a finality we do not have.
 >
@@ -1350,7 +1330,7 @@ voter is the one who decides the site is broken. We report p50 alongside p95 so 
 visible.
 
 > *Follow-up.* "Why not p99?" It needs a few hundred samples to mean anything and the faucet
-> budget will not fund that on Amoy. We report the percentile our sample size supports and state
+> budget will not fund that on the testnet. We report the percentile our sample size supports and state
 > the size.
 >
 > *Trap.* "The average is distorted by outliers we should discard." Those slow runs are not
@@ -1364,7 +1344,7 @@ create a fresh wallet with a zero balance, do not fund it, complete a ballot end
 assert the balance is still zero and the ballot is on-chain. It can fail three ways: a step
 needs a native balance we did not anticipate, the relayer rejects and the interface quietly
 falls back to asking the user to pay, or registration costs gas even though voting does not. So
-the number reported is the POL a voter actually needed, across all ten E3 participants.
+the number reported is the ETH a voter actually needed, across all ten E3 participants.
 
 > *Follow-up.* "Where does the cost go?" To the relayer, as A2. Zero for the voter does not mean
 > free; it means the cost moved to a named party running a capped daily budget, and that party is
@@ -1377,14 +1357,14 @@ the number reported is the POL a voter actually needed, across all ten E3 partic
 enough for a 95th percentile?**
 
 Thirty is the usual rule of thumb for a stable median, and it is what the faucet budget allows
-on Amoy. It is not enough for a tight p95: with thirty samples p95 is essentially the
+on Sepolia. It is not enough for a tight p95: with thirty samples p95 is essentially the
 second-worst observation and its confidence interval runs from roughly the 85th to the 99th
 percentile of the true distribution. So we report p95 with the order statistic named, and we
 raise n wherever sampling is free, since gas is deterministic and Anvil throughput and proving
-time cost nothing. The thirty constraint binds only on Amoy latency.
+time cost nothing. The thirty constraint binds only on Sepolia latency.
 
 > *Follow-up.* "Which numbers are the n equals thirty ones?" B1 end-to-end latency and B2
-> indexer lag on Amoy, which are the only quantities that need a public network at all.
+> indexer lag on Sepolia, which are the only quantities that need a public network at all.
 > Everything else is deterministic or local and runs higher.
 >
 > *Trap.* Citing the central limit theorem. It describes the sampling distribution of the mean,
@@ -1396,7 +1376,7 @@ record that lets you say whether your system changed or the world did?**
 With every run: the commit SHA, the deployed contract addresses, the gas price set and the base
 fee observed, start and end block numbers, the RPC provider, the client device and browser, the
 network path, and the wall-clock timestamp. Gas price and base fee are the big confounders on
-Amoy, since underpricing means slow inclusion for reasons unrelated to our contract. If two runs
+Sepolia, since underpricing means slow inclusion for reasons unrelated to our contract. If two runs
 differ, the SHA is identical and the base fee is comparable, we have a network effect and we
 report it as one.
 
@@ -1407,39 +1387,36 @@ report it as one.
 > *Trap.* Running it both days and taking the better number, or averaging across days. The first
 > selects on the outcome and the second pools two populations.
 
-**Your gas comes from a local simulator, your throughput from Anvil, and your latency from Amoy.
-Justify putting those in one report.**
+**Your gas comes from a local node, your throughput from a local node, and your latency from
+Sepolia. Justify putting those in one report.**
 
 They are three different kinds of quantity. Gas is a property of the EVM and the bytecode, so
-the same call costs identical gas on Anvil and on Amoy, which makes local measurement exact
-rather than a shortcut. Anvil throughput is not an Amoy number and we do not present it as one:
+the same call costs identical gas locally and on Sepolia, which makes local measurement exact
+rather than a shortcut. Local throughput is not a Sepolia number and we do not present it as one:
 it measures our own stack's ceiling, the relayer and the queue, with network variance removed,
 which is how it locates our bottleneck. Latency is intrinsically a network property. Every table
 states its environment in the caption.
 
-> *Follow-up.* "Then what is your honest statement about throughput on Amoy?" Bounded above by
+> *Follow-up.* "Then what is your honest statement about throughput on Sepolia?" Bounded above by
 > block space divided by gas per ballot, which we can compute but did not measure under load,
-> because funding two hundred ballots from faucets is not possible. We give the Anvil ceiling and
+> because funding two hundred ballots from faucets is not possible. We give the local ceiling and
 > the arithmetic bound as two separate statements.
 >
 > *Trap.* Saying Anvil results "approximate" real-network performance. Anvil mines on demand with
 > no peers, no mempool contention and no fee market.
 
-**A2 claims under fifty paise per ballot. On a testnet the token is free. What exactly are you
-claiming?**
+**What does a ballot cost, and what are you actually claiming with A2?**
 
-It is a projection, not a measurement, and the report should label it as one. What we measure is
-gas, which is deterministic. Turning gas into rupees needs two prices we do not control: a gas
-price in gwei and a POL to INR rate. So gas is the primary number, and underneath it we give a
-small table of cost across a range of gas prices at a stated token price on a stated date, so a
-reader can substitute their own assumptions. A single rupee figure with no date and no gas-price
-assumption is not a result.
+Gas is the real claim, because it is deterministic: about 300,000 to 400,000 gas for a ballot,
+measured with `forge snapshot`. Turning that into rupees needs two prices we do not control, a
+gas price in gwei and an ETH-to-INR rate, so A2 is a projection, not a measurement, and the
+report labels it that way. On Ethereum at mainnet prices a ballot is real money, not paise, so
+we report gas as the headline and price it at a stated rate as an illustration a reader can
+recompute with their own assumptions.
 
-> *Follow-up.* "What is the honest headline cost result?" Gas per ballot, which is measured, and
-> then A2: that one gas figure priced under Ethereum mainnet, Polygon PoS mainnet and Amoy
-> conditions, reported as a band across gas prices. The band survives the price assumptions in a
-> way a single rupee figure does not, and it is a comparison of fee markets rather than a claim
-> about the design.
+> *Follow-up.* "So it is expensive on Ethereum?" At L1 mainnet prices, yes, which is why a large
+> production electorate would use a cheaper execution layer. That is future work; the design and
+> its gas cost are what this project measures.
 >
 > *Trap.* Quoting one rupee figure as measured. It buries two volatile assumptions inside a
 > number that reads as empirical.
@@ -1710,34 +1687,7 @@ bound is a genuinely good property and we state it."
 > **The design.** Off-chain proof verification comes before sponsorship, with per-nullifier
 > rate limiting and the daily cap behind it rather than in front of it.
 
-### 8. Why we price one gas figure instead of deploying twice
-
-**The question.** "A cost comparison needs a second network. Sepolia reaches end of life on
-30 September and your first working contract is M1 on 11 October, so on which day would a
-deployable contract and a live Sepolia both exist?"
-
-**Why it bites.** There is no such day, and it is arithmetic between two sections of our own
-report, so there is nothing to argue. The deeper point is worse for any parameter built as a
-two-network measurement: gas is a function of the EVM and the bytecode, so an identical suite
-consumes identical gas on Sepolia and on Amoy. The only difference is gas price times token
-price, and both are worthless testnet tokens, so any rupee figure has to be imported from
-mainnet feeds anyway.
-
-**The answer.** "Concede the schedule collision outright: Sepolia is not a deployment target
-at all, and no measurement in the plan depends on it. Then take the parameter for what it is.
-Gas is identical across EVM chains, so the entire difference between networks is a fee market,
-and deploying twice would have measured a fee market rather than a property of the design. A2
-is cost per ballot computed from the single A1 gas figure, priced under Ethereum mainnet,
-Polygon PoS mainnet and Amoy conditions, reported as a band across gas prices rather than a
-single number. We do not call it Layer 1 against Layer 2 either, because Polygon PoS is a
-checkpointed sidechain and not a rollup, so what is set side by side is two fee markets over
-chains that execute the same bytecode."
-
-> **The position.** A2 is a price model over one measured gas figure, and everything it reports
-> is a band. If a live measurement on a second network is wanted in November, it names a
-> maintained testnet rather than one with a published shutdown date.
-
-### 9. The anonymity set is the roll, and the demonstration is the oracle
+### 8. The anonymity set is the roll, and the demonstration is the oracle
 
 **The question.** "How large is the anonymity set for the first ballot cast in your
 demonstration?"
@@ -1762,7 +1712,7 @@ with three voters cannot show anonymity, and showing it badly is worse than not 
 > one is about how many people could have cast a ballot, the other is about who gets to watch
 > the request arrive.
 
-### 10. The identity secret is a bearer credential
+### 9. The identity secret is a bearer credential
 
 **The question.** "I pay a hundred rupees for your identity secret. What exactly have I
 bought?"
@@ -1789,7 +1739,7 @@ rotation, using a key the coercer does not hold, and it is the top item in our f
 > operator who controls the roll, the box and the count, and the wrong trade where the threat
 > is a candidate with cash and a small electorate.
 
-### 11. A lost secret disenfranchises permanently
+### 10. A lost secret disenfranchises permanently
 
 **The question.** "I registered in October, cleared my browser, and came back to vote in
 November. What happens?"
@@ -1814,7 +1764,7 @@ while registration is open and impossible after the root freezes."
 > left implicit, and returning on a second device is a known gap rather than a measured parameter: whether a
 > voter enrolled in one browser profile can vote from another and what that path costs in steps.
 
-### 12. The go/no-go is conditional on M1, not on the calendar
+### 11. The go/no-go is conditional on M1, not on the calendar
 
 **The question.** "What is your plan if M1 lands on 18 October instead of 11 October?"
 
@@ -1844,7 +1794,7 @@ pre-funded wallets, which costs us parameter E2 and not the election."
 > feature freeze on 8 November exists partly to absorb examination periods. Do not volunteer a
 > split of the work in the room, and do not put one in the report.
 
-### 13. Smaller points, stated rather than defended
+### 12. Smaller points, stated rather than defended
 
 | Point | The position |
 | :-- | :-- |
@@ -1872,12 +1822,11 @@ report, and the answer is to give the position below.
 | 5 | The trusted setup named, with the ceremony and the artifact hash pinning | Section 4 |
 | 6 | C1 stated as three predictions against an on-chain enrolment baseline, tier 2's ballot line predicted logarithmic, off-chain cost acknowledged as growing with the roll | Sections 4, 5 |
 | 7 | The relayer verifies the proof off-chain before sponsoring | Sections 3, 4, 6 |
-| 8 | Cost defined as a price model over one gas figure, with no second deployment; Polygon PoS named as a checkpointed sidechain | Section 5 |
-| 9 | Ballot secrecy bounded by anonymity set size, with the demonstration sized so the set is not one | Sections 3, 4 |
-| 10 | Coercion stated as a non-goal; credential transfer as a non-guarantee of its own; the regression against a hosted system conceded in the domain section | Sections 2, 3 |
-| 11 | Identity recovery and the re-registration boundary stated; returning on a second device recorded as a known gap | Sections 3, 4, 5 |
-| 12 | The go/no-go conditional on M1; tier 2 as the second fallback, decided on 1 November; the phase budget stated as hours available alongside other coursework | Section 6 |
-| 13 | Permissionless transitions throughout; ERC-2771 credited correctly; tier 2 and tier 3 trees described as a replacement; proving time written as a hypothesis; the no-wallet path stated | Sections 3, 4, 5, 6 |
+| 8 | Ballot secrecy bounded by anonymity set size, with the demonstration sized so the set is not one | Sections 3, 4 |
+| 9 | Coercion stated as a non-goal; credential transfer as a non-guarantee of its own; the regression against a hosted system conceded in the domain section | Sections 2, 3 |
+| 10 | Identity recovery and the re-registration boundary stated; returning on a second device recorded as a known gap | Sections 3, 4, 5 |
+| 11 | The go/no-go conditional on M1; tier 2 as the second fallback, decided on 1 November; the phase budget stated as hours available alongside other coursework | Section 6 |
+| 12 | Permissionless transitions throughout; ERC-2771 credited correctly; tier 2 and tier 3 trees described as a replacement; proving time written as a hypothesis; the no-wallet path stated | Sections 3, 4, 5, 6 |
 
 ## Cheat sheet
 
@@ -1916,24 +1865,23 @@ you cannot support, and an examiner who asks where it came from has caught you.
 | Latency targets | B1 p95 under 10 s end to end, B2 p95 under 5 s proving on a mid-range phone |
 | Repetitions | n at least 30 per data point, report median and p95 |
 | Faucet reality | testnet faucets cannot fund a sustained load run, so throughput runs on a local node |
-| Usability targets | E1 at most 4 steps, E2 zero POL held, E3 over 80 percent of 10 users unaided |
+| Usability targets | E1 at most 4 steps, E2 zero ETH held, E3 over 80 percent of 10 users unaided |
 
 | Date | What |
 | :-- | :-- |
 | 25/26 Sep 2026 | Evaluation 1: report, presentation, questions. No code required |
 | 28 Sep to 11 Oct | Phase 1, M1: tier 2 working end to end locally, first gas snapshot committed |
-| 12 to 25 Oct | Phase 2, M2: tier 3, anonymous and gasless on Amoy |
+| 12 to 25 Oct | Phase 2, M2: tier 3, anonymous and gasless on Sepolia |
 | **M1 plus one week** | **Go/no-go on in-browser proving, conditional on M1 rather than on the calendar: one week after M1 actually lands, or immediately if M1 has not landed by 18 October. Fallback is server-side proving, with the privacy loss documented** |
 | 26 Oct to 8 Nov | Phase 3, M3: feature freeze on 8 November |
-| **1 Nov** | **Second gate, a week before the freeze: if an anonymous ballot has not been cast on Amoy by then, tier 2 is what we demonstrate. Tier 2 is a complete voting system on its own, so the worst case is a demonstration without anonymity** |
+| **1 Nov** | **Second gate, a week before the freeze: if an anonymous ballot has not been cast on Sepolia by then, tier 2 is what we demonstrate. Tier 2 is a complete voting system on its own, so the worst case is a demonstration without anonymity** |
 | 9 to 15 Nov | Phase 4: the measurement campaign, C1 graph built first |
 | 16 to 19 Nov | Phase 5: three timed rehearsals, pre-funded wallets, recorded fallback video |
 | 20/21 Nov 2026 | Evaluation 2: live demo, complete code, final report |
-| **30 Sep 2026** | **Ethereum Sepolia end-of-life, seven weeks before the demo, which is why the primary testbed is Polygon Amoy, chain id 80002 and why nothing in the plan deploys to Sepolia at all** |
 
-**Testbeds.** Anvil local for gas and throughput (deterministic, free). Polygon Amoy, chain id
-80002, for latency and the live demo. Gas is identical across EVM chains, so cost is priced from
-one gas figure rather than measured again on another network.
+**Testbed.** Ethereum Sepolia for latency and the live demo, the Ethereum Foundation's
+recommended testnet for application development. Gas and throughput are measured on a local
+Foundry node, where gas is deterministic and a sweep over roll sizes is free.
 
 **Schedule honesty.** The phase budget assumes the hours available alongside other coursework,
 and the feature freeze on 8 November exists partly to absorb examination periods. Say that if
@@ -1975,7 +1923,6 @@ frontend host).
 | **Anvil** | Foundry's local EVM node: instant, free, deterministic, no peers or fee market |
 | **Authentication path** | The sibling hashes and left/right indices from a leaf to the Merkle root; private witness data in our circuit, derived in the browser from the published leaf set rather than fetched from the registrar |
 | **BullMQ** | Redis-backed job queue used by the relayer so a ballot is not lost if a worker dies |
-| **Bor / Heimdall** | Polygon PoS's two layers: Bor produces EVM blocks, Heimdall is the Tendermint-based validator and checkpoint layer |
 | **Calldata** | The input bytes of a transaction, charged per byte, where the proof and public signals travel |
 | **CID** | IPFS content identifier: a hash of a file, so it proves what the data is but not that anyone still serves it |
 | **Commitment** | A hash published in place of a secret: hiding (reveals nothing) and binding (cannot be reopened differently) |
@@ -1999,7 +1946,6 @@ frontend host).
 | **Merkle root** | The single 32-byte value at the top of the tree; the commitment to the whole voter roll |
 | **Nullifier** | `H(identitySecret, electionId)`; one number per voter per election that makes a second ballot revert without identifying anyone |
 | **Pairing check** | The elliptic-curve operation that verifies a Groth16 proof, run through EVM precompiles at roughly 200k gas |
-| **POL** | The native token of Polygon PoS, used to pay gas on Amoy |
 | **Poseidon** | A hash function designed to be cheap inside a zk circuit, used for commitments, the tree and the nullifier |
 | **Powers of Tau** | The universal phase-one ceremony a Groth16 circuit's phase-two setup builds on |
 | **Precompile** | A built-in contract at a fixed address implementing an expensive primitive natively, such as the pairing check |
@@ -2008,7 +1954,7 @@ frontend host).
 | **Relayer** | Our service that pays gas for a voter's ballot; the only liveness trust assumption on the vote path, and the party that can censor by content |
 | **Reorg** | A chain reorganization that replaces recently included blocks, undoing their state changes |
 | **Roll size** | The enrolment figure the registrar publishes beside the root; `castVote` will not accept more ballots than this, and nothing proves the figure honest |
-| **Rollup** | An L2 that posts its data to L1 and inherits its security, unlike a sidechain such as Polygon PoS |
+| **Rollup** | A scaling layer that posts its data to Ethereum and inherits its security; a possible production target for a large electorate |
 | **Scope** | The election identifier mixed into the nullifier so ballots cannot be linked across elections |
 | **Semaphore v4** | The audited anonymous-group-membership protocol supplying our circuit, verifier and nullifier scheme |
 | **Signal** | The public input carrying the candidate choice, bound into the proof so it cannot be altered in transit |

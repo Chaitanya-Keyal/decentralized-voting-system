@@ -120,11 +120,11 @@ The highest-risk phase. Two hard things land together.
 **Frontend**
 - Proving UX with progress states for the expected 1–3 s wait, which is a figure carried over
   from published benchmarks on other hardware and not a measurement of this system
-- Receipt screen, Amoy network switching, and the warning path that offers direct submission
+- Receipt screen, Sepolia network switching, and the warning path that offers direct submission
   when no transaction hash appears before the deadline
 
-**M2 gate (25 Oct):** a voter holding **zero POL** casts an **anonymous** ballot on
-**Polygon Amoy**, and nothing on-chain links their address to their ballot.
+**M2 gate (25 Oct):** a voter holding **no ETH** casts an **anonymous** ballot on
+**Ethereum Sepolia**, and nothing on-chain links their address to their ballot.
 
 **Contingency: one week after M1 actually lands, or immediately if M1 has not landed by
 18 Oct.** The gate is conditional on the milestone rather than on the calendar, because what
@@ -155,7 +155,7 @@ the contract-side proof wiring and nothing for the relayer.
 - Relayer deployed somewhere reachable from a phone, with a tunnel as backup
 
 **Tier-3 gate (1 Nov):** a week before the freeze, and the second fallback. If an anonymous
-ballot has not been cast on Amoy by then, tier 2 is what gets demonstrated. Tier 2 is a
+ballot has not been cast on Sepolia by then, tier 2 is what gets demonstrated. Tier 2 is a
 complete voting system on its own rather than a half-finished tier 3, so the worst case is a
 demonstration without anonymity rather than no demonstration. Tier 3 would then be reported
 as unfinished, with whatever measurements exist, and the remaining fortnight goes to the
@@ -174,11 +174,9 @@ No feature work. Run the full measurement campaign from
 - Full sweep of the A, B, C, D and E families, with no parameter left without either a
   committed number or a written statement of why it has none
 - Raw CSVs committed to `bench/results/`; graphs generated from them by script, not by hand
-- There is no second deployment and no cross-network comparison. Identical bytecode consumes identical
-  gas on either chain, so running the suite twice would produce two copies of the A1 number,
-  and the whole of the difference between networks is a fee market denominated in worthless
-  test tokens. A2 prices the single A1 figure under the fee conditions it records, and
-  Amoy conditions, and reports a band across a range of gas prices rather than a point
+- A2 prices the measured A1 gas in rupees at a stated gas price. Ethereum gas is not
+  cheap, so A2 is reported as measured rather than against a fixed target; the
+  chain-independent engineering measure is A1, the gas itself
 - Eval 2 report drafted section by section against the template
 
 Build the C1 graph (gas vs voter-roll size) first, and state what it carries. The
@@ -204,7 +202,7 @@ most likely to fail.
 
 ## Phase 5 · 16–19 Nov · Rehearsal and buffer
 
-- Three timed demo rehearsals on Amoy, on the actual presentation hardware and network
+- Three timed demo rehearsals on Sepolia, on the actual presentation hardware and network
 - Relayer wallet pre-funded; a second funded wallet as backup
 - Two or three audience wallets pre-funded so voters can bypass the relayer if it fails
 - Recorded video fallback in case campus Wi-Fi fails
@@ -247,7 +245,6 @@ Step 6 is what distinguishes this from a database with extra steps. Rehearse it.
 | Integration deferred to the end | High | M1 forces a working end-to-end path in week 2 |
 | Relayer drained or spammed | Medium | Off-chain proof verification before anything is spent, which holds lifetime exposure to the roll size; nullifier pre-check and rate limiting sit on top of that bound rather than in place of it, and a daily cap alone does not bound it |
 | Relayer drops the ballots for one candidate | High | Bounded, not removed: a signed receipt for every accepted ballot, so a dropped one becomes a signed promise it did not keep, and the booth warns and offers direct submission if no transaction hash appears before a deadline. Removing it needs encrypted ballots or several independent relayers, neither of which we build |
-| Faucet drip too slow for load testing | Medium | Throughput tests run on Anvil; pre-fund Amoy wallets from multiple faucets, starting early |
+| Faucet drip too slow for the gas sweep | Medium | Gas and throughput run on a local node; pre-fund Sepolia wallets from multiple faucets for latency and the demo, starting early |
 | Relayer unreachable during the live demo | Medium | Free-tier deploy plus a tunnel; pre-funded wallets let voters bypass it entirely |
-| Sepolia end of life (30 Sep) | Closed | We are not exposed: Sepolia is not used at all, everything deploys to Amoy with Anvil locally|
 | Schedule slip late in the term | High | 8 Nov feature freeze exists specifically to absorb it |

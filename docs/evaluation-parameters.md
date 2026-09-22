@@ -28,7 +28,7 @@ gas on any EVM chain, so a second deployment would only reproduce A1.
 
 | # | Parameter | Measurement | Target |
 |---|---|---|---|
-| B1 | End-to-end vote latency | Wall clock, click to confirmation, on Polygon Amoy | 95th percentile under 10 s |
+| B1 | End-to-end vote latency | Wall clock, click to confirmation, on Ethereum Sepolia | 95th percentile under 10 s |
 | B2 | Client proof generation time | Timed in-browser, by device class | Under 5 s on a mid-range phone |
 
 Both report the 95th percentile beside the median: the voter who waited is the
@@ -81,10 +81,10 @@ reported as results.
 | # | Parameter | Measurement | Target |
 |---|---|---|---|
 | E1 | Steps to cast a ballot | User actions from landing page to receipt | At most 4 |
-| E2 | Voter gas burden | POL a voter must hold to register and vote | Zero |
+| E2 | Voter gas burden | ETH a voter must hold to register and vote | Zero |
 | E3 | Task success rate | 10 users unfamiliar with cryptocurrency, unaided | Over 80% |
 
-E2 is zero by design: a voter who must first acquire POL narrows the electorate
+E2 is zero by design: a voter who must first acquire ETH narrows the electorate
 to people who already hold cryptocurrency. That is also why direct submission is
 no general answer to a censoring relayer.
 
@@ -100,7 +100,7 @@ percentile.
   sustained load.
 - **Client timings (B2, C2)** run on a developer laptop and a mid-range Android
   phone, each named in the result.
-- **End-to-end latency (B1)** runs on Polygon Amoy during Phase 4.
+- **End-to-end latency (B1)** runs on Ethereum Sepolia during Phase 4.
 
 Every number carries its controls: gas price and block number, RPC provider,
 commit hash, deployed addresses, and the device for client numbers.

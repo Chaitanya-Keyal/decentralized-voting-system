@@ -40,5 +40,5 @@ an election on their own:
 
 ## Planned stack
 
-Solidity + Foundry · Polygon Amoy testnet · Semaphore (zk-SNARK group membership) ·
+Solidity + Foundry · Ethereum Sepolia testnet · Semaphore (zk-SNARK group membership) ·
 Next.js + wagmi/viem · Fastify + Postgres indexer · IPFS for ballot metadata.

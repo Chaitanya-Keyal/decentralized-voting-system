@@ -70,7 +70,7 @@ Phase 2 (12--25 October) takes the two hardest parts early: the proof path and
 the relayer, with the check that reverts once spent nullifiers would exceed the
 published roll size. The trusted setup assumption that Section~3 states applies
 from this phase onward. M2 holds
-when a voter with zero POL casts an anonymous ballot on Amoy and nothing
+when a voter holding no ETH casts an anonymous ballot on Sepolia and nothing
 on-chain links their address to it.
 
 Phase 3 (26 October to 8 November) is finishing, not function:
@@ -82,7 +82,7 @@ benchmarks and writing; slip elsewhere is absorbed by that freeze.
 Phase 4 (9--15 November) measures against Section~5. Every parameter ends with
 a number, or a reason there is none.
 
-Phase 5 (16--19 November) rehearses three times on Amoy. The demonstration
+Phase 5 (16--19 November) rehearses three times on Sepolia. The demonstration
 enrols the room and casts a batch of ballots before any live one, since
 anonymity is bounded by the number of plausible authors.
 
@@ -120,8 +120,7 @@ booth deadline warning bound the attack, not remove it; removing it is out of sc
     Tier 3 unfinished        & Gate on 1 November: demonstrate tier 2, report tier 3 unfinished. Tier 2 is a complete system on its own, so the worst case is a demonstration without anonymity \\
     Relayer down on the day  & Direct submission from funded wallets; the cost is parameter E2, not the election                                              \\
     Relayer gas drained      & A daily cap does not bound it; an off-chain proof check before spending holds exposure to the roll size, one nullifier per identity per election \\
-    Faucet supply on Amoy    & Testnet faucets cannot fund sustained load, so throughput runs on a local node; Amoy is kept for latency and the demonstration \\
-    Sepolia dies 30 Sep 2026 & Not used; the first contract lands with M1 in October, after it dies. Identical bytecode burns identical gas on any EVM chain, so nothing is lost \\
+    Faucet supply on Sepolia & Testnet faucets cannot fund sustained load, so throughput and the gas sweep run on a local node; Sepolia is kept for latency and the demonstration \\
     \bottomrule
   \end{tabular}
 \end{table}

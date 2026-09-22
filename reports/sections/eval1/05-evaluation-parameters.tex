@@ -30,7 +30,7 @@ Throughput is, and C3 locates it.
     \textbf{ID} & \textbf{Parameter}   & \textbf{Measurement}                  & \textbf{Target}       \\
     \midrule
     A1          & Gas per operation    & Gas snapshot per contract entry point & Ballot under 400k gas \\
-    A2          & Cost per vote in INR & A1 times gas price times token price  & Under INR 0.50        \\
+    A2          & Cost per vote in INR & A1 times gas price times token price  & Reported at a stated price \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -143,13 +143,13 @@ A voter who abandons the ballot leaves turnout that reads as apathy, which Secti
     \textbf{ID} & \textbf{Parameter}     & \textbf{Measurement}                             & \textbf{Target} \\
     \midrule
     E1          & Steps to cast a ballot & User actions from landing page to receipt        & At most 4       \\
-    E2          & Voter gas burden       & POL a voter must hold to register and vote       & Zero            \\
+    E2          & Voter gas burden       & ETH a voter must hold to register and vote       & Zero            \\
     E3          & Task success rate      & 10 users unfamiliar with cryptocurrency, unaided & Over 80\%       \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-E2 is zero by design, because a voter who must first acquire POL narrows the
+E2 is zero by design, because a voter who must first acquire ETH narrows the
 electorate to people who already hold cryptocurrency. That is also why direct
 submission is no general answer to a censoring relayer: a voter holding nothing
 cannot use it.
@@ -166,7 +166,7 @@ median with the 95th percentile.
         cannot fund sustained load.
   \item Client timings (B2, C2): a developer laptop and a mid-range Android
         phone, each named.
-  \item End-to-end latency (B1): Polygon Amoy, sampled in Phase 4.
+  \item End-to-end latency (B1): Ethereum Sepolia, sampled in Phase 4.
 \end{itemize}
 
 Every number carries its controls: gas price and block number, RPC provider,

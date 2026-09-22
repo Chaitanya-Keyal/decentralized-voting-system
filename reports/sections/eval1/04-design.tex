@@ -255,7 +255,7 @@ Table~\ref{tab:stack} gives the choices, alternatives and why they lost.
     Election deployment & EIP-1167 minimal proxies    & Fresh deploy per election      & Far cheaper than a full deploy; not upgradeable mid-vote            \\
     Anonymity           & Semaphore v4                & Custom circuits, MACI          & Audited proofs and nullifiers; custom circuits too costly        \\
     Gasless voting      & ERC-2771 forwarder          & Voter pays gas                 & Voter needs no cryptocurrency; direct submission the fallback    \\
-    Testbed             & Polygon Amoy                & Ethereum Sepolia, Base Sepolia & End-of-life on 30 September 2026, before any deploy      \\
+    Testbed             & Ethereum Sepolia            & Mainnet, other testnets        & Free test ETH, mainnet-equivalent execution; the recommended testnet for contract development \\
     Frontend            & Next.js, wagmi, viem        & Plain SPA, ethers v6           & Typed bindings from ABIs; static export for IPFS                \\
     Backend             & Fastify, PostgreSQL, BullMQ & Express, MongoDB               & Relational indexer data, shared types, durable queue        \\
     Metadata storage    & IPFS via Pinata             & On-chain bytes                 & Same integrity for far less gas                           \\
@@ -293,24 +293,21 @@ manifesto, and why the leaf set is pinned by the project and by auditors.
 
 \subsection{Deployment testbed}
 
-Everything deploys to Polygon Amoy, chain id 80002, and Anvil runs locally.
-Ethereum Sepolia is not used: it reaches end-of-life on 30 September 2026 and
-the first deployable \projectname{} contract lands with M1 in October, so a
-live Sepolia and a working contract are unlikely to overlap. Base
-Sepolia settles to Sepolia with no migration plan, inheriting the same
-uncertainty. Amoy is the maintained Polygon PoS testnet, independent of that
-sunset, with two-second blocks. Its binding constraint is faucet supply, not
-price.
+Everything deploys to Ethereum Sepolia, the Ethereum Foundation's recommended
+testnet for application and smart-contract development. It carries the deepest
+faucet and tooling support of any testnet, which matters for a project that has
+to fund many test ballots, and its execution matches Ethereum mainnet, so the
+behaviour observed there is the behaviour a production deployment would see.
 
-There is no layer-1 against layer-2 comparison, and none is needed. Identical
-EVM bytecode burns identical gas on any EVM chain; only the fee market and
-token price differ. A2 therefore states the gas price and token price it used,
-so any rupee figure is an illustration rather than a forecast. Polygon PoS is a
-checkpointed sidechain, not a rollup.
+Gas is deterministic: the same bytecode and calldata consume the same gas
+anywhere, so gas parameters (A1, C1) are measured on a local Foundry node, where
+a sweep over roll sizes from ten to a hundred thousand is instant and free.
+Throughput and the concurrency ceiling run locally too, so network noise is not
+mistaken for a system property, and the reorg test needs a chain the harness can
+manipulate. Only end-to-end latency and the live demonstration need Sepolia
+itself.
 
-Anvil takes what needs no public network: instant, free, reproducible. Gas is
-deterministic given the same bytecode and calldata, so gas parameters are
-measured there. Throughput and concurrency limits run there too, so network
-noise is not mistaken for a system property, and the reorg test needs a
-manipulable chain. Only latency and indexer lag need a live testnet, and every
-Evaluation 2 number names its source.
+A2 converts the measured gas into rupees at a stated gas price. Ethereum
+mainnet gas is not cheap, so the figure is reported as measured rather than
+against a fixed target, and it moves with the market, which is why the price it
+assumes is stated beside it.

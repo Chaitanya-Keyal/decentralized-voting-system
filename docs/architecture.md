@@ -198,7 +198,7 @@ count, and leaves one party in control of the franchise.
      │                                                     │
      ▼                     via RPC provider (Alchemy)      ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│  CONTRACTS  (Polygon Amoy)                                         │
+│  CONTRACTS  (Ethereum Sepolia)                                     │
 │                                                                    │
 │   ElectionFactory ──clones──▶ Election ──verifies──▶ Semaphore     │
 │                                  │                   verifier      │
@@ -421,17 +421,14 @@ That belongs in the risk table alongside slow proving.
 
 | Network | Role | Why |
 |---|---|---|
-| **Anvil** (local) | Development + throughput ceiling benchmarks | Instant, free, deterministic |
-| **Polygon Amoy** | Primary deployment and live demo | Cheap and fast, and its lifecycle is independent of the Sepolia sunset on 30 Sep 2026. Polygon PoS is a checkpointed sidechain rather than a rollup, and we name it that way |
-| **Ethereum Sepolia** | Not used | Sepolia reaches end of life on 30 Sep 2026 and our first deployable contract lands with M1 in October, so there is no day on which both a working contract and a live Sepolia exist |
+| **Ethereum Sepolia** | Deployment and live demo | The Ethereum Foundation's recommended testnet for application and contract development; deepest faucet and tooling support, and execution matching Ethereum mainnet |
+| **Local Foundry node (Anvil)** | Development, gas parameters, throughput, reorg test | Gas is deterministic, so a local sweep over roll sizes is exact, instant and free; throughput runs without network noise, and the reorg test needs a manipulable chain |
 
-Dropping Sepolia costs less than it appears, because the comparison it was meant to support was
-not an experiment. Gas is a function of the EVM and the bytecode, so an identical suite consumes
-identical gas on Sepolia and on Amoy; the entire difference is a fee market, and both tokens are
-worthless testnet tokens, so any rupee figure has to be imported from mainnet price feeds
-anyway. A2 is therefore cost per ballot computed from the single A1 gas figure, priced under
-Ethereum mainnet, Polygon PoS mainnet and Amoy conditions, and reported with a sensitivity band
-over gas price rather than as a single number. If a live layer-1 figure is still wanted in
-November, we name a successor testnet rather than one with a published shutdown date.
+Gas parameters (A1, C1) are measured locally, because gas is deterministic given the same
+bytecode and calldata and a sweep over roll sizes from ten to a hundred thousand would
+otherwise drain testnet faucets. Only end-to-end latency and the live demonstration need
+Sepolia itself. A2 prices the measured gas in rupees at a stated gas price; the figure is
+reported as measured rather than against a fixed target, since Ethereum gas is not cheap
+and the engineering measure is A1, the gas itself.
 
-See [tech-stack.md](tech-stack.md) for the testnet reasoning in full.
+See [tech-stack.md](tech-stack.md) for the testbed reasoning in full.
