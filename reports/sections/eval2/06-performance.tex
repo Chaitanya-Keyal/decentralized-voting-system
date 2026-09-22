@@ -1,0 +1,87 @@
+% ===========================================================================
+\section{Performance Analysis}
+% Source material: docs/evaluation-parameters.md, bench/results/
+% This is the section the final evaluation weighs most heavily. Every number
+% needs a stated environment and a stated sample size.
+% ===========================================================================
+
+\subsection{Setup}
+
+\stub{Describe the measurement environment precisely enough to be reproducible:
+  hardware, client versions, network, RPC provider, gas price at the time of
+  measurement, contract commit hash, sample sizes, and how repetitions were
+  aggregated.}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Measurement environments.}
+  \label{tab:bench-setup}
+  \small
+  \begin{tabular}{@{}L{3.7cm}L{5.3cm}L{6.9cm}@{}}
+    \toprule
+    \textbf{Environment} & \textbf{Used for} & \textbf{Configuration}                                     \\
+    \midrule
+    Local EVM            & Gas measurements  & \note{toolchain version, solc version, optimizer settings} \\
+    Local node           & Throughput        & \note{host specification}                                  \\
+    Public testbed       & Latency, cost     & \note{network, RPC provider, gas price, block time}        \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\stub{State plainly which numbers come from a local environment and which from a
+  live network, and why the split was made that way. Do not present a locally
+  measured number as though it came from the testbed.}
+
+\subsection{Results by evaluation parameter}
+
+Results are presented against the parameters defined in the Evaluation 1 report.
+Targets stated there were hypotheses; where a target was missed, the result is
+reported as measured and analysed.
+
+\subsubsection{Cost (A1--A5)}
+
+\stub{Report the gas table and the derived cost per vote. Compare the two
+  networks. State whether the minimal-proxy and off-chain-metadata decisions paid
+  for themselves, with the measured saving for each.}
+
+\subsubsection{Performance (B1--B5)}
+
+\stub{Report latency distributions rather than averages: median and tail. Give
+  proof generation time by device class. Report the throughput curve and say where
+  it bends.}
+
+\subsubsection{Scalability (C1--C4)}
+
+This is the central claim of the design.
+
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox[c][5.5cm][c]{0.9\linewidth}{\centering\itshape
+      Figure placeholder: gas cost against voter-roll size.\\
+      Generate from \texttt{bench/results/} by script, not by hand.}}
+  \caption{Gas cost per operation against the size of the electorate.}
+  \label{fig:c1}
+\end{figure}
+
+\stub{State whether gas is flat in the size of the electorate, and give the
+  measured figures at each roll size. If the line is not flat, explain precisely
+  where the growth enters and what it would take to remove it. A negative result
+  reported clearly is a better outcome than a favourable one that was not measured.}
+
+\subsubsection{Security and correctness (D1--D9)}
+
+\stub{For each property, state how it was demonstrated and what the outcome was.
+  Where a property is only partially achieved, say so and give the limit precisely.}
+
+\subsubsection{Usability (E1--E4)}
+
+\stub{Report the user-testing results, including the tasks participants failed
+  and what caused each failure. Failures here are the most useful data in the
+  section.}
+
+\subsection{Discussion}
+
+\stub{Step back from the individual numbers. Which design decisions were
+  vindicated by measurement, which were not, and what would be done differently
+  with the benefit of the results? Name the system's principal remaining
+  limitation.}

@@ -1,0 +1,40 @@
+% ===========================================================================
+\section{Conclusion}
+% ===========================================================================
+
+An election result is acted on at once and never reconciled, so a mis-stated
+tally has no later event to expose it. Auditing the operator does not fix that.
+It moves trust to the auditor, and to records the operator produced.
+
+\projectname{} puts the rules that decide an election into contract code on a
+public testbed: who may vote, when phases change, and which ballots count. A
+reader who disbelieves the result recomputes it from the raw log. The nullifier
+that stops a second ballot never reveals whose it was.
+
+Anonymity rests on a Merkle commitment rather than Semaphore's on-chain group
+management, which would charge a transaction and a leaf insertion per voter.
+Only the root, the roll size and the leaf set's IPFS identifier reach the chain,
+and the booth derives its own authentication path from the published leaf set.
+The constant-cost claim is per operation, not per election: total gas still
+grows with ballots cast, and the roll-sized work moved onto the registrar, the
+auditors and the booth.
+
+The gaps in Section~3 stand. Eligibility rests on a trusted setup this group did
+not run. Roll correctness is not guaranteed, because one registrar decides who
+is enrolled, and publishing the roll size does not make stuffing detectable. A
+voter can be coerced into handing over their secret. Secrecy from the operator
+holds only while the relayer runs separately from the registrar, or the voter
+submits directly. The running tally is public while voting is open.
+
+So \projectname{} removes the operator from the ballot box and from the count,
+and leaves one party in control of the franchise. Each of these gaps is recorded
+as future work rather than answered here.
+
+Nothing here has been measured. Evaluation 2 replaces these expectations with
+numbers against the parameters in Section~5. C1 measures registration and ballot
+gas from ten voters to a hundred thousand; tier 3 should be flat, and above tier
+2 throughout, which is the price of anonymity rather than a saving. C2 guards the
+flank that leaves open: whether a hundred-thousand-leaf roll can be handled in a
+browser at all. D4 needs no graph at all: with our backend
+switched off mid-demonstration, the audit dashboard must still read the chain
+and recompute the tally. Missed targets will be reported too.

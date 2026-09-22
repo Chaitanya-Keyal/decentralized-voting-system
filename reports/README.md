@@ -21,13 +21,25 @@ sudo apt install texlive-latex-recommended texlive-latex-extra latexmk biber
 
 | File | Purpose |
 |---|---|
-| `eval1.tex` | Evaluation 1: design report |
+| `eval1.tex` | Evaluation 1 report: a driver that inputs the section files |
 | `eval2.tex` | Evaluation 2: final report |
+| `sections/eval1/` | One file per report section; this is where the writing happens |
+| `sections/eval2/` | Same, for the final report |
 | `preamble.tex` | Shared packages, styling, title page |
 | `metadata.tex` | Title, group number, member list. Edit here, not in the bodies |
 | `references.bib` | Bibliography; empty until entries are cited |
 | `figures/` | Figures, referenced without a path prefix |
+| `figures/architecture.tex` | System architecture diagram (TikZ) |
+| `figures/lifecycle.tex` | Election lifecycle state machine (TikZ) |
 | `figures/bits-logo.png` | Institute logo, extracted from the `.docx` templates |
+
+## Working on the report
+
+Each section is its own file under `sections/eval1/`, so several people can write at once
+without colliding. The driver `eval1.tex` only sets the title, loads the preamble and
+inputs the sections in order; there is no prose in it.
+
+Figures are TikZ source rather than images, so they stay editable and diff sensibly.
 
 ## Placeholders
 
@@ -66,7 +78,7 @@ Gathering · Final System Architecture · Smart Contract Design and Implementati
 · Performance Analysis (Setup; Results per evaluation parameter) ·
 Implementation Plan · Conclusion · References
 
-Sections 1–3 of Evaluation 2 carry over from Evaluation 1, revised to match what
+Sections 1 to 3 of Evaluation 2 carry over from Evaluation 1, revised to match what
 was actually built.
 
 ## Source material

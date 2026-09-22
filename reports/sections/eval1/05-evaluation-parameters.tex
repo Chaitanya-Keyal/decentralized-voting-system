@@ -1,0 +1,173 @@
+% ===========================================================================
+\section{Evaluation Parameters}
+% Source material: docs/evaluation-parameters.md
+% ===========================================================================
+
+The design is evaluated against five families of parameter: cost, performance,
+scalability, security, and usability. Each parameter names what is measured, how
+it is measured, and what result counts as success. Security parameters instead
+name an adversary that must fail.
+
+The targets are hypotheses. Nothing has been built, measured or deployed. A
+missed target will be reported with its measured value and the reason it was
+missed.
+
+\subsection{Cost}
+
+Gas is deterministic: the same contract consumes the same gas on every machine,
+so A1 measures the design rather than the market. A2 converts that into rupees
+using a gas price and a token price, and states both, so the figure can be
+recomputed when prices move. Cost is unlikely to be the limit that binds first.
+Throughput is, and C3 locates it.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Cost parameters.}
+  \label{tab:eval-cost}
+  \small
+  \begin{tabular}{@{}lL{5.3cm}L{5.1cm}L{3.9cm}@{}}
+    \toprule
+    \textbf{ID} & \textbf{Parameter}   & \textbf{Measurement}                  & \textbf{Target}       \\
+    \midrule
+    A1          & Gas per operation    & Gas snapshot per contract entry point & Ballot under 400k gas \\
+    A2          & Cost per vote in INR & A1 times gas price times token price  & Under INR 0.50        \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Performance}
+
+B1 and B2 report the 95th percentile beside the median, because the voter who
+waited is the one who abandons the ballot. B2 names its device class, since the
+project does not choose the voter's hardware, and a device that cannot finish a
+proof at all counts as a failure.
+
+B2 decides the Section~6 gate. In-browser proving is the principal technical
+risk, so a 95th percentile in tens of seconds, or a device that cannot finish,
+fails it. The fallback is not free: server-side proving moves the identity
+secret onto the operator the design exists to remove.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Performance parameters.}
+  \label{tab:eval-perf}
+  \small
+  \begin{tabular}{@{}lL{5.3cm}L{5.1cm}L{3.9cm}@{}}
+    \toprule
+    \textbf{ID} & \textbf{Parameter}           & \textbf{Measurement}              & \textbf{Target}                \\
+    \midrule
+    B1          & End-to-end vote latency      & Wall clock, click to confirmation & 95th percentile under 10 s     \\
+    B2          & Client proof generation time & Timed in-browser, by device class & Under 5 s on a mid-range phone \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Scalability}
+
+C1 is the central claim, and it is narrower than ``gas does not grow with the
+electorate''. Two operations are constant in the roll size: publishing a roll,
+and casting a tier 3 ballot. The tree is built off-chain, and only its root, the
+roll size and the leaf-set identifier reach the chain.
+
+Registration is constant by construction, since the same three values are
+written whatever the roll holds. A tier 3 ballot should be constant because the
+proof is one fixed check at any depth and the authentication path stays private.
+A tier 2 ballot should rise slowly with the roll, because it sends that path to
+the contract. Variation in the first two, or a flat line in the third, refutes
+the model.
+
+Tier 3 is expected to sit above tier 2 throughout. Anonymity is a price, not a
+saving, and C1 is where that price becomes visible.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Scalability parameters.}
+  \label{tab:eval-scale}
+  \small
+  \begin{tabular}{@{}lL{4.6cm}L{5.4cm}L{4.3cm}@{}}
+    \toprule
+    \textbf{ID} & \textbf{Parameter}       & \textbf{Measurement}                                                    & \textbf{Target}                                    \\
+    \midrule
+    C1          & Gas vs voter-roll size   & Rolls from $10^1$ to $10^5$: registration, tier 2 ballot, tier 3 ballot & Registration and tier 3 flat; tier 2 rising slowly \\
+    C2          & Proof time vs roll size  & B2 across the same roll sizes                                           & Grows slowly, not linearly                         \\
+    C3          & Concurrent-voter ceiling & Load until failure                                                      & Name the bottleneck                                \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+C2 exists to check that the cost did not simply move to the client. The booth
+rebuilds the tree locally so the registrar never learns who is voting, and that
+work grows with the roll. C2 is where the design is most likely to fail.
+
+\subsection{Security and correctness}
+
+Each property is paired with an adversary that must fail.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Security and correctness parameters.}
+  \label{tab:eval-sec}
+  \small
+  \begin{tabular}{@{}lL{4.4cm}L{10.4cm}@{}}
+    \toprule
+    \textbf{ID} & \textbf{Property}       & \textbf{How it is demonstrated}                                                               \\
+    \midrule
+    D1          & Double-vote resistance  & Replaying a nullifier must revert, as must a ballot past the declared roll size                \\
+    D2          & Eligibility enforcement & A valid proof against the wrong root must revert                                               \\
+    D3          & Ballot secrecy          & Deanonymization attempt over all chain data; the operator condition reported beside the result \\
+    D4          & Verifiability           & A voter finds their own ballot; an observer recomputes the tally with our backend switched off \\
+    D5          & Authority containment   & An observer closes voting and finalizes; the authority cannot vote or alter a frozen root      \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+D2 holds only under the trusted setup assumption stated in Section~3. D3 is
+conditional in the same way: against the chain nothing should be linkable, but
+against the operator secrecy holds only while the relayer runs separately from
+the registrar, or the voter submits directly. D3 also reports the size of the
+anonymity set, which in a roll of a few dozen voters is small. A failure in D1,
+D2 or D5 is a design defect and blocks the live demonstration.
+
+\subsection{Usability and adoption}
+
+These parameters are behavioural: each counts what a participant does or holds.
+A voter who abandons the ballot leaves turnout that reads as apathy, which Section~3 states as NFR10.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Usability parameters.}
+  \label{tab:eval-use}
+  \small
+  \begin{tabular}{@{}lL{5.3cm}L{5.1cm}L{3.9cm}@{}}
+    \toprule
+    \textbf{ID} & \textbf{Parameter}     & \textbf{Measurement}                             & \textbf{Target} \\
+    \midrule
+    E1          & Steps to cast a ballot & User actions from landing page to receipt        & At most 4       \\
+    E2          & Voter gas burden       & POL a voter must hold to register and vote       & Zero            \\
+    E3          & Task success rate      & 10 users unfamiliar with cryptocurrency, unaided & Over 80\%       \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+E2 is zero by design, because a voter who must first acquire POL narrows the
+electorate to people who already hold cryptocurrency. That is also why direct
+submission is no general answer to a censoring relayer: a voter holding nothing
+cannot use it.
+
+\subsection{Measurement methodology}
+
+The harness lives in \texttt{bench/}: raw output committed as CSV, graphs
+generated by script, each point repeated at least thirty times and reported as a
+median with the 95th percentile.
+
+\begin{itemize}
+  \item Gas (A1, C1): measured locally, since gas is deterministic.
+  \item Throughput and ceiling (C3): a local node, since testnet faucet supply
+        cannot fund sustained load.
+  \item Client timings (B2, C2): a developer laptop and a mid-range Android
+        phone, each named.
+  \item End-to-end latency (B1): Polygon Amoy, sampled in Phase 4.
+\end{itemize}
+
+Every number carries its controls: gas price and block number, RPC provider,
+commit hash, deployed addresses and, for client numbers, the device.

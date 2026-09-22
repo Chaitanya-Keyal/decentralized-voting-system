@@ -1,0 +1,47 @@
+% ===========================================================================
+\section{Smart Contract Design and Implementation}
+% ===========================================================================
+
+\subsection{Contract responsibilities}
+
+\stub{One subsection per contract. For each: its responsibility, its state, its
+  entry points, and the access control applied to each entry point.}
+
+\subsection{Election lifecycle}
+
+\stub{Present the lifecycle state machine as implemented, and state which
+  transitions are time-gated, which require an explicit call, and which are
+  irreversible.}
+
+\subsection{Anonymous eligibility and nullifiers}
+
+\stub{Explain the implemented scheme end to end: how an identity commitment is
+  formed, how the off-chain tree is maintained, what the proof attests to, and how
+  the nullifier prevents a second ballot without revealing the voter.}
+
+\subsection{Gas-efficiency measures}
+
+\stub{Describe each deliberate gas decision (the off-chain membership tree,
+  minimal proxy clones for election deployment, off-chain metadata storage) and
+  point forward to the measurement that confirms or refutes each one.}
+
+\subsection{Selected implementation}
+
+\stub{Include the ballot-acceptance function as a listing. Choose one or two
+  functions that carry the design's central ideas rather than pasting whole files.}
+
+\begin{lstlisting}[language=Solidity,caption={Ballot acceptance.},label={lst:castvote}]
+// Replace with the implemented function.
+function castVote(/* ... */) external {
+    // verify the membership proof
+    // reject a previously seen nullifier
+    // record the nullifier and increment the tally
+}
+\end{lstlisting}
+
+\subsection{Testing and static analysis}
+
+\stub{Report the test suite: unit tests, fuzz campaigns, and what each adversarial
+  test asserts. Report the coverage figure and the static-analysis findings by
+  severity, with a written disposition for every finding, including the ones
+  judged to be false positives, and why.}

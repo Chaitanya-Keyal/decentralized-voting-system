@@ -1,0 +1,26 @@
+% ===========================================================================
+\section{References}
+% ===========================================================================
+
+The contract layer follows two Ethereum standards. ERC-1167 defines the minimal
+proxy that \texttt{ElectionFactory} clones for each election \cite{eip1167}.
+ERC-2771 defines the trusted-forwarder convention that lets the relayer pay for
+a ballot without becoming its sender \cite{erc2771}.
+
+The anonymity scheme follows the Semaphore protocol: identity commitments,
+membership proofs against a published root, and nullifiers \cite{semaphore}. We
+use its circuits, verifier and nullifier scheme, but not its on-chain group
+management. Access control, Merkle proofs, clones and the forwarder come from
+OpenZeppelin Contracts 5.x \cite{openzeppelin}. The contracts target Solidity
+0.8.28 \cite{solidity} and are built and gas-profiled with Foundry
+\cite{foundry}.
+
+Sepolia reaches end of life on 30 September 2026 \cite{sepoliaeol}, which is why
+the project deploys only to Polygon Amoy, chain id 80002 \cite{polygonamoy}.
+Published leaf sets and candidate manifestos are addressed by content identifier
+on IPFS \cite{ipfs}.
+
+The three client surfaces use the Next.js App Router \cite{nextjs} and reach the
+chain through wagmi \cite{wagmi} and viem \cite{viem}.
+
+\printbibliography[heading=none]

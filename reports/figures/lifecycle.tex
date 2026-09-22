@@ -1,0 +1,80 @@
+% DVote election lifecycle state machine.
+% Bare tikzpicture: \input this inside a figure environment.
+% The preamble supplies tikz with arrows.meta, positioning, shapes.geometric,
+% fit, backgrounds and calc.
+%
+% Greyscale-safe conventions:
+%   single outline = a phase the election passes through
+%   double outline = a terminal phase reached by counting a result
+%   dashed outline = the terminal phase reached by abandoning the election
+%
+% Each transition carries its call, its time gate and who may make it. The
+% authority holds only configuration and cancellation, because a transition
+% only it can make is also a transition it can withhold.
+\begin{tikzpicture}[
+    font=\footnotesize,
+    phase/.style    = {draw=black, thick, rounded corners=3pt, fill=white,
+                       align=center, inner sep=3pt,
+                       minimum width=4.6cm, minimum height=1.0cm},
+    terminal/.style = {phase, double, double distance=1.1pt},
+    aborted/.style  = {phase, dashed, fill=black!7,
+                       minimum width=3.0cm},
+    trans/.style     = {-{Latex[length=2.6mm,width=2.2mm]}, draw=black,
+                       line width=1.1pt},
+    abort/.style    = {-{Latex[length=2.2mm,width=1.8mm]}, draw=black!65,
+                       semithick, dash pattern=on 2.5pt off 2pt,
+                       rounded corners=3pt},
+    tlab/.style     = {align=left, inner sep=2pt, text width=6.9cm,
+                       font=\footnotesize,
+                       execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000}},
+  ]
+
+  % ==== the phases ====
+  \node[phase]    (created)  at (6.0,0)
+    {\texttt{Created}\\cloned by the factory,\\candidates and windows set};
+  \node[phase]    (regn)     at (6.0,-2.8)
+    {\texttt{Registration}\\identity commitments collected};
+  \node[phase]    (voting)   at (6.0,-5.6)
+    {\texttt{Voting}\\root frozen, ballots accepted};
+  \node[phase]    (tallying) at (6.0,-8.4)
+    {\texttt{Tallying}\\ballots refused; the counts\\already stand in storage};
+  \node[terminal] (final)    at (6.0,-11.2)
+    {\texttt{Finalized}\\result written, immutable};
+  \node[aborted]  (cancelled) at (1.5,-1.4)
+    {\texttt{Cancelled}\\terminal, no result};
+
+  % ==== the forward path ====
+  \draw[trans] (created.south)  -- (regn.north);
+  \draw[trans] (regn.south)     -- (voting.north);
+  \draw[trans] (voting.south)   -- (tallying.north);
+  \draw[trans] (tallying.south) -- (final.north);
+
+  \node[tlab, anchor=west] at (8.6,-1.4)
+    {\texttt{openRegistration()}, time-gated: \texttt{block.timestamp} must have
+     reached the announced opening, after which anyone may call it. A transition
+     only the authority can make is one the authority can also withhold.};
+  \node[tlab, anchor=west] at (8.6,-4.2)
+    {\texttt{openVoting()}, time-gated on the voting window and likewise callable
+     by anyone. It also requires a non-empty leaf-set CID beside the root, so a
+     registrar that withholds the published roll stops the election rather than
+     going unnoticed. The root was written when registration closed and cannot
+     change from here.};
+  \node[tlab, anchor=west] at (8.6,-7.0)
+    {\texttt{closeVoting()}, time-gated on the voting window closing, and
+     callable by anyone once that timestamp has passed, so the authority
+     cannot stop the count.};
+  \node[tlab, anchor=west] at (8.6,-9.8)
+    {\texttt{finalize()}, likewise callable by anyone, the authority
+     included. Writes the result and emits \texttt{Finalized}; no later call
+     can change it.};
+
+  % ==== the one abandonment path ====
+  \draw[abort] (created.west) -- (3.4,0) -- (3.4,-0.9) -- (cancelled.north east);
+  \draw[abort] (regn.west)    -- (3.4,-2.8) -- (3.4,-1.9) -- (cancelled.south east);
+  \node[align=left, anchor=north, text width=3.3cm, inner sep=2pt,
+        execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000}] at (1.5,-2.2)
+    {\texttt{cancel()}, the authority only, and only before voting opens. After
+     that a ballot may exist, and cancelling the election would be a veto over
+     a result the authority can already see.};
+
+\end{tikzpicture}

@@ -1,0 +1,48 @@
+% ===========================================================================
+\section{Final System Architecture}
+% Source material: docs/architecture.md, as built
+% ===========================================================================
+
+\subsection{Architecture as built}
+
+\stub{Present the final architecture diagram and describe the deployed system.
+  Where it differs from the proposal in Evaluation 1, state the difference and the
+  reason for it.}
+
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox[c][5.5cm][c]{0.9\linewidth}{\centering\itshape
+      Figure placeholder: final architecture.}}
+  \caption{Deployed system architecture.}
+  \label{fig:final-architecture}
+\end{figure}
+
+\subsection{Deployment}
+
+\stub{Record the deployed contract addresses, the network, the block explorer
+  links, and the commit hash the deployment was built from. A reader should be able
+  to independently verify every claim in Section 6 from this information alone.}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Deployed contracts.}
+  \label{tab:deployment}
+  \small
+  \begin{tabular}{@{}L{4.6cm}L{7.4cm}L{3.9cm}@{}}
+    \toprule
+    \textbf{Contract}                & \textbf{Address} & \textbf{Network}    \\
+    \midrule
+    \note{ElectionFactory}           & \note{0x...}     & \note{Polygon Amoy} \\
+    \note{Election (implementation)} & \note{0x...}     & \note{Polygon Amoy} \\
+    \note{VoterRegistry}             & \note{0x...}     & \note{Polygon Amoy} \\
+    \note{VoteForwarder}             & \note{0x...}     & \note{Polygon Amoy} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Divergences from the proposed design}
+
+\stub{List what changed between the Evaluation 1 proposal and the final system,
+  with the reason for each. This section is worth writing carefully: a design that
+  survived contact with implementation unchanged is usually a design that was not
+  tested hard enough.}
