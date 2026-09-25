@@ -121,14 +121,21 @@ async function main() {
       x: 0.5, y: 3.55, w: 5.2, h: 0.7, fontSize: 14, color: "C9D3DF", paraSpaceAfter: 4,
     });
     const members = [
-      "Varad Kailas Thombre", "Naman Singhal", "Shivam Goyal", "Rishit Agarwal",
-      "Vihaan Kashyap", "Palak Agarwal", "Chaitanya Keyal", "Wamika Sehgal",
+      ["Varad Kailas Thombre", "2024A7PS0148H"],
+      ["Naman Singhal", "2024A7PS0121H"],
+      ["Shivam Goyal", "2024ADPS0190H"],
+      ["Rishit Agarwal", "2024A7PS0101H"],
+      ["Vihaan Kashyap", "2024A7PS0113H"],
+      ["Palak Agarwal", "2024A7PS0041H"],
+      ["Chaitanya Keyal", "2023B4A70727H"],
+      ["Wamika Sehgal", "2024B4A70830H"],
     ];
-    s.addShape("roundRect", { x: 6.2, y: 1.85, w: 3.3, h: 2.85, rectRadius: 0.08, fill: { color: C.navySoft }, line: { color: C.navySoft } });
-    text(s, "Team", { x: 6.45, y: 2.0, w: 2.8, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.amber });
-    text(s, members.map((m, i) => ({ text: m, options: { breakLine: i < members.length - 1 } })), {
-      x: 6.45, y: 2.4, w: 2.9, h: 2.5, fontSize: 13, color: C.white, paraSpaceAfter: 3,
-    });
+    s.addShape("roundRect", { x: 5.45, y: 1.85, w: 4.05, h: 3.05, rectRadius: 0.08, fill: { color: C.navySoft }, line: { color: C.navySoft } });
+    text(s, "Team", { x: 5.7, y: 1.98, w: 3.5, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.amber });
+    s.addTable(members.map(([n, id]) => [
+      { text: n, options: { color: C.white, fontSize: 12, fontFace: BODY } },
+      { text: id, options: { color: "C9D3DF", fontSize: 12, fontFace: BODY, align: "right" } },
+    ]), { x: 5.62, y: 2.38, w: 3.72, colW: [2.1, 1.62], rowH: 0.29, border: { type: "none" }, margin: [0, 0.08, 0, 0.08], valign: "middle" });
     s.addNotes("Introduce the project: DVote is a voting application where smart contracts hold the voter roll, the schedule and the count, so nobody has to trust the organiser for a correct result. Nothing is built yet; this evaluation covers the problem, requirements, design and plan. Implementation starts after midsems.");
   }
 
