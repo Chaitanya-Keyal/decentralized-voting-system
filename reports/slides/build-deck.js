@@ -368,7 +368,7 @@ async function main() {
     s.addShape("roundRect", { x: 1.43, y: 2.05, w: 1.5, h: 0.45, rectRadius: 0.22, fill: { color: C.white }, line: { color: C.red, width: 1.25 } });
     text(s, "Cancelled", { x: 1.43, y: 2.05, w: 1.5, h: 0.45, fontSize: 12, bold: true, color: C.red, align: "center", valign: "middle" });
     s.addShape("line", { x: 1.25, y: 1.6, w: 0.35, h: 0.45, line: { color: C.red, width: 1, dashType: "dash", endArrowType: "triangle" } });
-    s.addShape("line", { x: 2.85, y: 1.6, w: -0.1, h: 0.45, flipH: true, line: { color: C.red, width: 1, dashType: "dash", endArrowType: "triangle" } });
+    s.addShape("line", { x: 2.75, y: 1.6, w: 0.1, h: 0.45, flipH: true, line: { color: C.red, width: 1, dashType: "dash", endArrowType: "triangle" } });
     text(s, "Each step needs its scheduled time to pass and an explicit transaction. Forward only. Only the authority can configure or cancel (before voting); anyone can open, close and finalize.", {
       x: 3.3, y: 1.95, w: 6.2, h: 0.65, fontSize: 11.5, italic: true, color: C.navy,
     });
