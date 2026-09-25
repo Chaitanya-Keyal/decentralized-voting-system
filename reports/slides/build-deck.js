@@ -117,7 +117,7 @@ async function main() {
     s.addImage({ path: LOGO, x: 0.65, y: 0.56, w: 4.0, h: 4.0 * 390 / 1890 });
     text(s, "DVote", { x: 0.5, y: 1.85, w: 5.2, h: 0.95, fontFace: HEAD, fontSize: 54, bold: true, color: C.white });
     text(s, "A Decentralized Voting System", { x: 0.5, y: 2.8, w: 5.2, h: 0.5, fontFace: HEAD, fontSize: 22, color: C.amber });
-    text(s, "Blockchain Technology (BITS F452)  |  Group 6\nEvaluation 1  |  September 2026", {
+    text(s, "Blockchain Technology (BITS F452)  |  Group 6\nEvaluation 1", {
       x: 0.5, y: 3.55, w: 5.2, h: 0.7, fontSize: 14, color: "C9D3DF", paraSpaceAfter: 4,
     });
     const members = [
@@ -286,22 +286,21 @@ async function main() {
     card(s, 5.85, 1.0, 3.65, 4.15, C.tealTint);
     text(s, "Non-functional (NFR1 to NFR10)", { x: 6.05, y: 1.15, w: 3.3, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.teal });
     const nfr = [
-      ["Ballot secrecy", "no link from ballot to voter"],
-      ["Eligibility", "only voters on the roll"],
-      ["One ballot per voter", ""],
-      ["Verifiability", "recount with our backend off"],
-      ["Count integrity", "nobody can change the tally"],
-      ["Cost", "ballot under 400k gas"],
-      ["Latency", "95% on-chain within 30 s"],
-      ["Scalability", "gas per operation flat in roll size"],
-      ["No crypto needed", "voter holds zero ETH"],
-      ["Usability", "over 80% vote unaided"],
+      ["Ballot secrecy", "no link from ballot to voter (D3)"],
+      ["Eligibility", "only voters on the roll (D2)"],
+      ["One ballot per voter", "(D1)"],
+      ["Verifiability", "recount with our backend off (D4)"],
+      ["Count integrity", "nobody can change the tally (D5)"],
+      ["Cost", "ballot under 400k gas (A1)"],
+      ["Latency", "95% on-chain within 30 s (B1, B2)"],
+      ["Scalability", "gas per operation flat in roll size (C1 to C3)"],
+      ["No crypto needed", "voter holds zero ETH (E2)"],
+      ["Usability", "over 80% vote unaided (E1, E3)"],
     ];
     text(s, nfr.map(([a, b], i) => [
       { text: a, options: { bold: true, color: C.navy } },
-      { text: b ? `: ${b}` : "", options: { color: C.ink, breakLine: i < nfr.length - 1 } },
-    ]).flat(), { x: 6.05, y: 1.6, w: 3.3, h: 3.0, fontSize: 11.5, paraSpaceAfter: 3.5 });
-    text(s, "Each one is tested by a Section 5 parameter.", { x: 6.05, y: 4.65, w: 3.3, h: 0.35, fontSize: 10.5, italic: true, color: C.teal });
+      { text: b.startsWith("(") ? ` ${b}` : `: ${b}`, options: { color: C.ink, breakLine: i < nfr.length - 1 } },
+    ]).flat(), { x: 6.05, y: 1.6, w: 3.3, h: 3.45, fontSize: 11.5, paraSpaceAfter: 5 });
     pageNo(s, 6);
     s.addNotes("Each functional requirement comes from an actor and has a reason in the report. Highlight FR4 (permissionless closing so the authority cannot stall), FR5 (proof plus nullifier gives one ballot per voter without recording addresses), and FR6 (the booth never asks the registrar, otherwise registrar plus relayer could link voter to vote). Every non-functional requirement is tested by a Section 5 parameter. NFR2, NFR3 and NFR8 matter most.");
   }
@@ -427,7 +426,64 @@ async function main() {
     s.addNotes("This is the path the examiner is most likely to probe. The booth never asks the registrar for anything, because a registrar that supplied the proof data would learn who is voting. The relayer checks the proof and that the nullifier is unused before paying gas, so it cannot be drained with junk ballots. The signing key is throwaway: eligibility comes from the proof, so the voter needs no wallet. castVote emits a VoteCast event that the indexer and auditors read.");
   }
 
-  // 10. Tech stack ---------------------------------------------------------
+  // 10. Anonymity and double voting ----------------------------------------
+  {
+    const s = pres.addSlide();
+    s.background = { color: C.white };
+    title(s, "Anonymity and one vote per voter", "Design");
+    // Merkle tree diagram
+    card(s, 0.5, 1.05, 4.45, 4.05, C.card);
+    text(s, "The roll on-chain is one Merkle root", { x: 0.7, y: 1.18, w: 4.1, h: 0.3, fontFace: HEAD, fontSize: 13.5, bold: true, color: C.navy });
+    const node = (x, y, w, label, fill, fg, bold) => {
+      s.addShape("roundRect", { x, y, w, h: 0.4, rectRadius: 0.06, fill: { color: fill }, line: { color: fill === C.white ? C.line : fill, width: 0.75 } });
+      text(s, label, { x, y, w, h: 0.4, fontSize: 11, bold: !!bold, color: fg, align: "center", valign: "middle" });
+    };
+    const edge = (x1, y1, x2, y2, hot) => {
+      const flipH = x2 < x1;
+      s.addShape("line", { x: Math.min(x1, x2), y: y1, w: Math.abs(x2 - x1), h: y2 - y1, flipH, line: { color: hot ? C.amber : C.line, width: hot ? 2.25 : 1.25 } });
+    };
+    // levels
+    const rootX = 2.12, rootY = 1.65;
+    const midY = 2.5, leafY = 3.35;
+    const mids = [1.2, 3.05], leaves = [0.7, 1.55, 2.75, 3.6];
+    edge(2.72, rootY + 0.4, 1.8, midY, true);
+    edge(2.72, rootY + 0.4, 3.65, midY, false);
+    edge(1.8, midY + 0.4, 1.01, leafY, false);
+    edge(1.8, midY + 0.4, 2.0, leafY, true);
+    edge(3.65, midY + 0.4, 3.06, leafY, false);
+    edge(3.65, midY + 0.4, 3.91, leafY, false);
+    node(rootX, rootY, 1.2, "Root", C.navy, C.white, true);
+    node(mids[0], midY, 1.2, "hash", C.white, C.ink);
+    node(mids[1], midY, 1.2, "hash", C.white, C.ink);
+    const lab = ["c1", "c2 (you)", "c3", "c4"];
+    leaves.forEach((x, i) => node(x, leafY, 0.62 + (i === 1 ? 0.3 : 0), lab[i], i === 1 ? C.teal : C.white, i === 1 ? C.white : C.ink, i === 1));
+    text(s, "Each leaf is a voter's commitment (a hash of their secret). Only the 32-byte root goes on-chain, so registration costs the same for 10 or 100,000 voters. The browser proves in zero knowledge that it knows the secret behind one leaf on the highlighted path, without revealing which leaf.", {
+      x: 0.7, y: 3.95, w: 4.1, h: 1.1, fontSize: 10.5, color: C.ink,
+    });
+
+    // Nullifier properties
+    text(s, "nullifier = hash(secret, electionId)", { x: 5.25, y: 1.1, w: 4.25, h: 0.35, fontFace: "Courier New", fontSize: 12.5, bold: true, color: C.teal });
+    const props = [
+      ["Same every time", "A second ballot from the same voter carries the same nullifier, so the contract rejects it."],
+      ["One-way", "It reveals nothing about the secret or who the voter is."],
+      ["Per election", "A voter's ballots in two elections cannot be linked."],
+    ];
+    props.forEach(([h, b], i) => {
+      const y = 1.55 + i * 0.72;
+      s.addImage({ data: I.check, x: 5.25, y: y + 0.03, w: 0.24, h: 0.24 });
+      text(s, h, { x: 5.6, y, w: 3.9, h: 0.28, fontSize: 12.5, bold: true, color: C.navy });
+      text(s, b, { x: 5.6, y: y + 0.28, w: 3.9, h: 0.4, fontSize: 11, color: C.muted });
+    });
+    card(s, 5.25, 3.8, 4.25, 1.3, C.amberTint);
+    text(s, [
+      { text: "Why not a simple hasVoted[address]?", options: { bold: true, color: C.navy, breakLine: true } },
+      { text: "Every ballot would show the voter's address next to their choice, and the registrar knows who owns which address: a public record of how everyone voted.", options: { color: C.ink } },
+    ], { x: 5.45, y: 3.92, w: 3.9, h: 1.1, fontSize: 11 });
+    pageNo(s, 10);
+    s.addNotes("This is Semaphore v4. The candidate choice is locked into the proof, so a relayer cannot change it. A voter hides among everyone on the roll, no more: in a small election, or for the very first ballot, the anonymity is weak, so the demo pre-casts several ballots. Groth16 needs a trusted setup; we use Semaphore's published setup files and check their hashes. The nullifier costs the same storage write as a hasVoted flag plus the proof check; A1 measures that price. The tree has to be rebuilt in the browser from the public list, which grows with the roll; C2 measures that.");
+  }
+
+  // 11. Tech stack ---------------------------------------------------------
   {
     const s = pres.addSlide();
     s.background = { color: C.white };
@@ -457,11 +513,11 @@ async function main() {
     text(s, "Gas is deterministic, so gas is measured on a local node (Anvil). Sepolia is used for end-to-end latency and the live demo.", {
       x: 0.5, y: 4.75, w: 9.0, h: 0.4, fontSize: 11, italic: true, color: C.navy,
     });
-    pageNo(s, 10);
+    pageNo(s, 11);
     s.addNotes("Alternatives we rejected: Vyper (few libraries), non-EVM chains (lose running the same code locally and on the testnet), Hardhat 3 (wagmi types Foundry output anyway), custom circom circuits (too long, unaudited crypto at the centre of a security project), MACI (adds coercion resistance but needs a trusted coordinator). IPFS guarantees content has not changed but not that it stays available, so we and auditors pin the voter list. We do not use Semaphore's on-chain groups because they cost one transaction per voter; we store only the root.");
   }
 
-  // 11. Evaluation parameters ----------------------------------------------
+  // 12. Evaluation parameters ----------------------------------------------
   {
     const s = pres.addSlide();
     s.background = { color: C.white };
@@ -498,49 +554,52 @@ async function main() {
     text(s, "All are targets for Evaluation 2, not measurements. Missed targets will be reported.", {
       x: 0.5, y: 5.08, w: 8.5, h: 0.3, fontSize: 10.5, italic: true, color: C.muted,
     });
-    pageNo(s, 11);
+    pageNo(s, 12);
     s.addNotes("C1 is the central claim, stated narrowly: publishing the roll and casting a tier 3 ballot should cost the same gas at any roll size; a tier 2 ballot rises slowly; tier 3 costs more than tier 2 throughout, which is the price of anonymity. C2 checks the cost did not just move to the browser: tree rebuild under 5 s at 10,000 voters on a phone, reported at 100,000. B1 allows for Sepolia's 12-second blocks. Rupee cost is not graded because it depends on gas price and exchange rate. A failure in D1, D2 or D5 stops the live demo.");
   }
 
-  // 12. Implementation plan ------------------------------------------------
+  // 13. Implementation plan ------------------------------------------------
   {
     const s = pres.addSlide();
     s.background = { color: C.white };
     title(s, "Implementation plan", "Plan");
+    text(s, "Implementation starts after midsems.", { x: 0.5, y: 0.92, w: 6, h: 0.28, fontSize: 11, italic: true, color: C.muted });
     const ph = [
-      ["Phase 1", "28 Sep - 11 Oct", "M1: a vote works end to end locally (tier 2)"],
-      ["Phase 2", "12 - 25 Oct", "M2: anonymous and gasless on Sepolia (tier 3)"],
-      ["Phase 3", "26 Oct - 8 Nov", "Feature freeze: audit, resilience, usability test"],
-      ["Phase 4", "9 - 15 Nov", "Measure every Section 5 parameter"],
-      ["Phase 5", "16 - 19 Nov", "Three demo rehearsals and buffer"],
+      ["Phase 1", "M1: a vote works end to end (tier 2)", ["Contracts and Merkle voting", "Admin console, ballot screen", "5 local voters vote", "Tests above 80%; gas snapshot"]],
+      ["Phase 2", "M2: anonymous and gasless (tier 3)", ["Proofs in the browser", "Relayer and forwarder", "Cap at the voter count", "Zero-ETH vote on Sepolia"]],
+      ["Phase 3", "Feature freeze and hardening", ["TallyLib (plurality)", "Slither clean; tests above 90%", "Reorgs; audit with backend off", "Usability test (E3)"]],
+      ["Phase 4", "Measurement", ["All 14 parameters", "30+ runs per point", "Median and 95th percentile", "Missed targets reported"]],
+      ["Phase 5", "Rehearsal", ["Three demo runs on Sepolia", "Pre-cast ballots first", "Buffer for slippage"]],
     ];
     const tw = 1.66, tg = 0.18;
     s.addShape("line", { x: 0.8, y: 1.47, w: 8.4, h: 0, line: { color: C.line, width: 3 } });
-    ph.forEach(([p, d, m], i) => {
+    ph.forEach(([p, m, items], i) => {
       const x = 0.5 + i * (tw + tg);
       const fill = i < 2 ? C.teal : C.navy;
       s.addShape("ellipse", { x: x + tw / 2 - 0.17, y: 1.3, w: 0.34, h: 0.34, fill: { color: fill }, line: { color: C.white, width: 2 } });
-      text(s, p, { x, y: 1.75, w: tw, h: 0.3, fontFace: HEAD, fontSize: 14, bold: true, color: C.navy, align: "center" });
-      text(s, d, { x, y: 2.05, w: tw, h: 0.28, fontSize: 11, bold: true, color: C.teal, align: "center" });
-      text(s, m, { x: x + 0.08, y: 2.38, w: tw - 0.16, h: 0.75, fontSize: 11, align: "center" });
+      card(s, x, 1.8, tw, 2.25);
+      text(s, p, { x: x + 0.12, y: 1.9, w: tw - 0.24, h: 0.28, fontFace: HEAD, fontSize: 13, bold: true, color: fill });
+      text(s, m, { x: x + 0.12, y: 2.18, w: tw - 0.24, h: 0.5, fontSize: 10.5, bold: true, color: C.navy });
+      text(s, items.map((t, k) => ({ text: t, options: { bullet: { indent: 10 }, breakLine: k < items.length - 1 } })), {
+        x: x + 0.1, y: 2.7, w: tw - 0.16, h: 1.25, fontSize: 9.5, color: C.ink, paraSpaceAfter: 2,
+      });
     });
-    text(s, "Implementation starts after midsems", { x: 0.5, y: 0.95, w: 5, h: 0.28, fontSize: 11, italic: true, color: C.muted });
 
-    card(s, 0.5, 3.45, 4.4, 1.45, C.tealTint);
+    card(s, 0.5, 4.2, 4.4, 0.95, C.tealTint);
     text(s, [
-      { text: "Build order: tier 2, then tier 3", options: { bold: true, color: C.teal, fontFace: HEAD, fontSize: 14, breakLine: true } },
-      { text: "Tier 2 uses a Merkle root with no anonymity; tier 3 adds zero-knowledge proofs and gasless voting. The gas difference between them is the cost of anonymity (A1, C1).", options: { fontSize: 11.5, color: C.ink } },
-    ], { x: 0.7, y: 3.6, w: 4.0, h: 1.25, paraSpaceAfter: 4 });
-    card(s, 5.1, 3.45, 4.4, 1.45, C.amberTint);
+      { text: "Build order: tier 2, then tier 3. ", options: { bold: true, color: C.teal } },
+      { text: "Tier 2 is a Merkle root with no anonymity; tier 3 adds zero-knowledge proofs and gasless voting. The gas difference is the cost of anonymity (A1, C1).", options: { color: C.ink } },
+    ], { x: 0.65, y: 4.28, w: 4.1, h: 0.8, fontSize: 10.5, valign: "middle" });
+    card(s, 5.1, 4.2, 4.4, 0.95, C.amberTint);
     text(s, [
-      { text: "Go/no-go and fallbacks", options: { bold: true, color: C.navy, fontFace: HEAD, fontSize: 14, breakLine: true } },
-      { text: "One week after M1 (or 18 Oct at the latest): if phones cannot prove, proving moves to the server (weaker, and reported). 1 Nov: if tier 3 is not ready, demo tier 2.", options: { fontSize: 11.5, color: C.ink } },
-    ], { x: 5.3, y: 3.6, w: 4.0, h: 1.25, paraSpaceAfter: 4 });
-    pageNo(s, 12);
-    s.addNotes("M1 check: from a fresh clone, deploy to a local node, register five voters, cast five browser ballots, read back the tally, test coverage above 80 percent. Phase 2 takes the two hardest parts early: proofs and the relayer. Phase 3: TallyLib with plurality, clean Slither report, coverage above 90 percent, reorg handling, auditing with the backend down, the E3 usability test. Risks: browser proving on phones (go/no-go), relayer down on the day (voters submit directly), relayer drained (it checks before paying), not enough Sepolia ETH (load and gas tests run locally). Server-side proving is weaker: the secret leaves the device.");
+      { text: "Go/no-go. ", options: { bold: true, color: C.navy } },
+      { text: "One week after M1: if phones cannot prove, proving moves to the server (weaker, and reported). Before the freeze: if tier 3 is not ready, we demo tier 2.", options: { color: C.ink } },
+    ], { x: 5.25, y: 4.28, w: 4.1, h: 0.8, fontSize: 10.5, valign: "middle" });
+    pageNo(s, 13);
+    s.addNotes("Phase 1 is a complete vote end to end, because leaving integration to the end is how projects fail. Phase 2 takes the two hardest parts early: proofs in the browser and the relayer. Phase 3 is finishing, not new features. Phase 4 gives every parameter a number or a reason there is none. Risks: browser proving on phones (the go/no-go), relayer down on the day (voters with gas submit directly), relayer drained (it checks the proof and nullifier before paying), not enough Sepolia ETH (load and gas tests run on a local node). Server-side proving is weaker because the secret leaves the device; tier 2 alone is still a complete voting system.");
   }
 
-  // 13. Guarantees and limits ----------------------------------------------
+  // 14. Guarantees and limits ----------------------------------------------
   {
     const s = pres.addSlide();
     s.background = { color: C.white };
@@ -548,16 +607,17 @@ async function main() {
     card(s, 0.5, 1.05, 4.3, 4.05, C.tealTint);
     text(s, "Five guarantees", { x: 0.75, y: 1.2, w: 3.8, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.teal });
     const g = [
-      "Eligibility: only voters on the roll (given the trusted setup)",
-      "One voter, one ballot",
-      "Ballot secrecy against the chain",
-      "Verifiability: anyone can recount",
-      "Integrity of the count",
+      ["Eligibility", "ZK proof against the frozen root"],
+      ["One voter, one ballot", "each nullifier used once; ballots capped at the voter count"],
+      ["Ballot secrecy", "the proof reveals only that the voter is on the roll"],
+      ["Verifiability", "anyone can recount from the chain, with our backend off"],
+      ["Integrity of the count", "only an accepted ballot changes the tally; anyone can finalize"],
     ];
-    g.forEach((t, i) => {
-      const y = 1.7 + i * 0.64;
+    g.forEach(([h, b], i) => {
+      const y = 1.65 + i * 0.68;
       s.addImage({ data: I.check, x: 0.75, y: y + 0.03, w: 0.26, h: 0.26 });
-      text(s, t, { x: 1.12, y, w: 3.5, h: 0.55, fontSize: 12.5 });
+      text(s, h, { x: 1.12, y, w: 3.5, h: 0.28, fontSize: 12.5, bold: true, color: C.navy });
+      text(s, b, { x: 1.12, y: y + 0.28, w: 3.5, h: 0.36, fontSize: 10.5, color: C.muted });
     });
     card(s, 5.1, 1.05, 4.4, 4.05, C.card);
     text(s, "Seven stated non-guarantees", { x: 5.35, y: 1.2, w: 3.9, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.red });
@@ -575,20 +635,8 @@ async function main() {
       s.addImage({ data: I.cross, x: 5.35, y: y + 0.03, w: 0.24, h: 0.24 });
       text(s, t, { x: 5.72, y, w: 3.65, h: 0.4, fontSize: 12.5 });
     });
-    pageNo(s, 13);
+    pageNo(s, 14);
     s.addNotes("State the limits before being asked. Eligibility depends on Semaphore's published trusted setup; we check the hashes but did not run it. One registrar still decides who may vote: publishing the voter count fixes it before any ballot, and the contract refuses ballots beyond it, but it cannot detect fake voters. Secrecy from our own operator holds only if the relayer runs separately from the registrar, or the voter submits directly. All seven non-guarantees are future work.");
-  }
-
-  // 14. Closing ------------------------------------------------------------
-  {
-    const s = pres.addSlide();
-    s.background = { color: C.navy };
-    text(s, "Thank you", { x: 0.5, y: 1.6, w: 9.0, h: 1.0, fontFace: HEAD, fontSize: 48, bold: true, color: C.white, align: "center" });
-    text(s, "Questions?", { x: 0.5, y: 2.6, w: 9.0, h: 0.6, fontFace: HEAD, fontSize: 24, color: C.amber, align: "center" });
-    text(s, "DVote: the operator out of the ballot box and the count, with every result recountable from the chain.", {
-      x: 1.0, y: 3.6, w: 8.0, h: 0.6, fontSize: 14, color: "C9D3DF", align: "center",
-    });
-    s.addNotes("Summary line: DVote takes the operator out of the ballot box and the count, but one party still decides who may vote. Nothing is built yet; Evaluation 2 will report measured numbers against the fourteen parameters, including any target we miss.");
   }
 
   await pres.writeFile({ fileName: OUT });
