@@ -3,25 +3,21 @@
 % Source material: docs/evaluation-parameters.md
 % ===========================================================================
 
-The design is evaluated against five families of parameter: cost, performance,
-scalability, security, and usability. Each parameter names what is measured, how
-it is measured, and what result counts as success. Security parameters instead
-name an adversary that must fail.
+The design is evaluated on five groups of parameters: cost, performance,
+scalability, security, and usability. Each parameter says what is measured, how,
+and what counts as success. Each security parameter names an attack that must
+fail.
 
-The targets are hypotheses. Nothing has been built, measured or deployed. A
-missed target will be reported with its measured value and the reason it was
-missed.
+The targets are hypotheses: nothing has been built or measured yet. If a target
+is missed, Evaluation~2 will report the measured value and the reason.
 
 \subsection{Cost}
 
-Cost is measured as gas per operation (A1). Gas is deterministic: the same
-contract consumes the same gas on every machine, so A1 measures the design
-rather than the market. We deliberately do not grade a rupee figure. Converting
-gas to money needs a gas price and an exchange rate the project does not
-control, so a fiat cost measures the market on a given day, not the system;
-where the report gives one it is a stated illustration, not a parameter with a
-target. Cost is unlikely to be the limit that binds first. Throughput is, and C3
-locates it.
+Cost is measured in gas per operation (A1). Gas is deterministic, so A1
+measures the design, not the market. We do not grade a cost in rupees, because
+converting gas to money depends on the gas price and the exchange rate on the
+day. Any rupee figure in the report is an illustration, not a target. Cost is
+unlikely to be the first limit we hit; throughput is, and C3 finds it.
 
 \begin{table}[htbp]
   \centering
@@ -32,24 +28,24 @@ locates it.
     \toprule
     \textbf{ID} & \textbf{Parameter}   & \textbf{Measurement}                  & \textbf{Target}       \\
     \midrule
-    A1          & Gas per operation    & Gas snapshot per contract entry point & Ballot under 400k gas \\
+    A1          & Gas per operation    & Gas snapshot per contract function    & Ballot under 400k gas \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \subsection{Performance}
 
-B1 and B2 report the 95th percentile beside the median, because the voter who
-waited is the one who abandons the ballot. B2 names its device class, since the
-project does not choose the voter's hardware, and a device that cannot finish a
-proof at all counts as a failure.
-B1's target allows for Sepolia's 12-second blocks: waiting for the next block
-alone averages about 6 s and reaches about 11 s at the 95th percentile.
+B1 and B2 report the 95th percentile as well as the median, because the voters
+who wait longest are the ones who give up. B2 is reported per device type, since
+we do not choose the voter's phone, and a device that cannot finish a proof at
+all counts as a failure. B1's target allows for Sepolia's 12-second blocks:
+waiting for the next block alone averages about 6 seconds, and takes about 11
+seconds at the 95th percentile.
 
-B2 decides the Section~6 gate. In-browser proving is the principal technical
-risk, so a 95th percentile in tens of seconds, or a device that cannot finish,
-fails it. The fallback is not free: server-side proving moves the identity
-secret onto the operator the design exists to remove.
+B2 decides the go/no-go in Section~6. Proving in the browser is the biggest
+technical risk, so a 95th percentile of tens of seconds, or a phone that cannot
+finish, fails it. The fallback, proving on the server, has a cost: the voter's
+secret would leave their device and reach our operator.
 
 \begin{table}[htbp]
   \centering
@@ -60,28 +56,24 @@ secret onto the operator the design exists to remove.
     \toprule
     \textbf{ID} & \textbf{Parameter}           & \textbf{Measurement}              & \textbf{Target}                \\
     \midrule
-    B1          & End-to-end vote latency      & Wall clock, click to confirmation & 95th percentile under 30 s     \\
-    B2          & Client proof generation time & Timed in-browser, by device class & Under 5 s on a mid-range phone \\
+    B1          & End-to-end vote latency      & Time from click to confirmation   & 95th percentile under 30~s     \\
+    B2          & Proof generation time        & Timed in the browser, per device type & Under 5~s on a mid-range phone \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \subsection{Scalability}
 
-C1 is the central claim, and it is narrower than ``gas does not grow with the
-electorate''. Two operations are constant in the roll size: publishing a roll,
-and casting a tier 3 ballot. The tree is built off-chain, and only its root, the
-roll size and the leaf-set identifier reach the chain.
+C1 is the central claim, and it is deliberately narrow. Only two operations
+should cost the same at any roll size: publishing the roll, and casting a tier 3
+ballot.
 
-Registration is constant by construction, since the same three values are
-written whatever the roll holds. A tier 3 ballot should be constant because the
-proof is one fixed check at any depth and the authentication path stays private.
-A tier 2 ballot should rise slowly with the roll, because it sends that path to
-the contract. Variation in the first two, or a flat line in the third, refutes
-the model.
-
-Tier 3 is expected to sit above tier 2 throughout. Anonymity is a price, not a
-saving, and C1 is where that price becomes visible.
+Publishing the roll always writes the same three values, whatever the roll
+size. A tier 3 ballot should cost the same because the proof check is the same
+size at any depth. A tier 2 ballot should rise slowly with the roll, because it
+sends its Merkle proof to the contract. If either of the first two varies, or
+the third is flat, our model is wrong. We expect tier 3 to cost more than tier 2
+at every size: anonymity has a price, and C1 shows it.
 
 \begin{table}[htbp]
   \centering
@@ -92,20 +84,21 @@ saving, and C1 is where that price becomes visible.
     \toprule
     \textbf{ID} & \textbf{Parameter}       & \textbf{Measurement}                                                    & \textbf{Target}                                    \\
     \midrule
-    C1          & Gas vs voter-roll size   & Rolls from $10^1$ to $10^5$: registration, tier 2 ballot, tier 3 ballot & Registration and tier 3 flat; tier 2 rising slowly \\
-    C2          & Booth time vs roll size  & Tree rebuild and proving, timed separately, across the same roll sizes  & Rebuild under 5 s at $10^4$ on a phone, reported at $10^5$; proving grows with depth only \\
-    C3          & Concurrent-voter ceiling & Load until failure                                                      & Name the bottleneck                                \\
+    C1          & Gas vs roll size         & Rolls of $10^1$ to $10^5$: registration, tier 2 ballot, tier 3 ballot & Registration and tier 3 flat; tier 2 rising slowly \\
+    C2          & Booth time vs roll size  & Tree rebuild and proving, timed separately, at the same roll sizes      & Rebuild under 5~s at $10^4$ on a phone, reported at $10^5$; proving grows with depth only \\
+    C3          & Maximum concurrent voters & Increase load until something fails                                   & Identify the bottleneck                            \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-C2 exists to check that the cost did not simply move to the client. The booth
-rebuilds the tree locally so the registrar never learns who is voting, and that
-work is linear in the roll; proving grows only with the tree's depth. C2 is where the design is most likely to fail.
+C2 checks that the cost did not just move to the voter's browser. The booth
+rebuilds the tree itself so that the registrar never learns who is voting, and
+that work grows with the roll, while proving grows only with the tree's depth.
+This is where the design is most likely to fail.
 
 \subsection{Security and correctness}
 
-Each property is paired with an adversary that must fail.
+Each property is tested by an attack that must fail.
 
 \begin{table}[htbp]
   \centering
@@ -116,26 +109,26 @@ Each property is paired with an adversary that must fail.
     \toprule
     \textbf{ID} & \textbf{Property}       & \textbf{How it is demonstrated}                                                               \\
     \midrule
-    D1          & Double-vote resistance  & Replaying a nullifier must revert, as must a ballot past the declared roll size                \\
-    D2          & Eligibility enforcement & A valid proof against the wrong root, and a tampered proof, must revert                        \\
-    D3          & Ballot secrecy          & Deanonymization attempt over all chain data; the operator condition reported beside the result \\
-    D4          & Verifiability           & A voter finds their own ballot; an observer recomputes the tally with our backend switched off \\
-    D5          & Authority containment   & An observer closes voting and finalizes; the authority cannot vote or alter a frozen root      \\
+    D1          & No double voting        & Reusing a nullifier must fail, and so must a ballot beyond the voter count                     \\
+    D2          & Eligibility             & A valid proof against the wrong root, and a tampered proof, must fail                          \\
+    D3          & Ballot secrecy          & Try to link ballots to voters using all chain data; report the operator condition alongside    \\
+    D4          & Verifiability           & A voter finds their own ballot; an observer recounts the tally with our backend switched off   \\
+    D5          & Authority limits        & An observer closes voting and publishes the result; the authority cannot vote or change a frozen root \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-D2 holds only under the trusted setup assumption stated in Section~3. D3 is
-conditional in the same way: against the chain nothing should be linkable, but
-against the operator secrecy holds only while the relayer runs separately from
-the registrar, or the voter submits directly. D3 also reports the size of the
-anonymity set, which in a roll of a few dozen voters is small. A failure in D1,
-D2 or D5 is a design defect and blocks the live demonstration.
+D2 assumes the trusted setup is sound (Section~\ref{sec:trust}). D3 has a
+condition too: against the chain, nothing should link a ballot to a voter, but
+against our operator this needs the relayer to run separately from the
+registrar, or the voter to submit directly. D3 also reports how many voters
+each ballot hides among, which is small in a roll of a few dozen. A failure in
+D1, D2 or D5 is a design flaw and stops the live demo.
 
 \subsection{Usability and adoption}
 
-These parameters are behavioural: each counts what a participant does or holds.
-A voter who abandons the ballot leaves turnout that reads as apathy, which Section~3 states as NFR10.
+These parameters count what participants do. A voter who gives up shows up as
+low turnout, not as a bug report, which is why NFR10 exists.
 
 \begin{table}[htbp]
   \centering
@@ -147,31 +140,30 @@ A voter who abandons the ballot leaves turnout that reads as apathy, which Secti
     \textbf{ID} & \textbf{Parameter}     & \textbf{Measurement}                             & \textbf{Target} \\
     \midrule
     E1          & Steps to cast a ballot & User actions from landing page to receipt        & At most 4       \\
-    E2          & Voter gas burden       & ETH a voter must hold to register and vote       & Zero            \\
-    E3          & Task success rate      & 10 users unfamiliar with cryptocurrency, unaided & Over 80\%       \\
+    E2          & Gas the voter needs    & ETH a voter must hold to register and vote       & Zero            \\
+    E3          & Task success rate      & 10 users new to cryptocurrency, no help          & Over 80\%       \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-E2 is zero by design, because a voter who must first acquire ETH narrows the
-electorate to people who already hold cryptocurrency. That is also why direct
-submission is no general answer to a censoring relayer: a voter holding nothing
-cannot use it.
+E2 is zero by design: if voters had to buy ETH first, only people who already
+own cryptocurrency could vote. For the same reason, direct submission does not
+fully solve a censoring relayer, since a voter with no ETH cannot use it.
 
 \subsection{Measurement methodology}
 
-The harness lives in \texttt{bench/}: raw output committed as CSV, graphs
-generated by script, each point repeated at least thirty times and reported as a
-median with the 95th percentile.
+The test harness lives in \texttt{bench/}. Raw results are committed as CSV,
+graphs are generated by script, and each point is repeated at least thirty
+times and reported as the median and 95th percentile.
 
 \begin{itemize}
-  \item Gas (A1, C1): measured locally, since gas is deterministic.
-  \item Throughput and ceiling (C3): a local node, since testnet faucet supply
-        cannot fund sustained load.
-  \item Client timings (B2, C2): a developer laptop and a mid-range Android
-        phone, each named.
+  \item Gas (A1, C1): a local node, since gas is the same everywhere.
+  \item Load limit (C3): a local node, since testnet faucets cannot fund
+        sustained load.
+  \item Browser timings (B2, C2): a named developer laptop and a named
+        mid-range Android phone.
   \item End-to-end latency (B1): Ethereum Sepolia, sampled in Phase 4.
 \end{itemize}
 
-Every number carries its controls: gas price and block number, RPC provider,
-commit hash, deployed addresses and, for client numbers, the device.
+Every number is recorded with its conditions: gas price, block number, RPC
+provider, commit hash, contract addresses and, for browser timings, the device.

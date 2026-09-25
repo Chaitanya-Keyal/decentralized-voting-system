@@ -2,36 +2,32 @@
 \section{Conclusion}
 % ===========================================================================
 
-An election result is acted on at once and never reconciled, so a mis-stated
-tally has no later event to expose it. Auditing the operator does not fix that.
-It moves trust to the auditor, and to records the operator produced.
+An election result is acted on straight away and never checked again, so a
+wrong tally is never exposed later. Auditing the operator does not fix this; it
+only moves the trust to the auditor, who relies on the operator's own records.
 
 \projectname{} puts the rules that decide an election into contract code on a
-public testbed: who may vote, when phases change, and which ballots count. A
-reader who disbelieves the result recomputes it from the raw log. The nullifier
-that stops a second ballot never reveals whose it was.
+public test blockchain: who may vote, when each phase changes, and which ballots
+count. Anyone who doubts the result can recount it from the chain. The nullifier
+that blocks a second ballot never reveals whose ballot it was.
 
-Anonymity rests on a Merkle commitment rather than Semaphore's on-chain group
-management, which would charge a transaction and a leaf insertion per voter.
-Only the root, the roll size and the leaf set's IPFS identifier reach the chain,
-and the booth derives its own authentication path from the published leaf set.
-The constant-cost claim is per operation, not per election: total gas still
-grows with ballots cast, and the roll-sized work moved onto the registrar, the
-auditors and the booth.
+Only the root, the voter count and the list's IPFS address go on-chain, and the
+booth builds its proof from the published list. This avoids Semaphore's on-chain
+groups, which would cost a transaction per voter. The constant cost is per
+operation, not per election: total gas still grows with the number of ballots,
+and the work that grows with the roll moves to the registrar, the auditors and
+the booth.
 
-The non-guarantees in Section~\ref{sec:trust} stand. Eligibility rests on a
-trusted setup this group did not run, one registrar decides who is enrolled, a
-voter can be coerced into handing over their secret, and secrecy from the
-operator holds only while the relayer runs separately from the registrar.
+The limits in Section~\ref{sec:trust} remain. Eligibility depends on a trusted
+setup we did not run, one registrar decides who is on the roll, a voter can be
+forced to hand over their secret, and secrecy from our operator holds only while
+the relayer runs separately from the registrar. So \projectname{} takes the
+operator out of the ballot box and the count, but one party still decides who
+may vote.
 
-So \projectname{} removes the operator from the ballot box and from the count,
-and leaves one party in control of the franchise.
-
-Nothing here has been measured. Evaluation 2 replaces these expectations with
-numbers against the parameters in Section~5. C1 measures registration and ballot
-gas from ten voters to a hundred thousand; tier 3 should be flat, and above tier
-2 throughout, which is the price of anonymity rather than a saving. C2 checks that
-the work did not simply move to the browser: whether a hundred-thousand-leaf roll
-can be rebuilt and proved on a phone. D4 needs no graph at all: with our backend
-switched off mid-demonstration, the audit dashboard must still read the chain
-and recompute the tally. Missed targets will be reported too.
+Nothing has been measured yet. Evaluation~2 will replace these targets with
+numbers. C1 measures gas from ten voters to a hundred thousand: tier 3 should be
+flat and cost more than tier 2 throughout. C2 checks whether a large roll can be
+handled on a phone. D4 needs no graph: with our backend switched off during the
+demo, the audit dashboard must still read the chain and recount the tally.
+Missed targets will be reported too.

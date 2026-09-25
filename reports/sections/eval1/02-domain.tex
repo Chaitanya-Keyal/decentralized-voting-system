@@ -5,18 +5,18 @@
 \subsection{The centralized status quo}
 
 Institutional elections run on paper, on voting machines, or on a hosted web
-application backed by one party's database. The hosted form wins on cost, speed
-and reach. That settles it for a student senate, a club committee or a
-shareholder resolution: a few hundred to a hundred thousand voters, and a result
-due within hours. National elections are out of scope: statutory procedure,
-universal physical access and household coercion are obligations this design
-does not meet.
+application backed by one party's database. The hosted version is the cheapest,
+fastest and easiest to reach, so it is what a student senate, a club committee
+or a shareholder vote uses: a few hundred to a hundred thousand voters, with a
+result due within hours. National elections are out of scope; they need legal
+procedures, physical access for everyone and protection against coercion at
+home, which this design does not provide.
 
 \subsection{Trust concentrated in a single operator}
 
-A hosted system asks the electorate to trust one operator with four separable
-jobs: roll, box, count and log. Table~\ref{tab:trust} states each assumption
-and what \projectname{} does to it.
+A hosted system asks voters to trust one operator with four separate jobs: the
+roll, the ballot box, the count and the log. Table~\ref{tab:trust} lists what
+the voter has to assume and what \projectname{} changes.
 
 \begin{table}[htbp]
   \centering
@@ -24,97 +24,95 @@ and what \projectname{} does to it.
   \label{tab:trust}
   \begin{tabular}{@{}L{6.0cm}L{9.7cm}@{}}
     \toprule
-    \textbf{Assumption the voter must make} & \textbf{How \projectname{} removes or narrows it}                                                                      \\
+    \textbf{Assumption the voter must make} & \textbf{What \projectname{} does about it}                                                                      \\
     \midrule
     The voter roll is correct
-                                            & Narrowed rather than removed: the root and the declared enrolment size are
-                                              fixed on-chain before voting opens and cannot be changed afterwards, but
-                                              which entries went into the roll is still the registrar's word.            \\
+                                            & Narrowed, not removed: the root and the number of registered voters are
+                                              fixed on-chain before voting opens and cannot change afterwards, but
+                                              who is on the roll is still the registrar's word.            \\
     Nobody voted twice
-                                            & Each ballot carries a zero-knowledge nullifier; the contract rejects duplicates without learning who voted. \\
+                                            & Each ballot carries a nullifier; the contract rejects repeats without learning who voted. \\
     My ballot was counted
-                                            & Every ballot is an on-chain transaction the voter can locate for themselves.                                \\
+                                            & Every ballot is an on-chain transaction the voter can look up.                                \\
     The count is honest
-                                            & Tallies are incremented by contract code, not by an operator.                                               \\
+                                            & The contract code updates the tally, not an operator.                                               \\
     The audit log was not edited
                                             & The log is the chain.                                                                                       \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Each of these failures is open to an ordinary administrator. Fabricated or
-deleted roll entries do not show from outside, because nobody else knows the
-correct roll size. Unused eligibility can be voted at the close of poll, when
-the gap is known. And a voter's only evidence is a confirmation screen written
-by the same system that would have dropped the ballot.
+Any ordinary administrator can abuse each of these. Fake or deleted roll
+entries are invisible from outside, because nobody else knows how many voters
+there should be. Unused votes can be cast at the close of polling, once the
+administrator knows how many are needed. And the voter's only evidence is a
+confirmation screen shown by the same system that could have dropped the
+ballot.
 
-The duplicate-vote row carries one qualification: it rests on the proof
-system's soundness, and so on the trusted setup that Section~3 records as an assumption.
+The ``nobody voted twice'' row depends on the proof system being sound, and so
+on the trusted setup listed as an assumption in Section~3.
 
 \subsection{Why paper is not the answer either}
 
-Paper does remove the operator's control of the box and the count. Cost rules
-it out at this scope: printing, booths, a venue, agents, transport and hand
-counting. Paper also cannot give a voter individual verifiability, and cannot
-be modified to do so. The secret ballot severs the paper from the person at the
-box, and anything that later lets a voter prove a ballot was theirs also proves
-it to a buyer or a threatener. Its observability is aggregate and needs agents
-at every booth all day. So paper pays in cost, delay and personal
-verifiability; hosted voting pays with all four jobs in one pair of hands.
+Paper does take the operator out of the box and the count, but printing,
+booths, a venue, polling agents, transport and hand counting cost too much at
+this scale. Paper also cannot let a voter check their own vote: the secret
+ballot deliberately separates the paper from the person, and anything that let
+a voter prove how they voted would also let them prove it to someone buying
+their vote. Checking a paper election needs agents at every booth all day. So
+paper costs money, time and personal verifiability, while hosted voting puts
+all four jobs in one pair of hands.
 
 \subsection{Why a blockchain, and what it does not fix}
 
-A blockchain is slow and expensive, and earns its place on two conditions.
-First, mutually distrusting parties need a shared append-only record none of
-them controls. Second, verification must be open to people who trust none of
-the operators, which needs public, re-executable data and rules. Otherwise a
-replicated database with access control is cheaper. An election meets both:
-candidates are opponents, no custodian would be accepted by all sides, and a
-correct result nobody can check does not settle the dispute. A permissioned
-ledger among the authority and the candidates fails the second condition: only
-node operators can check it, and a candidate admitted after setup has no node.
+A blockchain is slow and expensive, and is only worth using when two things
+are true. First, parties who do not trust each other need a shared record that
+nobody can edit and none of them controls. Second, anyone who trusts none of
+the operators must be able to check the record, which needs public data and
+public rules. Otherwise a normal database with access control is cheaper. An
+election meets both: the candidates are opponents, no single keeper would be
+accepted by all of them, and a correct result that nobody can check does not
+settle a dispute. A private blockchain run by the authority and the candidates
+fails the second test: only the node operators can check it, and a candidate
+who joins later has no node.
 
-Four things it does not fix.
+A blockchain does not fix four things.
 
 \begin{itemize}[leftmargin=1.2em,itemsep=2pt,topsep=2pt]
-  \item \textbf{Eligibility.} A chain records that a proof satisfied a rule. It
-        does not record that the prover is enrolled this semester, or that they
-        are one person rather than three accounts. Eligibility rests on a
-        trusted off-chain check: the registrar verifies institute credentials
-        before accepting an identity commitment.
+  \item \textbf{Eligibility.} The chain can check that a proof is valid. It
+        cannot check that the person is a current student, or one person
+        rather than three accounts. That check happens off-chain: the
+        registrar verifies institute credentials before accepting a
+        commitment. Publishing the list shows that it matches the root, not
+        that every entry is a real person. So \projectname{} takes the
+        operator out of the box and the count, but one party still decides
+        who may vote.
 
-        Publishing the entries proves they match the root, not that each one
-        belongs to a real person. So \projectname{} removes the operator from
-        the box and the count, and leaves one party in control of the franchise.
+  \item \textbf{Ballot design.} A contract cannot be changed once deployed, so
+        an unfair rule stays unfair, whether the problem is the counting method,
+        tie-breaks, candidate order or the wording. The counting rule is
+        therefore kept in a separate library, deployed and public before any
+        ballot is cast.
 
-  \item \textbf{Ballot design.} Immutability makes a flawed rule permanent: a
-        contract implementing an unfair rule is faithfully unfair, whether the
-        flaw is in plurality or approval voting, tie-breaks, candidate order or
-        the wording. The counting rule therefore sits in a separate library,
-        deployed and public before any ballot is cast.
+  \item \textbf{Privacy.} Everything on a public chain can be read by anyone,
+        forever. Storing each voter's address next to their choice would be
+        worse than the database it replaces, and it can never be deleted. Ballot
+        secrecy therefore has to come from cryptography built into the design.
 
-  \item \textbf{Privacy.} A public chain is readable by everybody, permanently.
-        A mapping from voter address to choice would be worse than the hosted
-        database it replaces, and no promise to delete withdraws a published
-        link. Secrecy must come from cryptography chosen with the data model,
-        so the anonymity mechanism is load-bearing.
-
-  \item \textbf{Coercion}, a regression rather than a gap. Verifiability and
-        coercion resistance are one object from two sides: evidence that
-        convinces a voter convinces a buyer. Hosted voting and paper both deny
-        a buyer that proof. Here the identity secret is a bearer credential, so
-        whoever holds it can recompute the nullifier, find the ballot on chain
-        and read the choice, or cast first and leave the voter facing a spent
-        nullifier. That works remotely and in bulk, and anonymity removes the
-        forensic trail logs would have left. It is the right trade against an
-        operator who controls the roll, box and count, and the wrong one
-        against a candidate with cash and a small electorate.
+  \item \textbf{Coercion.} Here the design is worse than the alternatives. The
+        same evidence that lets a voter check their vote would convince a vote
+        buyer, and hosted voting and paper both keep that evidence from the
+        buyer. In \projectname{}, anyone holding the voter's secret can find the
+        ballot on-chain and read the choice, or cast the vote first. That works
+        remotely and at scale. It is the right trade-off against a dishonest
+        operator, and the wrong one against a candidate with money and a small
+        electorate.
 \end{itemize}
 
-Section~4's design attempts transparency and secrecy together: eligibility
-proved in zero knowledge against a roll committed as one 32-byte root, ballots
-from voters holding no cryptocurrency, and a count any observer can recompute
-from public data. The cost claim is per operation: one ballot should cost the
-same gas whether the roll holds a hundred or a hundred thousand voters, while an
-election's cost stays linear in ballots cast. Whether it does is parameter C1 in
-Table~\ref{tab:eval-scale}, a target for Evaluation~2, not a result.
+Section~4's design aims for both transparency and secrecy: eligibility proved in
+zero knowledge against a roll stored as one 32-byte root, ballots from voters
+who hold no cryptocurrency, and a count any observer can redo from public data.
+The cost claim is per operation: one ballot should cost the same gas whether the
+roll has a hundred or a hundred thousand voters, while the total cost of an
+election still grows with the number of ballots cast. Parameter C1 in
+Table~\ref{tab:eval-scale} tests this in Evaluation~2.
