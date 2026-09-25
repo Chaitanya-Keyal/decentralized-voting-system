@@ -9,19 +9,6 @@ Seven claims matter most, and examiners will push hardest on them, because each 
 get wrong with a careless sentence. They are in "The seven claims to state exactly". Use that
 wording in the room.
 
-How to use this guide in the three days before:
-
-- **Day 1.** Read "The seven claims to state exactly", then "The project in one page" and
-  "How it works, from first principles", until you can draw the Merkle tree and explain the
-  nullifier without notes. Everything else builds on those two.
-- **Day 2.** Read "The decisions we have to defend" and "What we deliberately do not do".
-  Examiners score these most, because they show real design choices. Learn the
-  non-guarantees too: naming a limitation before you are asked earns more than defending it
-  afterwards.
-- **Day 3.** Practise the question bank out loud, in pairs, one person as examiner. Silent
-  reading does not prepare you to speak. Read "The hard ones" last, so the toughest questions
-  are fresh.
-
 Three rules for the room. Answer in under a minute, then stop; long answers invite
 follow-ups on topics you did not pick. If the honest answer is "we chose not to solve that,
 here is why", say it: every such choice has a written reason. If you do not know, say "we
