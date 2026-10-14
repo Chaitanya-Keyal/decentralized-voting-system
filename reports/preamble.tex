@@ -34,6 +34,14 @@
 
 \usepackage[hidelinks,breaklinks]{hyperref}
 
+% Keep the PDF free of metadata: no title, author, creator or producer
+% strings, no timestamps, no TeX version banner and no random trailer ID.
+\hypersetup{pdftitle={}, pdfauthor={}, pdfsubject={}, pdfkeywords={},
+            pdfcreator={}, pdfproducer={}}
+\pdfinfoomitdate=1
+\pdftrailerid{}
+\pdfsuppressptexinfo=-1
+
 \graphicspath{{figures/}}
 
 % ---------------------------------------------------------------------------
@@ -156,8 +164,6 @@
     \groupmemberstable
 
     \vfill
-    {\large \submissiondate\par}
-    \vspace{1cm}
   \end{titlepage}
   % Front matter in roman numerals so the title page and the body do not both
   % claim page 1 (which produces duplicate hyperref anchors).

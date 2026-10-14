@@ -3,45 +3,54 @@
 % Source material: README.md, docs/architecture.md
 % ===========================================================================
 
-Institutional elections usually run on one operator's database. Voters have to
-trust that operator with the voter roll, the ballot box, the count and the log,
-and nobody outside can check any of them.
+Most institutional elections, from a student senate to a club committee, run on
+a database that one organiser controls. Voters have to trust that organiser
+with the voter list, the ballot box, the count and the records, and nobody
+outside has any way to check that they were handled honestly.
 
-\projectname{} is a voting application that takes the operator out of the ballot
-box and the count. Smart contracts on a public test blockchain hold the roll,
-the schedule and the count. The Election Authority cannot cast or change a
-ballot, change the roll after registration closes, or stop the count.
+\projectname{} is a voting application that removes the need for that trust in
+the ballot box and the count. The voter list, the election schedule and the
+count are held by smart contracts on a public test blockchain. As a result, the
+Election Authority running the election cannot cast or change a ballot, cannot
+change the voter list once registration has closed, and cannot stop the count.
 
-At registration, a voter creates a secret on their own device and hands the
-registrar only a commitment, a hash of that secret. When registration closes,
-the registrar puts the list of commitments on IPFS and writes two things
-on-chain: the Merkle root of that list and the list's IPFS address. To vote,
-the voter's browser downloads the list and builds a zero-knowledge proof that
-the voter owns one of the commitments, without revealing which one. The
-registrar is not contacted at vote time.
+Here is how a vote works in outline. When a voter registers, their device
+creates a secret, and the registrar only ever sees a commitment to it (a hash
+of the secret). When registration closes, the registrar publishes the full list
+of commitments on IPFS~\cite{ipfs} and records three things on the blockchain:
+the Merkle root of the list~\cite{merkle}, the number of registered voters, and
+the address of the list on IPFS. To vote, the voter's browser downloads the
+list and builds a zero-knowledge proof~\cite{semaphore} showing that the voter
+owns one of the commitments, without revealing which one. The registrar is not
+involved at this point at all.
 
-Each ballot carries the proof, the chosen candidate, and a nullifier,
-\texttt{hash(identitySecret, electionId)}. The nullifier is the same every time a
-voter tries to vote in the same election, so the contract rejects a second
-ballot from the same voter. The contract also stores the number of registered
-voters and refuses any ballot beyond it. The tally is contract state and
-changes only when a ballot is accepted. Anyone can check every proof and
-recount the totals without trusting the Election Authority, the relayer, or us.
+Every ballot carries this proof, the chosen candidate, and a value called a
+nullifier, which is a hash of the voter's secret and the election's ID. A voter
+always produces the same nullifier in a given election, so the contract can
+reject a second ballot from them without ever learning who they are. The
+contract also refuses any ballot once the number of ballots reaches the number
+of registered voters. The tally lives in the contract and only changes when a
+ballot is accepted, so anyone can check every proof and recount the result
+without having to trust the Election Authority, the relayer, or us.
 
-We chose voting because it has the widest gap between what the operator claims
-and what anyone can check. A wrong stock level is caught at the next physical
-count; a wrong election result has no such later check. In an election the
-participants are opponents, so the record must be one that no participant
-controls, that nobody can edit, and that anyone can check. An audit does not
-fix this, because the audit trail is kept by the party being audited. A public
+We chose voting from the available domains because it has the widest gap
+between what an organiser claims and what anyone else can verify. A wrong stock
+count in a warehouse is caught at the next physical count, but a wrong election
+result is rarely checked again. In an election the participants are
+opponents, so the record has to be one that none of them controls, that nobody
+can quietly edit, and that anyone can check. An ordinary audit does not solve
+this, because the audit trail is kept by the same party being audited. A public
 blockchain does: the rules are enforced by the network, and anyone can re-run
 them.
 
-The design does not solve every problem in electronic voting. Its limits (roll
-correctness, coercion, the trusted setup, and privacy from the relayer) are
-listed once, with reasons, in Section~\ref{sec:trust}.
+The design does not solve every problem in electronic voting. Its limits,
+namely the correctness of the voter list, coercion, the trusted setup, and
+privacy from the relayer, are explained together in Section~\ref{sec:trust}.
 
-Section~2 looks at the problem; Section~3 gives the requirements and the trust
-model; Section~4 the design and technology choices; Section~5 the evaluation
-parameters; Section~6 the plan and risks. Nothing is built yet: every number in
-Section~5 is a target for Evaluation~2, not a measurement.
+The rest of this report is organised as follows. Section~2 looks at the
+problem and at existing systems, Section~3 gathers the requirements and states
+the trust model, Section~4 describes the design and the technology choices,
+Section~5 sets out the evaluation parameters, and Section~6 gives the
+implementation plan and the main risks. Since nothing has been built yet,
+Section~5 describes what we will measure in Evaluation~2 rather than any
+results.

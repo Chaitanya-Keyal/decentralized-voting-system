@@ -4,115 +4,147 @@
 
 \subsection{The centralized status quo}
 
-Institutional elections run on paper, on voting machines, or on a hosted web
-application backed by one party's database. The hosted version is the cheapest,
-fastest and easiest to reach, so it is what a student senate, a club committee
-or a shareholder vote uses: a few hundred to a hundred thousand voters, with a
-result due within hours. National elections are out of scope; they need legal
-procedures, physical access for everyone and protection against coercion at
-home, which this design does not provide.
+Institutional elections are run on paper, on voting machines, or through a
+hosted web application backed by one organiser's database. The hosted option is
+usually the cheapest, fastest and easiest for voters to reach, which is why
+student senates, club committees and shareholder votes tend to use it. These
+are the elections we have in mind: anywhere from a few hundred to a hundred
+thousand voters, with the result expected within hours. National elections are
+out of scope, since they bring legal procedures, guaranteed physical access for
+everyone, and protection against coercion at home, none of which this design
+provides.
 
 \subsection{Trust concentrated in a single operator}
 
-A hosted system asks voters to trust one operator with four separate jobs: the
-roll, the ballot box, the count and the log. Table~\ref{tab:trust} lists what
-the voter has to assume and what \projectname{} changes.
+A hosted system asks voters to trust one organiser with four separate jobs:
+keeping the voter list, holding the ballot box, counting the votes and keeping
+the records. Table~\ref{tab:trust} lists what a voter has to take on trust and
+what \projectname{} changes about it.
 
 \begin{table}[htbp]
   \centering
-  \caption{Trust assumptions in a centralized system, and how \projectname{} removes or narrows each.}
+  \caption{What a voter must trust in a centralized system, and how \projectname{} removes or reduces it.}
   \label{tab:trust}
   \begin{tabular}{@{}L{6.0cm}L{9.7cm}@{}}
     \toprule
-    \textbf{Assumption the voter must make} & \textbf{What \projectname{} does about it}                                                                      \\
+    \textbf{What the voter has to trust} & \textbf{What \projectname{} does about it}                                                                      \\
     \midrule
-    The voter roll is correct
-                                            & Narrowed, not removed: the root and the number of registered voters are
+    The voter list is correct
+                                            & Reduced, not removed: the root and the number of registered voters are
                                               fixed on-chain before voting opens and cannot change afterwards, but
-                                              who is on the roll is still the registrar's word.            \\
+                                              who is on the list is still the registrar's word.            \\
     Nobody voted twice
-                                            & Each ballot carries a nullifier; the contract rejects repeats without learning who voted. \\
+                                            & Each ballot carries a nullifier, and the contract rejects repeats without learning who voted. \\
     My ballot was counted
-                                            & Every ballot is an on-chain transaction the voter can look up.                                \\
+                                            & Every ballot is a transaction on the blockchain that the voter can look up.                                \\
     The count is honest
-                                            & The contract code updates the tally, not an operator.                                               \\
-    The audit log was not edited
-                                            & The log is the chain.                                                                                       \\
+                                            & The tally is updated by contract code, not by a person.                                               \\
+    The records were not edited
+                                            & The records are the blockchain itself.                                                                                       \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Any ordinary administrator can abuse each of these. Fake or deleted roll
-entries are invisible from outside, because nobody else knows how many voters
-there should be. Unused votes can be cast at the close of polling, once the
-administrator knows how many are needed. And the voter's only evidence is a
-confirmation screen shown by the same system that could have dropped the
-ballot.
+Each of these can be abused by an ordinary administrator, and from outside it
+would be very hard to tell. Fake or deleted entries in the voter list go
+unnoticed, because nobody else knows how many voters there should be. Unused
+votes can be filled in at the close of polling, once the administrator knows
+how many are needed. And the only evidence a voter has is a confirmation
+screen, shown by the same system that could have dropped their ballot.
 
-The ``nobody voted twice'' row depends on the proof system being sound, and so
-on the trusted setup listed as an assumption in Section~3.
+The ``nobody voted twice'' row relies on the proof system being sound, which in
+turn depends on the trusted setup described in Section~3.
 
 \subsection{Why paper is not the answer either}
 
-Paper does take the operator out of the box and the count, but printing,
-booths, a venue, polling agents, transport and hand counting cost too much at
-this scale. Paper also cannot let a voter check their own vote: the secret
-ballot deliberately separates the paper from the person, and anything that let
-a voter prove how they voted would also let them prove it to someone buying
-their vote. Checking a paper election needs agents at every booth all day. So
-paper costs money, time and personal verifiability, while hosted voting puts
-all four jobs in one pair of hands.
+Paper ballots do take the organiser out of the ballot box and the count, but
+printing, booths, a venue, polling agents, transport and hand counting are too
+expensive at this scale. Paper also cannot let a voter check their own vote.
+The secret ballot deliberately separates the paper from the person, and
+anything that let a voter prove how they voted would also let them prove it to
+someone trying to buy their vote. Watching a paper election closely also needs
+agents at every booth all day. In short, paper costs money, time and the
+ability to verify your own vote, while hosted voting puts all four jobs in one
+pair of hands.
+
+\subsection{Existing systems}
+
+Several systems already move parts of an election online, and each makes a
+different trade-off. Helios~\cite{helios} runs elections from a web server and
+publishes cryptographic proofs that any observer can check, although the
+election itself still runs on a server controlled by the organiser. Estonia's
+national internet voting system was studied in a lab reproduction and found to
+be open to attacks on both the voter's computer and the servers that could
+change votes or results, along with serious gaps in its architecture and
+procedures~\cite{estonia}. Voatz, a mobile voting app that advertised a
+blockchain back end, was found to let attackers alter, block or reveal a vote;
+the weaknesses were in the app and its servers, before any vote ever reached
+the blockchain~\cite{voatz}.
+
+On Ethereum, the Open Vote Network runs a small boardroom-style election
+entirely inside a smart contract, with no trusted authority needed for either
+the tally or privacy~\cite{openvote}. MACI~\cite{maci} goes further and resists
+bribery and collusion, but relies on a coordinator who is trusted not to reveal
+how people voted. \projectname{} sits between these. Like them, it keeps the
+count on a public blockchain. Unlike them, it hides who voted using
+zero-knowledge membership proofs and nullifiers (Section~4), and it needs no
+coordinator or tallying authority. The price is that it trusts a single
+registrar for the voter list, and it does not resist coercion.
 
 \subsection{Why a blockchain, and what it does not fix}
 
-A blockchain is slow and expensive, and is only worth using when two things
+A blockchain is slow and expensive, so it is only worth using when two things
 are true. First, parties who do not trust each other need a shared record that
-nobody can edit and none of them controls. Second, anyone who trusts none of
-the operators must be able to check the record, which needs public data and
-public rules. Otherwise a normal database with access control is cheaper. An
-election meets both: the candidates are opponents, no single keeper would be
-accepted by all of them, and a correct result that nobody can check does not
-settle a dispute. A private blockchain run by the authority and the candidates
-fails the second test: only the node operators can check it, and a candidate
-who joins later has no node.
+nobody can edit and that none of them controls. Second, anyone who trusts none
+of the organisers must still be able to check that record, which means the
+data and the rules have to be public. If either condition fails, an ordinary
+database with access control is the cheaper choice. An election meets both
+conditions: the candidates are opponents, no single record-keeper would be
+accepted by all of them, and a correct result that nobody can verify does not
+settle a dispute. A private blockchain shared by the authority and the
+candidates would fail the second test, because only the node operators could
+check it, and a candidate who joined later would have no node at all.
 
-A blockchain does not fix four things.
+There are, however, four things a blockchain does not fix.
 
 \begin{itemize}[leftmargin=1.2em,itemsep=2pt,topsep=2pt]
-  \item \textbf{Eligibility.} The chain can check that a proof is valid. It
-        cannot check that the person is a current student, or one person
-        rather than three accounts. That check happens off-chain: the
-        registrar verifies institute credentials before accepting a
-        commitment. Publishing the list shows that it matches the root, not
-        that every entry is a real person. So \projectname{} takes the
-        operator out of the box and the count, but one party still decides
-        who may vote.
+  \item \textbf{Eligibility.} The blockchain can check that a proof is valid,
+        but not that the person behind it is a current student, or one person
+        rather than three accounts. That check has to happen off-chain, where
+        the registrar verifies institute credentials before accepting a
+        commitment. Publishing the voter list shows that it matches the root,
+        not that every entry belongs to a real person. So \projectname{} takes
+        the organiser out of the ballot box and the count, but one party still
+        decides who is allowed to vote.
 
-  \item \textbf{Ballot design.} A contract cannot be changed once deployed, so
-        an unfair rule stays unfair, whether the problem is the counting method,
-        tie-breaks, candidate order or the wording. The counting rule is
-        therefore kept in a separate library, deployed and public before any
-        ballot is cast.
+  \item \textbf{Ballot design.} A contract cannot be changed once it is
+        deployed, so an unfair rule stays unfair, whether the problem is the
+        counting method, tie-breaking, the order of candidates or the wording.
+        For this reason the counting rule is kept in a separate library that is
+        deployed and public before any ballot is cast.
 
-  \item \textbf{Privacy.} Everything on a public chain can be read by anyone,
-        forever. Storing each voter's address next to their choice would be
-        worse than the database it replaces, and it can never be deleted. Ballot
-        secrecy therefore has to come from cryptography built into the design.
+  \item \textbf{Privacy.} Everything on a public blockchain can be read by
+        anyone, forever. Storing each voter's address next to their choice
+        would be worse than the database it replaces, and it could never be
+        deleted. Ballot secrecy therefore has to come from cryptography built
+        into the design from the start.
 
-  \item \textbf{Coercion.} Here the design is worse than the alternatives. The
-        same evidence that lets a voter check their vote would convince a vote
-        buyer, and hosted voting and paper both keep that evidence from the
-        buyer. In \projectname{}, anyone holding the voter's secret can find the
-        ballot on-chain and read the choice, or cast the vote first. That works
-        remotely and at scale. It is the right trade-off against a dishonest
-        operator, and the wrong one against a candidate with money and a small
-        electorate.
+  \item \textbf{Coercion.} Resisting coercion is a well-known hard problem in
+        electronic voting~\cite{jcj}, and here our design is weaker than the
+        alternatives. The same evidence that lets a voter check their vote
+        could also convince someone buying their vote, whereas hosted voting
+        and paper both keep that evidence away from a buyer. In
+        \projectname{}, anyone who holds the voter's secret can find their
+        ballot on-chain and read the choice, or simply cast the vote
+        themselves first, and this works remotely and at scale. That is the
+        right trade-off when the threat is a dishonest organiser, and the wrong
+        one when it is a candidate with money and a small electorate.
 \end{itemize}
 
-Section~4's design aims for both transparency and secrecy: eligibility proved in
-zero knowledge against a roll stored as one 32-byte root, ballots from voters
-who hold no cryptocurrency, and a count any observer can redo from public data.
-The cost claim is per operation: one ballot should cost the same gas whether the
-roll has a hundred or a hundred thousand voters, while the total cost of an
-election still grows with the number of ballots cast. Parameter C1 in
-Table~\ref{tab:eval-scale} tests this in Evaluation~2.
+The design in Section~4 aims for transparency and secrecy at the same time.
+Eligibility is proved in zero knowledge against a voter list stored as a single
+32-byte root, voters do not need to hold any cryptocurrency, and anyone can
+redo the count from public data. Our cost claim is about each operation: a
+ballot should cost the same gas whether the voter list is small or large, even
+though the total cost of an election still grows with the number of ballots
+cast. Parameter C1 in Table~\ref{tab:eval-scale} tests this in Evaluation~2.

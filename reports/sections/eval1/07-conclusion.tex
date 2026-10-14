@@ -2,32 +2,35 @@
 \section{Conclusion}
 % ===========================================================================
 
-An election result is acted on straight away and never checked again, so a
-wrong tally is never exposed later. Auditing the operator does not fix this; it
-only moves the trust to the auditor, who relies on the operator's own records.
+An election result is usually acted on straight away and never checked again,
+so a wrong tally is unlikely ever to come to light. Auditing the organiser does
+not really solve this; it only moves the trust to the auditor, who still relies
+on the organiser's own records.
 
-\projectname{} puts the rules that decide an election into contract code on a
-public test blockchain: who may vote, when each phase changes, and which ballots
-count. Anyone who doubts the result can recount it from the chain. The nullifier
-that blocks a second ballot never reveals whose ballot it was.
+\projectname{} instead puts the rules that decide an election into contract
+code on a public test blockchain: who may vote, when each phase begins and
+ends, and which ballots count. Anyone who doubts the result can recount it from
+the blockchain themselves, and the nullifier that blocks a second ballot never
+reveals whose ballot it was.
 
-Only the root, the voter count and the list's IPFS address go on-chain, and the
-booth builds its proof from the published list. This avoids Semaphore's on-chain
-groups, which would cost a transaction per voter. The constant cost is per
-operation, not per election: total gas still grows with the number of ballots,
-and the work that grows with the roll moves to the registrar, the auditors and
-the booth.
+Only the root, the voter count and the list's IPFS address are stored on-chain,
+and the booth builds each proof from the published list. This avoids
+Semaphore's on-chain groups, which would cost one transaction per voter. The
+constant cost applies to each operation, not to the whole election: the total
+gas still grows with the number of ballots, and the work that grows with the
+size of the list moves to the registrar, the auditors and the booth.
 
-The limits in Section~\ref{sec:trust} remain. Eligibility depends on a trusted
-setup we did not run, one registrar decides who is on the roll, a voter can be
-forced to hand over their secret, and secrecy from our operator holds only while
-the relayer runs separately from the registrar. So \projectname{} takes the
-operator out of the ballot box and the count, but one party still decides who
-may vote.
+The limits described in Section~\ref{sec:trust} remain. Eligibility depends on
+a trusted setup that we did not run, a single registrar decides who is on the
+list, a voter can be pressured into handing over their secret, and secrecy
+from our own operator holds only while the relayer runs separately from the
+registrar. In other words, \projectname{} takes the organiser out of the ballot
+box and the count, but one party still decides who is allowed to vote.
 
-Nothing has been measured yet. Evaluation~2 will replace these targets with
-numbers. C1 measures gas from ten voters to a hundred thousand: tier 3 should be
-flat and cost more than tier 2 throughout. C2 checks whether a large roll can be
-handled on a phone. D4 needs no graph: with our backend switched off during the
-demo, the audit dashboard must still read the chain and recount the tally.
-Missed targets will be reported too.
+Nothing has been measured yet, so this report sets no numeric targets.
+Evaluation~2 will report measured values for every parameter in Section~5. C1
+will show whether gas stays flat as the list grows, and whether tier 3 costs
+more than tier 2. C2 will show whether a large list can be handled on a phone.
+D4 needs no graph at all: with our backend switched off during the demo, the
+audit dashboard must still be able to read the blockchain and recount the
+tally. Any results that go against our predictions will be reported as well.

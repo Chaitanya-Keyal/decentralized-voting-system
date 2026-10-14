@@ -1,0 +1,67 @@
+% DVote system model: who talks to what, in order.
+% Bare tikzpicture: \input this inside a figure environment.
+% Three lanes (users' browsers, our off-chain services, the chain) and
+% numbered flows that match the steps listed under the figure.
+\begin{tikzpicture}[
+    font=\small,
+    lane/.style    = {draw=black!25, rounded corners=6pt, fill=black!4},
+    lanelab/.style = {font=\small\bfseries, text=black!70},
+    user/.style    = {draw=black, thick, rounded corners=6pt, fill=white,
+                      align=center, minimum width=3.5cm, minimum height=1.05cm},
+    svc/.style     = {draw=black, thick, dashed, rounded corners=2pt, fill=white,
+                      align=center, minimum width=3.0cm, minimum height=0.9cm},
+    con/.style     = {draw=black, line width=1.1pt, fill=black!8, align=center,
+                      minimum width=3.3cm, minimum height=0.9cm},
+    flow/.style    = {-{Latex[length=2.4mm,width=1.9mm]}, draw=black!75, thick},
+    audit/.style   = {-{Latex[length=2.4mm,width=1.9mm]}, draw=black!75, thick,
+                      dash pattern=on 4pt off 2.5pt, rounded corners=4pt},
+    num/.style    = {circle, fill=black, text=white, font=\scriptsize\bfseries,
+                      inner sep=1.2pt, minimum size=4.2mm},
+    lab/.style     = {font=\footnotesize, text=black!80, align=center, inner sep=1.5pt},
+  ]
+
+  % ---- lanes ----
+  \fill[lane] (-0.1, 1.35) rectangle (4.1, -8.15);
+  \fill[lane] (6.4, 1.35) rectangle (10.4, -8.15);
+  \fill[lane] (12.9, 1.35) rectangle (17.5, -8.15);
+  \node[lanelab] at (2.0, 1.0)  {Users' browsers};
+  \node[lanelab] at (8.4, 1.0)  {Our services};
+  \node[lanelab] at (15.2, 1.0) {Ethereum Sepolia};
+
+  % ---- users ----
+  \node[user] (admin) at (2.0, 0.0)  {\textbf{Election Authority}\\admin console};
+  \node[user] (booth) at (2.0, -3.2) {\textbf{Voter}\\ballot booth};
+  \node[user] (audit) at (2.0, -6.4) {\textbf{Auditor / observer}\\audit dashboard};
+
+  % ---- services ----
+  \node[svc] (reg)   at (8.4, -1.4) {\textbf{Registrar}\\checks eligibility};
+  \node[svc] (ipfs)  at (8.4, -3.2) {\textbf{IPFS}\\published voter list};
+  \node[svc] (rel)   at (8.4, -4.8) {\textbf{Relayer}\\pays gas for voters};
+  \node[svc] (idx)   at (8.4, -6.4) {\textbf{Indexer}\\read cache only};
+
+  % ---- contracts ----
+  \node[con] (fac)   at (15.2, 0.0)  {\texttt{ElectionFactory}};
+  \node[con] (vreg)  at (15.2, -1.4) {\texttt{VoterRegistry}\\root, voter count};
+  \node[con] (fwd)   at (15.2, -3.2) {\texttt{VoteForwarder}};
+  \node[con, minimum height=1.25cm] (elec) at (15.2, -5.0)
+    {\texttt{Election}\\uses \texttt{SemaphoreVerifier}\\and \texttt{TallyLib}};
+
+  % ---- flows ----
+  \draw[flow] (admin.east) -- node[lab, above, pos=0.5] {create, configure, open phases}
+                              node[num, below, pos=0.5] {1} (fac.west);
+  \draw[flow] (booth.north east) -- node[lab, above left=1pt, pos=0.55] {commitment}
+                                    node[num, below right=1pt, pos=0.45] {2} (reg.west);
+  \draw[flow] (reg.east) -- node[lab, above] {root, count, list CID}
+                            node[num, below] {3} (vreg.west);
+  \draw[flow] (reg.south) -- node[num, right=2pt] {3} (ipfs.north);
+  \draw[flow] (ipfs.west) -- node[lab, above] {download list}
+                             node[num, below] {4} (booth.east);
+  \draw[flow] (booth.south east) -- node[lab, below left=1pt, pos=0.6] {ballot + proof}
+                                    node[num, above right=1pt, pos=0.5] {5} (rel.west);
+  \draw[flow] (rel.east) -- node[lab, below right=1pt, pos=0.45] {pays gas}
+                            node[num, above left=1pt, pos=0.5] {5} (fwd.south west);
+  \draw[flow] (fwd.south) -- node[lab, right] {\texttt{castVote}} (elec.north);
+  \draw[flow] (elec.south west) -- node[lab, below right=1pt, pos=0.5] {events} (idx.east);
+  \draw[audit] (audit.south) -- (2.0, -7.75) -| node[lab, above, pos=0.25] {reads and recounts from the chain, never our backend}
+                                              node[num, below, pos=0.25] {6} (elec.south);
+\end{tikzpicture}

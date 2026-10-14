@@ -1,52 +1,49 @@
 # Evaluation Parameters
 
-Fifteen parameters across five families. Each names what is measured, how, and
-what result counts as success. Security parameters name an adversary that must
-fail instead of a target.
+Fourteen parameters across five families. Each names what is measured, how, and
+what we expect or compare against. Security parameters name an adversary that
+must fail.
 
-The targets are hypotheses. Nothing has been built, measured or deployed. A
-missed target gets reported with its measured value and the reason.
+Nothing has been built yet, so there are no numeric targets. Predictions are
+about the shape of a result (for example, flat as the roll grows). Evaluation 2
+reports measured values, including predictions that turn out wrong.
 
 The report's Section 5 is the authoritative version of this list; keep the two in
 agreement.
 
 ## A. Cost
 
-| # | Parameter | Measurement | Target |
+| # | Parameter | Measurement | What we report |
 |---|---|---|---|
-| A1 | Gas per operation | Gas snapshot per contract entry point, measured locally | Ballot under 400k gas |
+| A1 | Gas per operation | Gas snapshot per contract entry point, measured locally | Gas for tier 2 and tier 3 ballots; the difference is the cost of anonymity |
 
 Gas is deterministic, so A1 measures the design rather than the market. A fiat cost per
 vote is not a parameter: converting gas to money needs a gas price and an exchange rate the
-project does not control, so it measures the market on a given day, not the system. Where
-the report quotes a rupee figure it is a stated illustration.
+project does not control, so it measures the market on a given day, not the system.
 
 There is no cross-network cost comparison. Identical EVM bytecode burns identical
 gas on any EVM chain, so a second deployment would only reproduce A1.
 
 ## B. Performance
 
-| # | Parameter | Measurement | Target |
+| # | Parameter | Measurement | What we report |
 |---|---|---|---|
-| B1 | End-to-end vote latency | Wall clock, click to confirmation, on Ethereum Sepolia | 95th percentile under 30 s |
-| B2 | Client proof generation time | Timed in-browser, by device class | Under 5 s on a mid-range phone |
+| B1 | End-to-end vote latency | Wall clock, click to confirmation, on Ethereum Sepolia | Median and 95th percentile, next to Sepolia's block time |
+| B2 | Client proof generation time | Timed in-browser, by device class | Median and 95th percentile per device; failures counted |
 
 Both report the 95th percentile beside the median: the voter who waited is the
 one who abandons the ballot. A device that cannot finish a proof at all counts as
 a B2 failure, not a slow result.
 
-B1's target allows for Sepolia's 12-second blocks: waiting for the next block
-alone averages about 6 s and reaches about 11 s at the 95th percentile.
-
 B2 decides the proving go/no-go in the roadmap.
 
 ## C. Scalability
 
-| # | Parameter | Measurement | Target |
+| # | Parameter | Measurement | Expected shape |
 |---|---|---|---|
-| C1 | Gas vs voter-roll size | Rolls of 10 to 10^5: registration, tier 2 ballot, tier 3 ballot | Registration and tier 3 flat; tier 2 rising slowly |
-| C2 | Booth time vs roll size | Tree rebuild and proving, timed separately, across the same roll sizes | Rebuild under 5 s at 10^4 on a phone, reported at 10^5; proving grows with depth only |
-| C3 | Concurrent-voter ceiling | Load until failure on a local node | Name the bottleneck |
+| C1 | Gas vs voter-roll size | Registration, tier 2 ballot, tier 3 ballot over a range of roll sizes | Registration and tier 3 flat; tier 2 rising slowly |
+| C2 | Booth time vs roll size | Tree rebuild and proving, timed separately, across the same roll sizes | Rebuild grows with the roll; proving grows only with tree depth |
+| C3 | Concurrent-voter ceiling | Load until failure on a local node | The component that fails first |
 
 C1 is the central claim, and it is narrower than "gas does not grow with the
 electorate". Two operations are constant in roll size: publishing a roll, and
@@ -70,8 +67,7 @@ linear in the roll; proving grows only with the tree's depth. This is the most l
 D2 holds only under the trusted setup assumption. D3 is conditional: against the
 chain nothing should be linkable, but against the operator secrecy holds only
 while the relayer runs separately from the registrar, or the voter submits
-directly. D3 also reports the anonymity set size, which is small in a roll of a
-few dozen.
+directly. D3 also reports the anonymity set size, which is small in a small roll.
 
 A failure in D1, D2 or D5 is a design defect and blocks the live demonstration.
 
@@ -81,11 +77,11 @@ reported as results.
 
 ## E. Usability and adoption
 
-| # | Parameter | Measurement | Target |
+| # | Parameter | Measurement | What we report |
 |---|---|---|---|
-| E1 | Steps to cast a ballot | User actions from landing page to receipt | At most 4 |
-| E2 | Voter gas burden | ETH a voter must hold to register and vote | Zero |
-| E3 | Task success rate | 10 users unfamiliar with cryptocurrency, unaided | Over 80% |
+| E1 | Steps to cast a ballot | User actions from landing page to receipt | The number of actions, and where users hesitate |
+| E2 | Voter gas burden | ETH a voter must hold to register and vote | Must be zero, by design |
+| E3 | Task success rate | Users unfamiliar with cryptocurrency, unaided | How many finish, and where the others stop |
 
 E2 is zero by design: a voter who must first acquire ETH narrows the electorate
 to people who already hold cryptocurrency. That is also why direct submission is
@@ -93,9 +89,8 @@ no general answer to a censoring relayer.
 
 ## Benchmark methodology
 
-Harness in `bench/`, raw output committed as CSV, graphs generated by script. At
-least thirty repetitions per point, reported as a median with the 95th
-percentile.
+Harness in `bench/`, raw output committed as CSV, graphs generated by script. Several repetitions per point, reported as a median
+with the 95th percentile.
 
 - **Gas (A1, C1)** is measured locally, since gas is deterministic given the same
   bytecode and calldata.

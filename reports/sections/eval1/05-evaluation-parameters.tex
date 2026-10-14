@@ -3,102 +3,107 @@
 % Source material: docs/evaluation-parameters.md
 % ===========================================================================
 
-The design is evaluated on five groups of parameters: cost, performance,
-scalability, security, and usability. Each parameter says what is measured, how,
-and what counts as success. Each security parameter names an attack that must
-fail.
+We will evaluate the system on five groups of parameters: cost, performance,
+scalability, security, and usability. For each parameter we say what is
+measured, how it is measured, and what we expect to see or compare against. For
+security, each parameter is an attack that must fail.
 
-The targets are hypotheses: nothing has been built or measured yet. If a target
-is missed, Evaluation~2 will report the measured value and the reason.
+Since nothing has been built yet, we deliberately do not set numeric targets.
+Where a parameter makes a prediction, it is about the shape of the result, for
+example that a cost ``stays flat as the voter list grows'', which follows from
+the design and can be checked. Evaluation~2 will report the measured values,
+including any prediction that turns out to be wrong.
 
 \subsection{Cost}
 
-Cost is measured in gas per operation (A1). Gas is deterministic, so A1
-measures the design, not the market. We do not grade a cost in rupees, because
-converting gas to money depends on the gas price and the exchange rate on the
-day. Any rupee figure in the report is an illustration, not a target. Cost is
-unlikely to be the first limit we hit; throughput is, and C3 finds it.
+Cost is measured in gas per operation (A1). Gas is deterministic, meaning the
+same code with the same input uses the same gas on any EVM
+chain~\cite{ethgas}, so A1 measures our design rather than the market. We do
+not report cost in rupees, because converting gas into money depends on the gas
+price and the exchange rate on a given day.
 
 \begin{table}[htbp]
   \centering
   \caption{Cost parameters.}
   \label{tab:eval-cost}
   \small
-  \begin{tabular}{@{}lL{5.3cm}L{5.1cm}L{3.9cm}@{}}
+  \begin{tabular}{@{}lL{4.3cm}L{5.0cm}L{5.0cm}@{}}
     \toprule
-    \textbf{ID} & \textbf{Parameter}   & \textbf{Measurement}                  & \textbf{Target}       \\
+    \textbf{ID} & \textbf{Parameter}   & \textbf{Measurement}                       & \textbf{What we report} \\
     \midrule
-    A1          & Gas per operation    & Gas snapshot per contract function    & Ballot under 400k gas \\
+    A1          & Gas per operation    & Foundry gas snapshot for each contract function~\cite{foundry} & Gas for tier 2 and tier 3 ballots; the difference is the cost of anonymity \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \subsection{Performance}
 
-B1 and B2 report the 95th percentile as well as the median, because the voters
-who wait longest are the ones who give up. B2 is reported per device type, since
-we do not choose the voter's phone, and a device that cannot finish a proof at
-all counts as a failure. B1's target allows for Sepolia's 12-second blocks:
-waiting for the next block alone averages about 6 seconds, and takes about 11
-seconds at the 95th percentile.
+Both performance parameters are reported as the median and the 95th percentile,
+because the voters who wait the longest are the ones most likely to give up.
+Proof generation time (B2) is reported separately for each type of device,
+since we do not choose which phone a voter uses, and a device that cannot
+finish a proof at all counts as a failure.
 
-B2 decides the go/no-go in Section~6. Proving in the browser is the biggest
-technical risk, so a 95th percentile of tens of seconds, or a phone that cannot
-finish, fails it. The fallback, proving on the server, has a cost: the voter's
-secret would leave their device and reach our operator.
+B2 also drives the go/no-go decision in Section~6, because proving in the
+browser is our biggest technical risk. The fallback, which is to generate
+proofs on a server, comes at a cost: the voter's secret would have to leave
+their device and reach our operator.
 
 \begin{table}[htbp]
   \centering
   \caption{Performance parameters.}
   \label{tab:eval-perf}
   \small
-  \begin{tabular}{@{}lL{5.3cm}L{5.1cm}L{3.9cm}@{}}
+  \begin{tabular}{@{}lL{4.3cm}L{5.0cm}L{5.0cm}@{}}
     \toprule
-    \textbf{ID} & \textbf{Parameter}           & \textbf{Measurement}              & \textbf{Target}                \\
+    \textbf{ID} & \textbf{Parameter}           & \textbf{Measurement}                   & \textbf{What we report} \\
     \midrule
-    B1          & End-to-end vote latency      & Time from click to confirmation   & 95th percentile under 30~s     \\
-    B2          & Proof generation time        & Timed in the browser, per device type & Under 5~s on a mid-range phone \\
+    B1          & End-to-end vote latency      & Time from the click to on-chain confirmation, on Sepolia & Median and 95th percentile, alongside Sepolia's block time \\
+    B2          & Proof generation time        & Timed in the browser, for each device type  & Median and 95th percentile per device, with failures counted \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \subsection{Scalability}
 
-C1 is the central claim, and it is deliberately narrow. Only two operations
-should cost the same at any roll size: publishing the roll, and casting a tier 3
-ballot.
+C1 is our central claim, and we have kept it deliberately narrow. Only two
+operations should cost the same however large the voter list is: publishing
+the list, and casting a tier 3 ballot.
 
-Publishing the roll always writes the same three values, whatever the roll
-size. A tier 3 ballot should cost the same because the proof check is the same
-size at any depth. A tier 2 ballot should rise slowly with the roll, because it
-sends its Merkle proof to the contract. If either of the first two varies, or
-the third is flat, our model is wrong. We expect tier 3 to cost more than tier 2
-at every size: anonymity has a price, and C1 shows it.
+Publishing the list always writes the same three values, whatever its size. A
+tier 3 ballot should cost the same because checking the proof takes the same
+amount of work at any tree depth~\cite{groth16}. A tier 2 ballot, on the other
+hand, should become slowly more expensive as the list grows, because it sends
+its Merkle proof to the contract. If either of the first two costs varies, or
+the third stays flat, then our understanding of the design is wrong. We also
+expect tier 3 to cost more than tier 2 at every size, since anonymity has a
+price, and C1 is where that price becomes visible.
 
 \begin{table}[htbp]
   \centering
   \caption{Scalability parameters.}
   \label{tab:eval-scale}
   \small
-  \begin{tabular}{@{}lL{4.6cm}L{5.4cm}L{4.3cm}@{}}
+  \begin{tabular}{@{}lL{4.3cm}L{5.0cm}L{5.0cm}@{}}
     \toprule
-    \textbf{ID} & \textbf{Parameter}       & \textbf{Measurement}                                                    & \textbf{Target}                                    \\
+    \textbf{ID} & \textbf{Parameter}        & \textbf{Measurement}                                             & \textbf{Expected shape} \\
     \midrule
-    C1          & Gas vs roll size         & Rolls of $10^1$ to $10^5$: registration, tier 2 ballot, tier 3 ballot & Registration and tier 3 flat; tier 2 rising slowly \\
-    C2          & Booth time vs roll size  & Tree rebuild and proving, timed separately, at the same roll sizes      & Rebuild under 5~s at $10^4$ on a phone, reported at $10^5$; proving grows with depth only \\
-    C3          & Maximum concurrent voters & Increase load until something fails                                   & Identify the bottleneck                            \\
+    C1          & Gas vs voter list size    & Registration, tier 2 ballot and tier 3 ballot, over a range of list sizes & Registration and tier 3 flat; tier 2 rising slowly \\
+    C2          & Booth time vs list size   & Tree rebuild and proving, timed separately, at the same list sizes & Rebuild grows with the list; proving grows only with tree depth \\
+    C3          & Maximum concurrent voters & Increase the load until something fails                          & Which component fails first \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-C2 checks that the cost did not just move to the voter's browser. The booth
-rebuilds the tree itself so that the registrar never learns who is voting, and
-that work grows with the roll, while proving grows only with the tree's depth.
-This is where the design is most likely to fail.
+C2 checks that the cost has not simply moved into the voter's browser. The
+booth rebuilds the tree itself so that the registrar never learns who is
+voting, and that work grows with the size of the list. This is the place where
+the design is most likely to struggle.
 
 \subsection{Security and correctness}
 
-Each property is tested by an attack that must fail.
+Each security property is tested by an attack that must fail
+(Table~\ref{tab:eval-sec}).
 
 \begin{table}[htbp]
   \centering
@@ -110,60 +115,66 @@ Each property is tested by an attack that must fail.
     \textbf{ID} & \textbf{Property}       & \textbf{How it is demonstrated}                                                               \\
     \midrule
     D1          & No double voting        & Reusing a nullifier must fail, and so must a ballot beyond the voter count                     \\
-    D2          & Eligibility             & A valid proof against the wrong root, and a tampered proof, must fail                          \\
-    D3          & Ballot secrecy          & Try to link ballots to voters using all chain data; report the operator condition alongside    \\
-    D4          & Verifiability           & A voter finds their own ballot; an observer recounts the tally with our backend switched off   \\
-    D5          & Authority limits        & An observer closes voting and publishes the result; the authority cannot vote or change a frozen root \\
+    D2          & Eligibility             & A valid proof against the wrong root, and a tampered proof, must both fail                     \\
+    D3          & Ballot secrecy          & Try to link ballots to voters using all blockchain data, and report the operator condition alongside \\
+    D4          & Verifiability           & A voter finds their own ballot, and an observer recounts the tally with our backend switched off \\
+    D5          & Authority limits        & An observer closes voting and publishes the result, and the authority cannot vote or change a frozen root \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-D2 assumes the trusted setup is sound (Section~\ref{sec:trust}). D3 has a
-condition too: against the chain, nothing should link a ballot to a voter, but
-against our operator this needs the relayer to run separately from the
-registrar, or the voter to submit directly. D3 also reports how many voters
-each ballot hides among, which is small in a roll of a few dozen. A failure in
-D1, D2 or D5 is a design flaw and stops the live demo.
+D2 assumes that the trusted setup is sound (Section~\ref{sec:trust}). D3 comes
+with a condition as well: against anyone reading the blockchain, nothing should
+link a ballot to a voter, but against our own operator this needs the relayer
+to run separately from the registrar, or the voter to submit directly. D3 also
+reports how many voters each ballot is hidden among, which will be small in a
+small election. A failure in D1, D2 or D5 would be a design flaw, and we would
+not run the live demo until it was fixed.
 
 \subsection{Usability and adoption}
 
-These parameters count what participants do. A voter who gives up shows up as
-low turnout, not as a bug report, which is why NFR10 exists.
+These parameters measure what real users actually do. A voter who gives up
+does not file a bug report; they simply show up as low turnout, which is why
+NFR10 matters.
 
 \begin{table}[htbp]
   \centering
   \caption{Usability parameters.}
   \label{tab:eval-use}
   \small
-  \begin{tabular}{@{}lL{5.3cm}L{5.1cm}L{3.9cm}@{}}
+  \begin{tabular}{@{}lL{4.3cm}L{5.0cm}L{5.0cm}@{}}
     \toprule
-    \textbf{ID} & \textbf{Parameter}     & \textbf{Measurement}                             & \textbf{Target} \\
+    \textbf{ID} & \textbf{Parameter}     & \textbf{Measurement}                       & \textbf{What we report} \\
     \midrule
-    E1          & Steps to cast a ballot & User actions from landing page to receipt        & At most 4       \\
-    E2          & Gas the voter needs    & ETH a voter must hold to register and vote       & Zero            \\
-    E3          & Task success rate      & 10 users new to cryptocurrency, no help          & Over 80\%       \\
+    E1          & Steps to cast a ballot & User actions from the landing page to the receipt  & The number of actions, and where users hesitate \\
+    E2          & Gas the voter needs    & ETH a voter must hold to register and vote & Zero, by design \\
+    E3          & Task success rate      & Users new to cryptocurrency, with no help  & How many finish, and where the others stop \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-E2 is zero by design: if voters had to buy ETH first, only people who already
-own cryptocurrency could vote. For the same reason, direct submission does not
-fully solve a censoring relayer, since a voter with no ETH cannot use it.
+E2 is zero by design. If voters had to buy ETH first, only people who already
+own cryptocurrency could take part. For the same reason, submitting directly is
+not a complete answer to a relayer that censors ballots, because a voter with
+no ETH cannot do it.
 
 \subsection{Measurement methodology}
 
-The test harness lives in \texttt{bench/}. Raw results are committed as CSV,
-graphs are generated by script, and each point is repeated at least thirty
-times and reported as the median and 95th percentile.
+All measurements will be produced by a test harness in the \texttt{bench/}
+folder. Raw results are kept as CSV files, graphs are generated by script, and
+each measurement is repeated several times and reported as the median and the
+95th percentile.
 
 \begin{itemize}
-  \item Gas (A1, C1): a local node, since gas is the same everywhere.
-  \item Load limit (C3): a local node, since testnet faucets cannot fund
-        sustained load.
-  \item Browser timings (B2, C2): a named developer laptop and a named
-        mid-range Android phone.
-  \item End-to-end latency (B1): Ethereum Sepolia, sampled in Phase 4.
+  \item Gas (A1, C1) is measured on a local node, since gas is the same on
+        every EVM chain.
+  \item The load limit (C3) is also measured on a local node, since testnet
+        faucets cannot supply enough test ETH for sustained load.
+  \item Browser timings (B2, C2) are measured on a named developer laptop and a
+        named mid-range Android phone.
+  \item End-to-end latency (B1) is measured on Ethereum Sepolia~\cite{sepolia}.
 \end{itemize}
 
-Every number is recorded with its conditions: gas price, block number, RPC
-provider, commit hash, contract addresses and, for browser timings, the device.
+Every number is recorded together with the conditions it was measured under:
+the gas price, block number, RPC provider, code version, contract addresses
+and, for browser timings, the device.

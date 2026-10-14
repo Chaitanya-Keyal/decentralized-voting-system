@@ -8,6 +8,10 @@
 
 \subsection{Actors and stakeholders}
 
+Six kinds of people or services take part in an election.
+Table~\ref{tab:actors} summarises what each one can do and what the system
+prevents them from doing, and the paragraphs after it explain why.
+
 \begin{table}[htbp]
   \centering
   \caption{Actors, what the system lets them do, and what it prevents.}
@@ -19,196 +23,214 @@
     \midrule
     Election Authority
                    & Create an election, set candidates and dates, publish details, cancel before voting
-                   & Cast or change a ballot; change the root once registration closes; stop the count \\
+                   & Cast or change a ballot; change the voter list once registration closes; stop the count \\
     Registrar
-                   & Check eligibility off-chain, collect commitments, publish the root, voter count and list
-                   & Learn from chain data how anyone voted; change the list after the root is frozen    \\
+                   & Check eligibility off-chain, collect commitments, publish the voter list, its root and the voter count
+                   & Learn from the blockchain how anyone voted; change the list after it is frozen    \\
     Voter
-                   & Register a commitment, cast one ballot, check that it was counted
-                   & Vote twice; vote without being on the roll                                 \\
+                   & Register, cast one ballot, check that it was counted
+                   & Vote twice; vote without being on the list                                 \\
     Candidate
-                   & Be listed on a ballot, publish a manifesto
+                   & Be listed on the ballot, publish a manifesto
                    & Anything privileged                                                             \\
     Auditor / Observer
                    & Recount the tally, check every proof, rebuild the root from the list
                    & Change anything                                                                  \\
     Relayer
-                   & Pay gas for a voter; read the choice in every ballot; refuse to forward one
+                   & Pay gas for voters; see the choice in each ballot; refuse to forward one
                    & Forge, change or replay a ballot; learn who a voter is from the ballot   \\
     \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Election Authority.}
-It sets up the election but cannot end it on its own terms. Closing voting and
-publishing the result can be done by anyone once the scheduled time passes, so
-the authority cannot stall an election it is losing. Everything only it can do
-happens before the first ballot and is logged on-chain. With more power it
-could register itself; with less, nobody could set up an election.
+The authority sets up the election but cannot end it on its own terms. Once
+the scheduled time has passed, anyone can close voting and publish the result,
+so an authority that is unhappy with how things are going cannot simply stall.
+Everything that only the authority can do happens before the first ballot and
+is recorded on-chain. Any more power would let it register voters of its own;
+any less, and nobody could set up an election at all.
 
 \paragraph{Registrar.}
-Eligibility evidence, such as a student's email, must never go on a public
-chain. So the registrar checks it off-chain (institute email plus a one-time
-password) and publishes only the root, the voter count and the list's IPFS
-address. The voter's browser works from that public list, so the registrar
-plays no part in voting. The root is frozen when registration closes, because a
-registrar that could add entries during voting could create ballots.
+Evidence of eligibility, such as a student's email address, must never end up
+on a public blockchain. The registrar therefore checks it off-chain, using the
+institute email and a one-time password, and publishes only the voter list's
+root, the voter count and the list's IPFS address. Since voters build their
+proofs from that public list, the registrar plays no part in voting itself.
+The list is frozen when registration closes, because a registrar that could
+add entries during voting could also create ballots.
 
 \paragraph{Voter.}
-The voter's secret is created in the browser, and only the commitment is sent
-to the registrar. The one exception is the fallback in Section~6, where proofs
-are made on the server. A voter must be able to check that their ballot was
-counted; otherwise they are just trusting a contract instead of an operator.
-The downside is that a ballot the voter can prove is also one they can be
-forced to prove.
+The voter's secret is created in their own browser, and only the commitment is
+sent to the registrar. (The one exception is the fallback in Section~6, where
+proofs would be made on a server.) A voter also needs to be able to check that
+their ballot was counted; otherwise they are simply trusting a contract instead
+of a person. The downside is that a ballot a voter can prove is also one they
+could be pressured into proving.
 
 \paragraph{Candidate.}
-Candidates get no special powers, because every special power affects the
-result they are competing for. They do not need any: the candidate list and
-manifesto addresses are on-chain, so any swap is visible, and the tally is
-public.
+Candidates get no special powers, because any special power would affect the
+result they are competing for. They do not need any either: the candidate list
+and the addresses of their manifestos are on-chain, so a swapped candidate
+would be visible, and the tally is public.
 
 \paragraph{Auditor and observer.}
-Anyone can audit, with no sign-up or approval, because the ballots, tally,
-root and voter count are all public. An audit that went through our backend
-would only check us, not the chain, so the result must be recountable with our
-backend switched off.
+Anyone can audit an election without signing up or asking permission, because
+the ballots, the tally, the root and the voter count are all public. An audit
+that went through our backend would only check what we say, not what is on the
+blockchain, so the result must be recountable with our backend switched off.
 
 \paragraph{Relayer.}
 The relayer exists so that voters do not need cryptocurrency: it pays the gas
 for them. It cannot change a ballot, because the nullifier and the candidate
-are locked inside the proof. It is the only one of our services that must stay
-up during voting. It can read each choice and decide whether to forward it,
-which allows the attack described in Section~\ref{sec:trust}.
+are locked inside the proof. It is the only one of our services that has to
+stay up during voting. Because it can read each choice and decide whether to
+forward it, it also opens up an attack, which we describe in
+Section~\ref{sec:trust}.
 
 \subsection{Functional requirements}
 
+Table~\ref{tab:fr} lists what the system must do. Each requirement comes from
+one of the actors above, and the right-hand column explains why it is needed.
+
 \begin{longtable}{@{}>{\RaggedRight\arraybackslash\small}p{1.3cm}>{\RaggedRight\arraybackslash\small}p{8.1cm}>{\RaggedRight\arraybackslash\small}p{7.9cm}@{}}
-  \caption{Functional requirements, each derived from an actor in Table~\ref{tab:actors}.}\\
+  \caption{Functional requirements, each derived from an actor in Table~\ref{tab:actors}.}\label{tab:fr}\\
   \toprule
   \textbf{ID} & \textbf{The system shall} & \textbf{Why, and for which actor} \\
   \midrule
   \endhead
   \bottomrule
   \endlastfoot
-  FR1 & Let the Authority create an election with its candidates, registration and voting dates, and a ballot description, and allow candidate changes only before voting opens. & Only the Authority decides what is being voted on, and doing it on-chain makes every change visible. Changing candidates during voting would change the meaning of ballots already cast. \\
+  FR1 & Let the Authority create an election with its candidates, registration and voting dates, and a ballot description, and allow changes to the candidates only before voting opens. & Only the Authority decides what is being voted on, and doing it on-chain makes every change visible. Changing the candidates during voting would change the meaning of ballots already cast. \\
   \addlinespace[2pt]
-  FR2 & Let the Registrar check eligibility off-chain, accept each commitment without putting personal data on-chain, and give the voter a signed receipt for the accepted commitment. & Only the Registrar can check eligibility, and the evidence must stay off the public chain. Without a receipt, the Voter has no proof they registered. \\
+  FR2 & Let the Registrar check eligibility off-chain, accept each commitment without putting personal data on-chain, and give the voter a signed receipt for it. & Only the Registrar can check eligibility, and the evidence has to stay off the public chain. Without a receipt, the Voter has no proof that they registered. \\
   \addlinespace[2pt]
-  FR3 & When registration closes, have the Registrar publish the list of commitments and write its IPFS address, the root and the voter count in one transaction; none of these can change afterwards. & Auditors cannot check a root without the list, and the booth cannot build a proof without it. Freezing stops entries being added during voting. \\
+  FR3 & When registration closes, have the Registrar publish the list of commitments and record its IPFS address, its root and the voter count in a single transaction, after which none of them can change. & Auditors cannot check a root without the list, and the booth cannot build a proof without it. Freezing the list stops entries being added during voting. \\
   \addlinespace[2pt]
-  FR4 & Move between phases only by an explicit, one-way transaction that fails before its scheduled time. Only the Authority may configure or cancel, and only before voting opens; anyone may close voting and publish the result afterwards. & Stops the Authority reopening an election it dislikes or cancelling after ballots exist. Letting anyone close voting stops the Authority stalling by never closing it. \\
+  FR4 & Move between phases only through an explicit, one-way transaction that fails if it is attempted before its scheduled time. Only the Authority may configure or cancel an election, and only before voting opens; anyone may close voting and publish the result. & This stops the Authority reopening an election it dislikes or cancelling once ballots exist. Letting anyone close voting stops the Authority stalling by never closing it. \\
   \addlinespace[2pt]
-  FR5 & Accept a ballot only with a valid zero-knowledge proof that the voter is on the published roll, carrying a nullifier and the chosen candidate. Record every nullifier, reject repeats, and reject any ballot beyond the voter count. & The Voter must be able to vote without revealing who they are, and everyone else needs to know each ballot came from the roll. This gives one ballot per voter without recording addresses, which would break secrecy. \\
+  FR5 & Accept a ballot only if it carries a valid zero-knowledge proof that the voter is on the published list, together with a nullifier and the chosen candidate. Record every nullifier, reject repeats, and reject any ballot beyond the voter count. & The Voter must be able to vote without revealing who they are, and everyone else needs to know that each ballot came from the list. This gives one ballot per voter without recording addresses, which would break secrecy. \\
   \addlinespace[2pt]
-  FR6 & Have the booth download the published list, confirm the Voter's commitment is in it, and build the proof locally, without asking the Registrar for anything at vote time. & If the Registrar supplied the proof data, it would learn who was voting, and the Relayer sees the choice; together they could link a voter to their vote. \\
+  FR6 & Have the booth download the published list, confirm that the Voter's commitment is on it, and build the proof locally, without asking the Registrar for anything at vote time. & If the Registrar supplied the proof data, it would learn who was voting, and the Relayer sees the choice; together they could link a voter to their vote. \\
   \addlinespace[2pt]
-  FR7 & Let the Relayer check a ballot's proof, and that its nullifier is unused, before paying the gas, and return a signed receipt. Warn the Voter and offer direct submission if no transaction appears by a deadline, and let a Voter with gas skip the Relayer entirely. & The Voter should not need cryptocurrency. Checking first stops junk ballots draining the Relayer's funds, and the receipt and the bypass mean a Relayer that drops ballots leaves evidence. \\
+  FR7 & Let the Relayer check a ballot's proof, and that its nullifier is unused, before paying the gas, and return a signed receipt. Warn the Voter and offer direct submission if no transaction appears by a deadline, and let a Voter who has gas skip the Relayer entirely. & The Voter should not need cryptocurrency. Checking first stops junk ballots from draining the Relayer's funds, and the receipt and the bypass mean that a Relayer which drops ballots leaves evidence behind. \\
   \addlinespace[2pt]
-  FR8 & Change the tally only in the transaction that accepts a ballot, make the result permanent once published, and keep every ballot, the tally, the root, the voter count and the result readable from the chain alone. & Nobody may adjust the count between the last ballot and the announcement. Anyone can audit, and an audit that needed our help would only check us, not the chain. \\
+  FR8 & Change the tally only in the transaction that accepts a ballot, make the result permanent once it is published, and keep every ballot, the tally, the root, the voter count and the result readable from the blockchain alone. & Nobody may adjust the count between the last ballot and the announcement. Anyone can audit, and an audit that needed our help would only check us, not the blockchain. \\
 \end{longtable}
 
 \subsection{Non-functional requirements}
 
+Table~\ref{tab:nfr} lists the qualities the system must have, and the
+evaluation parameter in Section~5 that will test each one.
+
 \begin{longtable}{@{}>{\RaggedRight\arraybackslash\small}p{1.5cm}>{\RaggedRight\arraybackslash\small}p{10.4cm}>{\RaggedRight\arraybackslash\small}p{5.4cm}@{}}
-  \caption{Non-functional requirements and the Section~5 parameter that will test each one.}\\
+  \caption{Non-functional requirements and the Section~5 parameter that will test each one.}\label{tab:nfr}\\
   \toprule
   \textbf{ID} & \textbf{Requirement} & \textbf{Tested by} \\
   \midrule
   \endhead
   \bottomrule
   \endlastfoot
-  NFR1 & \emph{Ballot secrecy.} Nothing on the chain links a ballot to a voter's commitment or registration. The candidate choice itself is public; what is hidden is who cast it. Against the chain this always holds; against our own operator it holds only if the Relayer is run separately from the Registrar, or the Voter submits directly. & D3, an attempt to deanonymize ballots from all chain data \\
+  NFR1 & \emph{Ballot secrecy.} Nothing on the blockchain links a ballot to a voter's commitment or registration. The candidate choice itself is public; what stays hidden is who made it. This always holds against anyone reading the blockchain. Against our own operator it holds only if the Relayer is run separately from the Registrar, or if the Voter submits directly. & D3, an attempt to deanonymize ballots using all chain data \\
   \addlinespace[2pt]
-  NFR2 & \emph{Eligibility.} A ballot is accepted only with a proof that the voter is on the published roll, assuming the trusted setup is sound (Section~\ref{sec:trust}). & D2: a proof against the wrong root, or a tampered proof, must fail \\
+  NFR2 & \emph{Eligibility.} A ballot is accepted only with a proof that the voter is on the published list, assuming the trusted setup is sound (Section~\ref{sec:trust}). & D2: a proof against the wrong root, or a tampered proof, must fail \\
   \addlinespace[2pt]
-  NFR3 & \emph{One ballot per voter.} A second ballot from the same secret is rejected, and accepted ballots never exceed the published voter count. & D1, with fuzz tests on nullifiers \\
+  NFR3 & \emph{One ballot per voter.} A second ballot from the same secret is rejected, and the number of accepted ballots never exceeds the published voter count. & D1, with fuzz tests on nullifiers \\
   \addlinespace[2pt]
-  NFR4 & \emph{Verifiability.} A Voter can find their own ballot and confirm their commitment is on the published list; anyone can rebuild the root and recount the tally from chain data, with all our services offline. & D4, with our backend off \\
+  NFR4 & \emph{Verifiability.} A Voter can find their own ballot and confirm that their commitment is on the published list, and anyone can rebuild the root and recount the tally from the blockchain, even with all of our services offline. & D4, with our backend switched off \\
   \addlinespace[2pt]
   NFR5 & \emph{Integrity of the count.} Only an accepted ballot changes the tally, and nobody, including the Authority, can change a tally, stop the count or block the result. & D5 \\
   \addlinespace[2pt]
-  NFR6 & \emph{Cost.} A ballot, including proof verification, costs under 400,000 gas. Cost in rupees is not graded, because it depends on gas prices and exchange rates we do not control. & A1 \\
+  NFR6 & \emph{Cost.} Every on-chain operation is measured in gas, and we report how much extra gas anonymity adds to a ballot. We do not express cost in rupees, because that depends on gas prices and exchange rates outside our control~\cite{ethgas}. & A1 \\
   \addlinespace[2pt]
-  NFR7 & \emph{Latency.} 95\% of ballots are on-chain within 30 seconds of the click (about two 12-second Sepolia blocks plus proving), and proving takes under 5 seconds on a mid-range phone. & B1 and B2 \\
+  NFR7 & \emph{Latency.} Casting a ballot should feel like any ordinary blockchain transaction: the wait should come mostly from the blockchain itself rather than from our software, and proving should work on an ordinary phone. & B1 and B2 \\
   \addlinespace[2pt]
-  NFR8 & \emph{Scalability.} The gas cost of each operation does not grow with the number of registered voters, because neither the root nor the proof grows with the roll. The plain Merkle-proof version (tier 2) is the exception: its ballot grows slowly with the roll. Total election cost still grows with the number of ballots cast. & C1 and C2, with C3 for the load limit \\
+  NFR8 & \emph{Scalability.} The gas cost of each operation should not grow with the number of registered voters, because neither the root nor the proof gets bigger as the list grows. The simpler Merkle-proof version (tier 2) is the exception, as its ballot cost grows slowly with the list. The total cost of an election still grows with the number of ballots cast. & C1 and C2, with C3 for the load limit \\
   \addlinespace[2pt]
-  NFR9 & \emph{No cryptocurrency needed.} A Voter can register and vote with a zero balance. & E2 \\
+  NFR9 & \emph{No cryptocurrency needed.} A Voter can register and vote with an empty wallet. & E2 \\
   \addlinespace[2pt]
-  NFR10 & \emph{Usable without training.} A Voter with no cryptocurrency experience can vote without help: more than eight in ten E3 participants succeed. & E3, with E1 limiting it to four actions \\
+  NFR10 & \emph{Usable without training.} A Voter with no experience of cryptocurrency can vote without help. & E1 and E3 \\
 \end{longtable}
 
-NFR2, NFR3 and NFR8 matter most. Ineligible or duplicate ballots make the result
-meaningless, and NFR8 is the claim the architecture is built on; C2 is where it
-is most likely to fail. Every target is a hypothesis, and Evaluation~2 will
-report the measured value, including any target we miss.
+Of these, NFR2, NFR3 and NFR8 matter most. Ineligible or duplicate ballots would
+make the result meaningless, and NFR8 is the claim the whole architecture rests
+on. Since nothing is built yet, none of these requirements carries a numeric
+target; Evaluation~2 will report the measured values.
 
 \subsection{Trust model and explicit non-goals}\label{sec:trust}
 
-The proof system, Groth16, needs a one-time trusted setup for each circuit. We
-do not run our own; we use the published Semaphore setup files and check their
-hashes against the Semaphore repository. If every participant in that setup
-colluded, they could forge proofs that look valid. The contract's cap on ballots
-(FR5) does not depend on the setup.
+The proof system we use, Groth16~\cite{groth16}, needs a one-time trusted setup
+for each circuit. We do not run our own. Instead we use the setup files
+published by Semaphore and check their hashes against the Semaphore
+repository~\cite{semaphore}. If every participant in that setup had colluded,
+they could forge proofs that look valid. The contract's cap on the number of
+ballots (FR5) does not depend on the setup, so it still holds in that case.
 
-\projectname{} guarantees five things, NFR1 to NFR5, each tested in Section~5.
+With that assumption in place, \projectname{} guarantees five things,
+corresponding to NFR1 to NFR5, and each one is tested in Section~5.
 
 \begin{itemize}
-  \item \emph{Eligibility.} Only someone on the published roll can make a proof
-        the contract accepts, assuming the trusted setup is sound.
-  \item \emph{One voter, one ballot.} Each nullifier can be used once, without
-        tracking addresses, and ballots are capped at the voter count.
+  \item \emph{Eligibility.} Only someone on the published list can produce a
+        proof that the contract accepts.
+  \item \emph{One voter, one ballot.} Each nullifier can be used only once,
+        without tracking anyone's address, and the number of ballots is capped
+        at the voter count.
   \item \emph{Ballot secrecy.} The proof shows only that the voter is on the
-        roll. A voter hides among everyone on the roll, so a lone ballot in a
-        quiet hour is easy to guess. This holds fully against the chain;
-        against our operator it needs the relayer run separately from the
-        registrar, or direct submission.
+        list. A voter is hidden among everyone else on the list, so a single
+        ballot cast in a quiet hour is easier to guess. This holds fully
+        against anyone reading the blockchain; against our own operator it
+        needs the relayer to be run separately from the registrar, or the
+        voter to submit directly.
   \item \emph{Verifiability.} A voter can find their own ballot and their
         commitment on the list, and anyone can recount the tally from public
-        chain data.
+        blockchain data.
   \item \emph{Integrity of the count.} Only an accepted ballot changes the
         tally, and anyone can close voting and publish the result, so no
-        operator can change or hold it back.
+        operator can change it or hold it back.
 \end{itemize}
 
-Seven things \projectname{} does not guarantee:
+There are also seven things \projectname{} does not guarantee, and we would
+rather state them plainly:
 
 \begin{itemize}
-  \item \emph{Coercion resistance and vote selling.} Anyone holding a voter's
+  \item \emph{Coercion resistance and vote selling.} Anyone who holds a voter's
         secret can cast that voter's ballot, and the voter cannot undo it. A
-        buyer can check on-chain that they got what they paid for, remotely
-        and at scale. Paper is better here, because a coerced voter can lie.
-  \item \emph{Fake voters.} A dishonest registrar can register people who do
+        buyer can check on-chain that they got what they paid for, remotely and
+        at scale. Paper does better here, because a coerced voter can simply
+        lie about how they voted.
+  \item \emph{Fake voters.} A dishonest registrar could register people who do
         not exist. Publishing the voter count does not reveal this, because
-        registration is voluntary and nobody knows the true number. What it
-        does is fix the number publicly before any ballot exists, and the
-        contract refuses ballots beyond it. A registrar can still register
-        fake voters early and use them late for whichever candidate needs the
-        votes.
-  \item \emph{Roll correctness.} Nothing forces the frozen roll to match who
-        actually registered. A registrar can drop or swap a commitment, and the
-        list will still match the published root. The receipt (FR2) and the
-        booth's check that the voter is on the list (FR6) make this provable,
-        but only before voting opens, and neither makes the registrar honest.
+        registration is voluntary and nobody else knows the true number. What
+        it does achieve is fixing that number in public before any ballot is
+        cast, after which the contract refuses any extra ballots. A registrar
+        could still register fake voters early and use them late for whichever
+        candidate needs the votes.
+  \item \emph{Correctness of the voter list.} Nothing forces the frozen list to
+        match who actually registered. A registrar could drop or swap a
+        commitment, and the list would still match the published root. The
+        receipt (FR2) and the booth's check that the voter is on the list (FR6)
+        make this provable, but only before voting opens, and neither one makes
+        the registrar honest.
   \item \emph{Privacy from the relayer, and selective censorship.} The relayer
-        sees each ballot's choice and IP address. The ballot names nobody, but
-        an operator running both the registrar and the relayer could match its
-        two logs. The relayer could also drop only the ballots for one
-        candidate; low turnout would hide it. The receipt and deadline warning
-        (FR7) limit this, and direct submission only helps a voter with gas.
-  \item \emph{Network-level anonymity.} The relayer or RPC provider sees the IP
-        address a ballot comes from, and an operator that also ran registration
-        has the address the person registered from. The relayer keeps no
-        request logs, but that is a promise, not a guarantee. A real fix needs
-        Tor or a mixnet.
-  \item \emph{Secrecy of the running tally.} Ballots are counted as they
-        arrive, so a partial result is visible during voting and can influence
-        later voters. The timestamps also help anyone who knows when a person
-        voted to narrow down their ballot.
-  \item \emph{Recovery of a lost secret.} Once the root is frozen, a voter who
-        loses their secret cannot vote, because no entry can be added. The
-        booth offers a backup copy at registration and says it is the only one.
+        sees each ballot's choice and the IP address it came from. The ballot
+        itself names nobody, but an operator running both the registrar and
+        the relayer could match the two sets of logs. The relayer could also
+        quietly drop the ballots for one candidate, and low turnout would hide
+        it. The receipt and the deadline warning (FR7) limit this, but direct
+        submission only helps a voter who has gas.
+  \item \emph{Network-level anonymity.} The relayer or the RPC provider sees the
+        IP address a ballot comes from, and an operator that also ran
+        registration would have the address the person registered from. The
+        relayer keeps no request logs, but that is a promise rather than a
+        guarantee. A real fix would need Tor or a mixnet.
+  \item \emph{Secrecy of the running tally.} Ballots are counted as they arrive,
+        so a partial result is visible during voting and could influence people
+        who have not voted yet. The timestamps also help anyone who knows when
+        a particular person voted to narrow down their ballot.
+  \item \emph{Recovering a lost secret.} Once the list is frozen, a voter who
+        loses their secret cannot vote, because no new entry can be added. The
+        booth offers a backup copy at registration and makes clear that it is
+        the only copy.
 \end{itemize}
 
-All seven are future work.
+All seven are left as future work.

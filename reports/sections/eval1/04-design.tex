@@ -3,141 +3,161 @@
 % Source material: docs/architecture.md sections 3-7, docs/tech-stack.md
 % ===========================================================================
 
-\subsection{Architecture overview}
+\subsection{System model}
 
-\projectname{} has three layers (Figure~\ref{fig:architecture}): a Next.js web
-app with the admin console, the ballot booth and the audit dashboard; four Node
-services that have no say over the result (registrar, relayer, indexer, IPFS
-metadata); and the smart contracts, which hold everything that decides the
-election.
+Figure~\ref{fig:model} shows the parts of the system and how they talk to each
+other. \projectname{} has three parts. The first is a set of web pages that run
+in the users' own browsers: the Election Authority's admin console, the voter's
+ballot booth, and the observer's audit dashboard. The second is four off-chain
+services that we run, none of which has any say over the result. The third is
+the smart contracts on Ethereum Sepolia, which hold everything that decides the
+election. The numbered arrows follow one election from start to finish.
 
 \begin{figure}[htbp]
   \centering
-  \input{figures/architecture}
-  \caption{\projectname{} component architecture.}
-  \label{fig:architecture}
+  \resizebox{\textwidth}{!}{\input{figures/system-model}}
+  \caption{\projectname{} system model. Solid arrows are the steps of an
+    election; the dashed arrow is the audit path, which never touches our
+    services.}
+  \label{fig:model}
 \end{figure}
 
-Casting one ballot goes through every layer:
-
 \begin{enumerate}
-  \item The booth loads the voter's secret from browser storage, reads the
-    frozen root and the list's IPFS address from the chain, downloads the list,
-    and rebuilds the tree locally. The secret never leaves the device, and the
-    registrar is not contacted.
-  \item A background thread (Web Worker) builds the proof, the nullifier and
-    the encoded candidate choice. Proving is the slowest step; B2 measures it
-    on real phones.
-  \item The booth signs the ballot request with a throwaway key (the signature
-    moves no money) and sends it to the relayer. The relayer checks the proof
-    before paying any gas, then submits it through \texttt{VoteForwarder}.
-    Eligibility comes from the proof alone, so the signing key does not matter
-    and the voter needs no wallet.
-  \item \texttt{castVote} only runs during the \texttt{Voting} phase. It checks
-    the proof against the frozen root and rejects a used nullifier or a ballot
-    beyond the voter count. Otherwise it records the nullifier, adds one to the
-    tally and emits a \texttt{VoteCast} event for the indexer.
+  \item \emph{Create.} The Election Authority creates the election through
+    \texttt{ElectionFactory}, sets the candidates and dates, and later opens
+    each phase.
+  \item \emph{Register.} The voter's browser creates a secret and sends the
+    registrar only a commitment, which is a hash of that secret. The registrar
+    checks that the voter is eligible, using their institute email and a
+    one-time password, entirely off-chain.
+  \item \emph{Publish.} When registration closes, the registrar puts the list
+    of commitments on IPFS~\cite{ipfs} and records three values in
+    \texttt{VoterRegistry}: the Merkle root of the list~\cite{merkle}, the
+    number of registered voters, and the list's IPFS address. From this point
+    the list is frozen.
+  \item \emph{Prove.} To vote, the booth downloads the list, rebuilds the
+    Merkle tree and creates a zero-knowledge proof that the voter owns one of
+    the commitments, without revealing which one. The registrar is not
+    contacted at all.
+  \item \emph{Vote.} The booth signs the ballot with a throwaway key and sends
+    it to the relayer, which checks the proof, pays the gas and submits it
+    through \texttt{VoteForwarder}. The \texttt{castVote} function in
+    \texttt{Election} checks the proof again, rejects a repeated nullifier or
+    a ballot beyond the voter count, and adds one to the tally. A voter who
+    has their own gas can skip the relayer.
+  \item \emph{Audit.} Anyone can read the ballots and the tally directly from
+    the blockchain through a public RPC endpoint and recount them. The indexer
+    is only a cache that makes pages load faster.
 \end{enumerate}
 
-If any check fails, the whole transaction is reverted, so a ballot is either
-counted or has no effect. The audit dashboard reads the chain through a public
-RPC endpoint, never our backend: the registrar and relayer are conveniences
-and the indexer is only a cache. Even if every one of our services is down or
-lying, an observer can re-check every proof and recount the tally from the
-\texttt{VoteCast} events. So nobody has to trust us for a correct result, but
-voters still depend on us to register and, without gas, to vote.
-
-Neither dependency is total: the registrar is needed only to register, and the
-relayer only for voters with no gas. Because the relayer sees each choice and
-IP address, it must run separately from the registrar, with its own database
-and logs; this is a deployment requirement. Its ability to drop ballots is
-limited, not removed (Section~\ref{sec:trust}).
+If any check in \texttt{castVote} fails, the whole transaction is reverted, so a
+ballot is either counted or has no effect at all. Even if every one of our
+services were down or dishonest, an observer could still re-check every proof
+and recount the tally. Voters do still depend on us in two places: the
+registrar, to register, and the relayer, if they hold no gas. Because the
+relayer sees each choice and the IP address it came from, it must run
+separately from the registrar, with its own database and logs. Otherwise the
+two sets of logs together could link a voter to their vote
+(Section~\ref{sec:trust}).
 
 \subsection{Smart contract design}
 
+The on-chain part of the system is made up of five contracts:
+
 \begin{itemize}
   \item \texttt{ElectionFactory} is the only way to create an election. It
-        deploys each one as a cheap EIP-1167 clone of a single
-        \texttt{Election} contract, and keeps a list of them for auditors.
-  \item \texttt{Election} holds the phase, the candidates, the used
-        nullifiers and the tally. It treats a ballot sent through the
-        forwarder exactly like a direct one. Proofs and nullifiers are tied
-        to the election's ID, so they cannot be reused in another election.
-        It calls a standalone Semaphore verifier with its own root.
+        deploys each election as a cheap EIP-1167 clone~\cite{eip1167} of a
+        single \texttt{Election} contract, and keeps a list of all of them for
+        auditors.
+  \item \texttt{Election} holds the current phase, the candidates, the used
+        nullifiers and the tally. Using ERC-2771~\cite{erc2771}, it treats a
+        ballot sent through the forwarder exactly like one sent directly.
+        Proofs and nullifiers are tied to the election's ID, so they cannot be
+        reused in another election. It checks proofs by calling a standalone
+        Semaphore verifier with its own root.
   \item \texttt{VoterRegistry} holds the root, the voter count and the list's
-        IPFS address, written in one registrar transaction. The root is frozen
-        when registration closes. Capping ballots at the voter count costs one
-        comparison.
-  \item \texttt{TallyLib} holds the counting rules, so a new method can be
-        added without touching the rest: plurality first, approval voting if
-        time allows.
-  \item \texttt{VoteForwarder} is OpenZeppelin's \texttt{ERC2771Forwarder}. It
-        checks the signature, deadline and nonce, and gives relayed and direct
-        ballots the same code path. It is a convenience, not a security
-        measure: the proof stops a relayer changing a ballot, and the nullifier
-        stops a replay. Each ballot uses a fresh signing key, because reusing
-        one would link a voter's ballots across elections.
+        IPFS address, all written by the registrar in one transaction and
+        frozen when registration closes. Capping the number of ballots at the
+        voter count costs only a single comparison.
+  \item \texttt{TallyLib} holds the counting rules, so a new counting method
+        can be added without touching anything else. We start with plurality
+        voting and will add approval voting if time allows.
+  \item \texttt{VoteForwarder} is OpenZeppelin's
+        \texttt{ERC2771Forwarder}~\cite{openzeppelin}. It checks the signature,
+        deadline and nonce of each relayed ballot, so relayed and direct
+        ballots go through the same code. It is a convenience rather than a
+        security measure: the proof is what stops a relayer from changing a
+        ballot, and the nullifier is what stops a replay. Each ballot is signed
+        with a fresh key, because reusing one would link a voter's ballots
+        across elections.
 \end{itemize}
 
 \begin{figure}[htbp]
   \centering
   \input{figures/lifecycle}
-  \caption{Election lifecycle. Every transition needs an explicit call after
-    its scheduled time, and no transition goes back to an earlier phase.}
+  \caption{Election lifecycle. Every step needs an explicit transaction after
+    its scheduled time, and no step goes back to an earlier phase.}
   \label{fig:lifecycle}
 \end{figure}
 
-An election starts as \texttt{Created}, is configured by the Election
-Authority, and moves through \texttt{Registration}, \texttt{Voting} and
-\texttt{Tallying} to \texttt{Finalized} (Figure~\ref{fig:lifecycle}). Only the
-authority can cancel it, and only before voting opens.
+An election starts in the \texttt{Created} phase, where the Election Authority
+configures it, and then moves through \texttt{Registration}, \texttt{Voting}
+and \texttt{Tallying} to \texttt{Finalized} (Figure~\ref{fig:lifecycle}). Only
+the authority can cancel an election, and only before voting opens.
 
-Each phase change needs two things: the scheduled time must have passed, and
-someone must send a transaction. The time check means no phase starts or ends
-early. The transaction means every change is recorded on-chain with a sender.
-Time alone would leave the current phase unclear; transactions alone would let
-the authority close voting as soon as the count turned against it. Each step
-only moves forward, so a phase cannot be rewound.
+Each move from one phase to the next needs two things: the scheduled time must
+have passed, and someone must send a transaction. The time check means no phase
+can start or end early, and the transaction means every change is recorded
+on-chain along with who made it. Relying on time alone would leave the current
+phase unclear, while relying on transactions alone would let the authority
+close voting the moment the count turned against it. Phases only ever move
+forward, so an election cannot be rewound.
 
-Only the authority can configure or cancel an election, since those are
-administrative decisions. Every other step (opening registration, opening and
-closing voting, publishing the result) can be done by anyone once its time
-comes. An authority that dislikes the result gains nothing by refusing to act,
-and cannot change the roll because the root is already frozen.
+Configuring and cancelling are administrative decisions, so they belong to the
+authority alone. Every other step, from opening registration to publishing the
+result, can be triggered by anyone once its time comes. An authority that
+dislikes the result gains nothing by refusing to act, and it cannot change the
+voter list either, because the root is already frozen.
 
 \subsection{Anonymous eligibility and double-vote prevention}
 
-The system uses Semaphore v4. The voter's secret stays on their device, and the
-registrar records only its commitment as a leaf of the Merkle tree. The browser
-proves that it knows the secret behind one of the leaves, without revealing
-which one. The nullifier is a hash of the secret and the election ID. It is
-always the same for the same voter and election, so a second ballot is
-rejected; it cannot be reversed to find the secret; and it differs between
-elections, so a voter's ballots in two elections cannot be linked. The
-candidate choice is locked into the proof, so a relayer cannot change it.
+For anonymity we use Semaphore v4~\cite{semaphore}. The voter's secret never
+leaves their device, and the registrar records only its commitment as a leaf
+of a Merkle tree~\cite{merkle}. When voting, the browser proves that it knows
+the secret behind one of the leaves, without revealing which leaf. The
+nullifier is a hash of the secret and the election ID, and it has three useful
+properties. It is always the same for the same voter in the same election, so a
+second ballot is rejected. It cannot be reversed to recover the secret. And it
+is different in every election, so a voter's ballots in two elections cannot
+be linked. The candidate choice is also locked into the proof, so a relayer
+cannot change it.
 
-A voter hides among everyone on the roll, no more. The choice itself is public:
-it is in the ballot, and the tally updates in the same transaction. What is
-hidden is who cast it. Ballots are timestamped on-chain, so in a small election
-it is easier to guess, and the very first ballot is not hidden at all. A demo
-must therefore cast several ballots before any live one.
+It is worth being precise about what is hidden. The choice itself is public: it
+is part of the ballot, and the tally updates in the same transaction. What is
+hidden is who cast it, and a voter is hidden only among the other people on the
+list. Ballots are also timestamped on-chain, so in a small election it becomes
+easier to guess, and the very first ballot is not hidden at all. For this
+reason a demonstration should cast several ballots before any live one.
 
-Groth16 needs a trusted setup. We use Semaphore's published setup files and
-check their hashes against the Semaphore repository; the remaining assumption is
-in Section~\ref{sec:trust}.
+The proofs use the Groth16 proof system~\cite{groth16}, which needs a trusted
+setup. We use the setup files published by Semaphore and check their hashes
+against the Semaphore repository; the assumption this leaves is discussed in
+Section~\ref{sec:trust}.
 
-The simple alternative is to record \texttt{hasVoted[msg.sender]}. It is cheaper
-but unacceptable: each ballot would show the voter's address next to their
-choice, and the registrar knows which person owns which address, so it would
-publish how everyone voted and make coercion easy to enforce. The nullifier
-costs the same storage write as the flag, plus the proof check, so anonymity
-has a price; A1 measures it.
+The obvious simpler design would be to record \texttt{hasVoted[msg.sender]} for
+each voter's address. It is cheaper, but it is not acceptable: every ballot
+would show the voter's address next to their choice, and since the registrar
+knows which person owns which address, it would effectively publish how
+everyone voted and make coercion easy. Our nullifier costs the same storage
+write as that flag, plus the cost of checking the proof, so anonymity does have
+a price. Parameter A1 measures it.
 
 \subsection{Scalability strategy}
 
-We describe the system in three tiers (Table~\ref{tab:tiers}), and build only
-the last two. Tier 1 is only for comparison: its registration cost grows with
-the number of voters, and its ballots show who voted.
+To explain the design choices, we describe the system as three tiers
+(Table~\ref{tab:tiers}) and build only the last two. Tier 1 is there only for
+comparison: its registration cost grows with the number of voters, and its
+ballots show who voted.
 
 \begin{table}[htbp]
   \centering
@@ -146,124 +166,133 @@ the number of voters, and its ballots show who voted.
   \small
   \begin{tabular}{@{}lL{3.9cm}L{5.3cm}L{3.0cm}@{}}
     \toprule
-    \textbf{Tier} & \textbf{Eligibility} & \textbf{Ballot privacy}           & \textbf{Voter pays gas} \\
+    \textbf{Tier} & \textbf{Eligibility}  & \textbf{Ballot privacy}           & \textbf{Voter pays gas} \\
     \midrule
-    1             & On-chain roll        & None; ballots linked to addresses & Yes                     \\
-    2             & Merkle root          & None                              & Yes                     \\
-    3             & Zero-knowledge proof & Anonymous, nullifier-protected    & No                      \\
+    1             & Voter list on-chain   & None; ballots linked to addresses & Yes                     \\
+    2             & Merkle root           & None                              & Yes                     \\
+    3             & Zero-knowledge proof  & Anonymous, protected by nullifiers & No                     \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Two operations cost the same gas at any roll size: publishing the roll (one
-transaction writing the root, the voter count and the IPFS address), and
-casting a tier 3 ballot (one proof check of fixed size). Both come from building
-the tree off-chain and putting only its root on-chain. We do not claim that
-nothing grows:
+Two operations should cost the same gas however large the voter list is:
+publishing the list, which is one transaction writing the root, the voter count
+and the IPFS address, and casting a tier 3 ballot, which involves one proof
+check of fixed size. Both follow from building the Merkle tree off-chain and
+putting only its root on-chain. We are careful not to claim that nothing
+grows, though:
 
 \begin{itemize}
-  \item Total election gas grows with the number of ballots cast, since each
-        ballot is a transaction.
-  \item Browser work grows: rebuilding the tree grows with the roll, and
-        proving grows slightly with the tree's depth. C2 measures both.
-  \item Off-chain work grows with the roll: the registrar builds the tree, and
-        each auditor rebuilds it. Hashing off-chain is still far cheaper than
-        storing on-chain.
+  \item The total gas for an election grows with the number of ballots cast,
+        since each ballot is its own transaction.
+  \item Work in the browser grows: rebuilding the tree takes longer as the list
+        grows, and proving takes slightly longer as the tree gets deeper. C2
+        measures both.
+  \item Off-chain work grows with the list, since the registrar builds the tree
+        and every auditor rebuilds it. Hashing off-chain is still far cheaper
+        than storing data on-chain.
 \end{itemize}
 
-We do not use Semaphore's own group contracts for this reason. They store the
-group on-chain and update the root for every new member, which is simpler but
-costs one transaction per voter. We use Semaphore's circuits, verifier and
-nullifiers, but not its on-chain groups. Tier 2 already publishes only a root,
-so zero knowledge changes the ballot, not registration.
+This is also why we do not use Semaphore's own group contracts. They store the
+group on-chain and update the root whenever a member joins, which is simpler
+but costs one transaction per voter. We use Semaphore's circuits, verifier and
+nullifiers, but not its on-chain groups. Since tier 2 already publishes only a
+root, adding zero knowledge in tier 3 changes how ballots work, not how
+registration works.
 
-In tier 2 the ballot sends its Merkle proof to the contract, costing a few
-hundred gas per tree level. In tier 3 that proof stays private inside the
-zero-knowledge proof, so the ballot cost stops depending on the tree's depth.
-We expect tier 3 to be flat but always more expensive than tier 2, because the
-proof check costs far more than the path it replaces. Anonymity costs gas; it
-does not save it.
+In tier 2, a ballot sends its Merkle proof to the contract, and the cost grows
+with every level of the tree. In tier 3, that proof stays private inside the
+zero-knowledge proof, so the cost of a ballot no longer depends on the tree's
+depth. We expect tier 3 to stay flat but always cost more than tier 2, because
+checking the proof costs far more than the path it replaces. Anonymity costs
+gas; it does not save it.
 
-With only a root on-chain, nobody can list the voters, so the registrar
-publishes the list on IPFS and writes its address next to the root. An auditor
-rebuilds the root from the list and catches any mismatch. That does not show
-whose commitments are on the list, so before voting the booth checks that the
-voter's own commitment is there; a voter who was swapped out will notice. There
-is a gap between the root freezing and voting opening so that voters can act on
-this, and voting cannot open until the list's address is published. None of
-this makes the roll honest (Section~\ref{sec:trust}).
+With only a root on-chain, nobody can read the list of voters from the
+blockchain, which is why the registrar publishes the list on IPFS and records
+its address next to the root. An auditor can rebuild the root from the list and
+catch any mismatch. That still does not show whose commitments are on the list,
+so before voting the booth checks that the voter's own commitment is there, and
+a voter who was swapped out will notice. There is a gap between the list being
+frozen and voting opening so that voters have time to act on this, and voting
+cannot open until the list's address has been published. None of this makes
+the list itself honest, as Section~\ref{sec:trust} explains.
 
-C1 measures registration and ballot gas for rolls of $10$ to $10^5$ voters.
-Flat registration follows from the design, but C1 checks the actual code: a
-contract that stored commitments would show a rising line. If a line is not
-flat, Evaluation~2 will say so. C2 covers the other risk: whether a
-hundred-thousand-voter roll can be handled in a browser at all.
+Parameter C1 measures registration and ballot gas across a range of list
+sizes. Flat registration follows from the design on paper, but C1 checks the
+actual code: a contract that stored commitments on-chain would show a rising
+line. If a line turns out not to be flat, Evaluation~2 will say so. C2 covers
+the other risk, which is whether a large list can be handled in a browser at
+all.
 
 \subsection{Technology choices and justification}
 
-Table~\ref{tab:stack} lists each choice, the main alternative, and the reason.
+Table~\ref{tab:stack} lists each technology we chose, the main alternative we
+considered, and the reason for our choice.
 
 \begin{table}[htbp]
   \centering
   \caption{Technology choices.}
   \label{tab:stack}
   \small
-  \begin{tabular}{@{}L{2.5cm}L{3.2cm}L{3.4cm}L{7.2cm}@{}}
+  \begin{tabular}{@{}L{2.4cm}L{4.0cm}L{3.2cm}L{6.7cm}@{}}
     \toprule
     \textbf{Layer}      & \textbf{Choice}             & \textbf{Alternative}           & \textbf{Reason}                                           \\
     \midrule
-    Contract language   & Solidity 0.8.28             & Vyper, non-EVM chains          & Largest ecosystem; used in the course; one language throughout\\
-    Contract toolchain  & Foundry                     & Hardhat 3                      & Tests in Solidity; \texttt{forge snapshot} gives A1 directly \\
-    Contract libraries  & OpenZeppelin 5.x            & Writing our own                & Audited access control, forwarder, clones and Merkle proofs            \\
-    Election deployment & EIP-1167 clones             & Full deploy per election       & Much cheaper; cannot be upgraded during a vote            \\
-    Anonymity           & Semaphore v4                & Custom circuits, MACI          & Audited proofs and nullifiers; custom circuits too costly to build        \\
-    Gasless voting      & ERC-2771 forwarder          & Voter pays gas                 & Voter needs no cryptocurrency; direct submission as fallback    \\
-    Testbed             & Ethereum Sepolia            & Mainnet, other testnets        & Free test ETH, behaves like mainnet; the recommended testnet for contract development \\
-    Frontend            & Next.js, wagmi, viem        & Plain SPA, ethers v6           & Typed contract bindings; can be exported as a static site               \\
-    Backend             & Fastify, PostgreSQL, BullMQ & Express, MongoDB               & Relational data for the indexer, shared types, reliable job queue        \\
-    Metadata storage    & IPFS via Pinata             & Storing on-chain               & Same tamper-evidence for far less gas                           \\
+    Contract language   & Solidity 0.8.28~\cite{solidity} & Vyper, non-EVM chains          & Largest ecosystem; used in the course; one language throughout\\
+    Contract toolchain  & Foundry~\cite{foundry} & Hardhat 3                      & Tests written in Solidity; \texttt{forge snapshot} reports gas directly \\
+    Contract libraries  & OpenZeppelin 5.x~\cite{openzeppelin} & Writing our own                & Audited access control, forwarder, clones and Merkle proofs            \\
+    Election deployment & EIP-1167 clones~\cite{eip1167} & A full deployment per election       & Much cheaper; cannot be upgraded during a vote            \\
+    Anonymity           & Semaphore v4~\cite{semaphore} & Custom circuits, MACI~\cite{maci} & Audited proofs and nullifiers; custom circuits too costly to build        \\
+    Gasless voting      & ERC-2771 forwarder~\cite{erc2771} & Voter pays gas                 & Voters need no cryptocurrency; direct submission as a fallback    \\
+    Testbed             & Ethereum Sepolia~\cite{sepolia} & Mainnet, other testnets        & Free test ETH; behaves like mainnet; the recommended testnet for contract development \\
+    Frontend            & Next.js~\cite{nextjs}, wagmi~\cite{wagmi}, viem~\cite{viem} & Plain single-page app, ethers v6           & Typed contract bindings; can be exported as a static site               \\
+    Backend             & Fastify~\cite{fastify}, PostgreSQL~\cite{postgres}, BullMQ~\cite{bullmq} & Express, MongoDB               & Relational data for the indexer; shared types; a reliable job queue        \\
+    Metadata storage    & IPFS~\cite{ipfs} via Pinata~\cite{pinata} & Storing on-chain               & Same tamper-evidence for far less gas                           \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-A few choices need more explanation:
+A few of these choices deserve a little more explanation:
 
 \begin{itemize}
   \item \emph{Solidity and Foundry.} Vyper has few libraries, and a non-EVM
-        chain would lose the ability to run the same code locally and on the
-        testnet, which is what lets us measure gas locally. Foundry's
-        \texttt{forge snapshot} gives A1 and C1, and its fuzzer gives the
-        attack tests D1 needs. Hardhat 3 integrates better with TypeScript,
-        but wagmi generates types from Foundry's output anyway.
+        chain would lose the ability to run exactly the same code locally and
+        on the testnet, which is what lets us measure gas locally. Foundry's
+        \texttt{forge snapshot} gives us the numbers for A1 and C1, and its
+        fuzzer gives us the attack tests that D1 needs. Hardhat 3 integrates
+        better with TypeScript, but wagmi can generate types from Foundry's
+        output anyway.
   \item \emph{Two different trees.} OpenZeppelin's \texttt{MerkleProof} is only
-        used in tier 2. Tier 3 uses a different hash, so the tree builder, the
-        root and the verification are replaced. The phases, factory, indexer
-        and gas baseline carry over.
-  \item \emph{Clones.} An EIP-1167 clone is a tiny contract that forwards to one
-        shared implementation, so each election is cheap to deploy. A bug in
-        that implementation would affect every election, but it cannot be
-        changed, whereas an upgradeable contract would let the authority change
-        the rules mid-vote.
+        used in tier 2. Tier 3 uses a different hash function, so the tree
+        builder, the root and the verification are all replaced. The phases,
+        the factory, the indexer and the gas baseline carry over unchanged.
+  \item \emph{Clones.} An EIP-1167 clone is a tiny contract that forwards every
+        call to one shared implementation, so each new election is cheap to
+        deploy. A bug in that implementation would affect every election, but
+        the implementation cannot be changed, whereas an upgradeable contract
+        would let the authority change the rules in the middle of a vote.
   \item \emph{Semaphore v4.} It provides exactly what we need, anonymous
-        membership with a per-election nullifier, and it is audited. Writing our
-        own circuits would take too long and put unaudited cryptography at the
-        centre of a security project. MACI would add coercion resistance, but
-        needs a trusted coordinator, encrypted messages and key changes.
-  \item \emph{IPFS.} An IPFS address guarantees the content has not changed,
-        but not that it is still available: content that nobody pins
-        disappears. That is acceptable for a manifesto, and it is why both we
-        and the auditors pin the voter list.
+        membership with a per-election nullifier, and it has been audited.
+        Writing our own circuits would take too long and would put unaudited
+        cryptography at the heart of a security project. MACI would add
+        coercion resistance, but it needs a trusted coordinator, encrypted
+        messages and key changes.
+  \item \emph{IPFS.} An IPFS address guarantees that the content has not
+        changed, but not that it is still available, since content that nobody
+        pins eventually disappears. That is acceptable for a manifesto, and it
+        is why both we and the auditors pin the voter list.
 \end{itemize}
 
 \subsection{Deployment testbed}
 
-Everything is deployed to Ethereum Sepolia, the Ethereum Foundation's
-recommended testnet for application and contract development. It has the best
-faucet and tooling support of any testnet, which matters when we need to fund
-many test ballots, and it runs the same way as Ethereum mainnet.
+Everything is deployed to Ethereum Sepolia, the recommended testnet for
+application and contract development~\cite{sepolia}. It has the best faucet and
+tooling support of any testnet, which matters because we need to fund many
+test ballots, and it behaves the same way as Ethereum mainnet.
 
-Gas is deterministic: the same code and input use the same gas on any chain. So
-the gas parameters (A1, C1) are measured on a local Foundry node, where testing
-roll sizes from ten to a hundred thousand is instant and free. The load and
-reorg tests also run locally, so that network noise does not distort them.
-Only the end-to-end latency test and the live demo need Sepolia.
+Gas is deterministic, meaning the same code with the same input uses the same
+gas on any EVM chain~\cite{ethgas}. We therefore measure the gas parameters (A1
+and C1) on a local Foundry node~\cite{foundry}, where testing many list sizes is
+instant and free. The load and reorg tests also run locally, so that network
+noise does not distort them. Only the end-to-end latency test and the live demo
+need Sepolia itself.
