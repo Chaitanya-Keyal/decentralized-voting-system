@@ -6,10 +6,14 @@ templates we were given; these reproduce their required section structure.
 ## Build
 
 ```bash
-make          # both PDFs
-make eval1    # just Evaluation 1
-make watch1   # rebuild on save
+make          # the Evaluation 2 report
+make watch2   # rebuild on save
 ```
+
+Evaluation 1 has been submitted. The exact files we handed in are kept in
+`submitted/` as a read-only record and are never rebuilt: `make` no longer has
+an `eval1` target, and the slide generator writes to `slides/build/` (ignored
+by git) and refuses to write into `submitted/`.
 
 Needs a TeX distribution with `latexmk` and `biber`. On Debian/Ubuntu:
 
@@ -21,22 +25,24 @@ sudo apt install texlive-latex-recommended texlive-latex-extra latexmk biber
 
 | File | Purpose |
 |---|---|
-| `eval1.tex` | Evaluation 1 report: a driver that inputs the section files |
+| `submitted/` | The Evaluation 1 report and slides exactly as submitted; do not edit |
+| `eval1.tex` | Evaluation 1 report source, kept for reference only |
 | `eval2.tex` | Evaluation 2: final report |
-| `sections/eval1/` | One file per report section; this is where the writing happens |
-| `sections/eval2/` | Same, for the final report |
+| `sections/eval1/` | Evaluation 1 sections, kept for reference only |
+| `sections/eval2/` | One file per report section; this is where the writing happens |
 | `preamble.tex` | Shared packages, styling, title page |
 | `metadata.tex` | Title, group number, member list. Edit here, not in the bodies |
-| `references.bib` | Bibliography; empty until entries are cited |
+| `references.bib` | Bibliography, cited inline with `\cite{}` |
 | `figures/` | Figures, referenced without a path prefix |
-| `figures/architecture.tex` | System architecture diagram (TikZ) |
-| `figures/lifecycle.tex` | Election lifecycle state machine (TikZ) |
+| `figures/system-model.tex` | System model diagram (TikZ) |
+| `figures/lifecycle.tex` | Election lifecycle (TikZ) |
+| `slides/build-deck.js` | Generator for the Evaluation 1 slides (pptxgenjs) |
 | `figures/bits-logo.png` | Institute logo, extracted from the `.docx` templates |
 
 ## Working on the report
 
-Each section is its own file under `sections/eval1/`, so several people can write at once
-without colliding. The driver `eval1.tex` only sets the title, loads the preamble and
+Each section is its own file under `sections/eval2/`, so several people can write at once
+without colliding. The driver `eval2.tex` only sets the title, loads the preamble and
 inputs the sections in order; there is no prose in it.
 
 Figures are TikZ source rather than images, so they stay editable and diff sensibly.

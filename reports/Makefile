@@ -1,31 +1,28 @@
 # Build the evaluation reports.
 #
-#   make           both PDFs
-#   make eval1     just the Evaluation 1 report
-#   make watch1    rebuild on every save
-#   make clean     remove build artifacts (keeps the PDFs)
-#   make distclean remove build artifacts and the PDFs
+#   make           the Evaluation 2 report
+#   make watch2    rebuild on every save
+#   make clean     remove build artifacts (keeps the PDF)
+#   make distclean remove build artifacts and the PDF
+#
+# Evaluation 1 has been submitted. Its PDF and slides live in submitted/ as a
+# read-only record and are never rebuilt; the eval1 sources are kept only for
+# reference.
 
 LATEXMK := latexmk -pdf -interaction=nonstopmode -halt-on-error
 
-.PHONY: all eval1 eval2 watch1 watch2 clean distclean
+.PHONY: all eval2 watch2 clean distclean
 
-all: eval1 eval2
-
-eval1:
-	$(LATEXMK) eval1.tex
+all: eval2
 
 eval2:
 	$(LATEXMK) eval2.tex
-
-watch1:
-	$(LATEXMK) -pvc eval1.tex
 
 watch2:
 	$(LATEXMK) -pvc eval2.tex
 
 clean:
-	latexmk -c eval1.tex eval2.tex
+	latexmk -c eval2.tex
 
 distclean:
-	latexmk -C eval1.tex eval2.tex
+	latexmk -C eval2.tex

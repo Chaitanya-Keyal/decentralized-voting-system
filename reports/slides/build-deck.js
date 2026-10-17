@@ -1,4 +1,4 @@
-// Builds reports/eval1-slides.pptx, the Evaluation 1 presentation.
+// Builds the Evaluation 1 presentation into slides/build/eval1-slides.pptx.
 // Run from reports/: node slides/build-deck.js
 // Needs pptxgenjs, react, react-dom, react-icons and sharp on NODE_PATH.
 
@@ -11,7 +11,13 @@ const ReactDOMServer = require("react-dom/server");
 const sharp = require("sharp");
 const fa = require("react-icons/fa6");
 
-const OUT = path.join(__dirname, "..", "eval1-slides.pptx");
+// The submitted deck lives in reports/submitted/ and is never overwritten;
+// rebuilds go to slides/build/, which git ignores.
+const OUT = path.join(__dirname, "build", "eval1-slides.pptx");
+const SUBMITTED = path.join(__dirname, "..", "submitted");
+if (path.resolve(OUT).startsWith(path.resolve(SUBMITTED) + path.sep)) {
+  throw new Error("refusing to write into reports/submitted/");
+}
 const LOGO = path.join(__dirname, "..", "figures", "bits-logo.png");
 
 const C = {
@@ -159,7 +165,6 @@ async function main() {
       ["Shivam Goyal", "2024ADPS0190H"],
       ["Rishit Agarwal", "2024A7PS0101H"],
       ["Vihaan Kashyap", "2024A7PS0113H"],
-      ["Palak Agarwal", "2024A7PS0041H"],
       ["Chaitanya Keyal", "2023B4A70727H"],
       ["Wamika Sehgal", "2024B4A70830H"],
     ];
@@ -724,6 +729,7 @@ async function main() {
       if (xml.includes(process.env.HOME || "/home/")) throw new Error(`local path leaked into ${name}`);
     }
   }
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
   console.log("wrote", OUT);
 }
