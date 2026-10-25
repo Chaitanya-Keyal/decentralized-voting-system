@@ -30,3 +30,33 @@ export const receiptTypes = {
     { name: "issuedAt", type: "uint64" },
   ],
 } as const;
+
+/** The typed data a voter signs to register, ready for viem's `signTypedData`. */
+export function registrationTypedData(args: {
+  chainId: number;
+  election: Address;
+  voter: Address;
+  email: string;
+}) {
+  return {
+    domain: electionDomain(args.chainId, args.election),
+    types: registrationTypes,
+    primaryType: "Registration",
+    message: { voter: args.voter, email: args.email },
+  } as const;
+}
+
+/** The typed data the registrar signs as a receipt; `issuedAt` is in Unix seconds. */
+export function receiptTypedData(args: {
+  chainId: number;
+  election: Address;
+  voter: Address;
+  issuedAt: number;
+}) {
+  return {
+    domain: electionDomain(args.chainId, args.election),
+    types: receiptTypes,
+    primaryType: "RegistrationReceipt",
+    message: { voter: args.voter, issuedAt: BigInt(args.issuedAt) },
+  } as const;
+}

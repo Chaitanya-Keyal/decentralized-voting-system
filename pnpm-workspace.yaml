@@ -13,6 +13,14 @@ catalog:
   zod: ^4.6.7
 
 allowBuilds:
+  "@prisma/engines": true
   esbuild: true
+  prisma: true
   sharp: false
   unrs-resolver: false
+
+peerDependencyRules:
+  allowedVersions:
+    # esbuild is an optional peer of Vite 8, which does not use it here. The 0.25 copy in the
+    # tree is the one @wagmi/cli pins.
+    vite>esbuild: ">=0.25"

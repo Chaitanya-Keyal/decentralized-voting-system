@@ -1,0 +1,59 @@
+// The registrar's records. Personal data such as email addresses lives here and never on-chain.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A one-time code sent to an email address, to register for one election.
+model EmailCode {
+  id        Int      @id @default(autoincrement())
+  /// Checksummed address of the election.
+  election  String
+  /// Lower case.
+  email     String
+  codeHash  String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([election, email])
+}
+
+/// An accepted registration: one per email address and one per wallet in each election. It never
+/// moves to another wallet, so that its receipt stays evidence of what the registrar accepted.
+model Registration {
+  id               Int      @id @default(autoincrement())
+  election         String
+  email            String
+  /// Checksummed address of the voter's wallet, which is their entry on the voter list.
+  voter            String
+  /// The voter's EIP-712 signature over their address and email.
+  voterSignature   String
+  /// The registrar's EIP-712 signature over the voter's address and `issuedAt` (FR2).
+  receiptSignature String
+  issuedAt         DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([election, email])
+  @@unique([election, voter])
+}
+
+/// The voter list of an election, recorded when the registrar starts publishing it. From then on
+/// the election takes no more registrations, so retrying a failed publication builds the same list.
+model VoterListPublication {
+  election  String   @id
+  root      String
+  count     Int
+  /// Empty until the list has been added to IPFS.
+  cid       String   @default("")
+  /// The `publishVoterList` transaction, recorded as soon as it is sent.
+  txHash    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
