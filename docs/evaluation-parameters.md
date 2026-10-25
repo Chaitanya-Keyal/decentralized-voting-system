@@ -71,7 +71,7 @@ directly. D3 also reports the anonymity set size, which is small in a small roll
 
 A failure in D1, D2 or D5 is a design defect and blocks the live demonstration.
 
-Static analysis, coverage and reorg handling stay on the Phase 3 checklist. They
+Static analysis, coverage and reorg handling are on the M3 checklist. They
 are engineering hygiene rather than evaluation parameters, so they are not
 reported as results.
 
@@ -98,7 +98,7 @@ with the 95th percentile.
   sustained load.
 - **Client timings (B2, C2)** run on a developer laptop and a mid-range Android
   phone, each named in the result.
-- **End-to-end latency (B1)** runs on Ethereum Sepolia during Phase 4.
+- **End-to-end latency (B1)** runs on Ethereum Sepolia during the measurement phase.
 
 Every number carries its controls: gas price and block number, RPC provider,
 commit hash, deployed addresses, and the device for client numbers.

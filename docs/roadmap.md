@@ -28,8 +28,8 @@ checks. The lifecycle, the factory, the indexer and the gas baseline carry over.
   `bench/`
 - Foundry project with OpenZeppelin 5.x and Semaphore contracts
 - Next.js app, Fastify service, Postgres and Redis through Docker Compose
-- CI on every pull request: `forge fmt --check`, `forge build`, `forge test`, lint,
-  typecheck, build
+- CI on every pull request: format, lint, typecheck and build for the TypeScript packages,
+  and `forge fmt --check`, `forge lint`, `forge build` and `forge test` for the contracts
 
 ---
 
@@ -69,6 +69,9 @@ on a local node (Anvil).
 
 **Frontend**
 - Admin console: create and configure an election, open each phase
+- Registration page: institute email and code; the voter's secret is created on their device
+  and only the commitment is sent; the signed receipt is shown; the voter is offered a backup
+  copy of the secret and told it is the only copy
 - Ballot booth: downloads the voter list, checks the voter's own commitment is on it,
   builds its own proof path without asking the registrar (FR6), casts a ballot
 

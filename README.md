@@ -42,3 +42,10 @@ an election on their own:
 
 Solidity + Foundry · Ethereum Sepolia testnet · Semaphore (zk-SNARK group membership) ·
 Next.js + wagmi/viem · Fastify + Postgres indexer · IPFS for ballot metadata.
+
+## Working on it
+
+- [CONTRIBUTING.md](CONTRIBUTING.md): setup, commands and code style
+- [docs/roadmap.md](docs/roadmap.md): what gets built, milestone by milestone
+- [Issue #2](https://github.com/Chaitanya-Keyal/decentralized-voting-system/issues/2): the
+  checklist of everything left, kept up to date

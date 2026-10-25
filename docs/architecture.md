@@ -129,12 +129,12 @@ we state the size beside the claim rather than speaking in general terms.
   we build catches it. See roll correctness above for what publication does and does not buy.
 - *Ballot secrecy from the operator*: unconditional against the chain, conditional against us.
   The relayer reads the candidate choice in every ballot it forwards and sees the network address
-  it arrives from. As designed, the registrar and the relayer are two services inside one Fastify
-  deployment over one PostgreSQL instance, so one party holds the institute email and the
-  identity commitment from registration, and the source IP, arrival time and candidate choice
-  from the ballot. Joining them needs no cryptography, only two log lines. Secrecy from the
-  operator therefore holds when the relayer is run separately from the registrar, as distinct
-  deployments with separate databases and no request logs, or when the voter submits directly.
+  it arrives from. If the registrar and the relayer shared one deployment and one database, one
+  party would hold the institute email and the identity commitment from registration, and the
+  source IP, arrival time and candidate choice from the ballot. Joining them would need no
+  cryptography, only two log lines. So the relayer runs as its own process with its own database
+  and keeps no request logs, and secrecy from the operator holds as long as that separation does,
+  or when the voter submits directly.
   We never state ballot secrecy as an unqualified guarantee. The same reasoning applies to the
   server-side proving fallback: moving proof generation onto our server would not add one row to
   this table, it would collapse privacy back onto the operator, so it addresses a browser
@@ -186,7 +186,7 @@ count, and leaves one party in control of the franchise.
           │ signed meta-tx       │ register / relay        │ read only
           ▼                      ▼                         │
 ┌────────────────────────────────────────────────┐         │
-│  BACKEND  (Fastify)                            │         │
+│  BACKEND  (Fastify; separate processes)        │         │
 │   • Registrar        • Relayer                 │         │
 │   • Indexer          • Metadata / IPFS pinning │         │
 └────┬──────────────────┬──────────────────┬─────┘         │
@@ -212,9 +212,9 @@ The ballot booth talks to the backend to register and to hand a finished ballot 
 It does not read the tree from the backend at vote time: it fetches the published leaf set from
 IPFS at the CID recorded on-chain and rebuilds the tree in the browser.
 
-Registrar and relayer are drawn inside one backend box because that is where this design puts
-them. Section 2 states what that co-location costs, and separating them is the condition under
-which secrecy from the operator holds.
+Registrar and relayer share the backend codebase but run as separate processes with separate
+databases, and the relayer keeps no request logs. Section 2 explains why: one operator holding
+both sets of logs could link a voter's registration to their ballot.
 
 The audit dashboard deliberately talks to the RPC provider directly and never to our backend. If
 our server is down, or lying, the result is still verifiable, and with the leaf set on IPFS a voter
@@ -231,7 +231,7 @@ and show the tally still verifies.**
 | `Election.sol` | Lifecycle state machine, candidate roster, ballot acceptance, tally storage | The clone implementation; one instance per election. `castVote` reverts once spent nullifiers reach the roll size |
 | `VoterRegistry.sol` | Merkle root, roll size and leaf-set CID per election | No commitment is stored on-chain. All three values are written in one transaction and freeze when registration closes |
 | `SemaphoreVerifier` | Groth16 verification of the membership proof | The standalone verifier called with our own root, not Semaphore's group contracts. The tree depth selects the verification key, so the depth is pinned in the contract and never taken from the caller |
-| `TallyLib.sol` | Counting rules: plurality first, approval voting if time allows | Library so counting strategy is swappable |
+| `TallyLib.sol` | Counting rules: plurality first, then approval voting (M3) | Library so counting strategy is swappable |
 | `VoteForwarder.sol` | ERC-2771 trusted forwarder for gasless ballots | OpenZeppelin `ERC2771Forwarder`. A convenience, not a security control: see below |
 
 The forwarder deserves a note, because the obvious reading credits it with a protection it does
@@ -287,7 +287,7 @@ Once `Voting` opens, the voter root is immutable.
    the browser and derives its own authentication path. The backend is never told which leaf is
    voting. Fetching the path from the registrar instead would be a break rather than a detail:
    the path identifies the leaf, the registrar knows which leaf belongs to which person, and the
-   relayer in the same backend sees the candidate choice, so correlating the two requests would
+   relayer sees the candidate choice, so an operator correlating the two requests could
    deanonymize every voter.
 5. The browser builds a zk-SNARK proving: *"I know a secret whose commitment is a leaf in the
    tree with root R"*, without revealing which leaf.
@@ -388,7 +388,7 @@ Not a source of truth; it is a convenience and liveness layer. Four services:
   yields exactly one usable nullifier per election. Rate limiting per source and per nullifier
   sits on top of that bound rather than substituting for it.
 - **Indexer**: tails `ElectionCreated` / `VoterRootPublished` / `VoteCast` / `Finalized`,
-  materializes them into Postgres, targeting sub-100ms dashboard reads. Rebuildable from genesis,
+  materializes them into Postgres so dashboard pages load quickly. Rebuildable from genesis,
   which we will demonstrate.
 - **Metadata**: pins ballot descriptions, manifestos and the published leaf set to IPFS, and
   stores the CIDs on-chain.
@@ -410,12 +410,14 @@ Three surfaces, one codebase:
 - **Audit dashboard**: live tally, per-ballot explorer links, a "verify this result
   yourself" panel that recomputes the count from raw logs in the browser.
 
-Proving time is an expectation, not a measurement. We take one to three seconds from published
-Semaphore benchmarks on desktop hardware; nothing has been built and nothing has been timed.
-Parameter B2 exists to replace that expectation with a measurement on the phones we can borrow,
-and the failure mode that would actually trigger the fallback is not slowness but exhausting the
-mobile WASM memory ceiling while downloading and running several megabytes of circuit artifacts.
-That belongs in the risk table alongside slow proving.
+Proving time has only been tried on a prototype so far. Semaphore v4 proving in Node.js on a
+laptop took about 0.3 s per proof once the setup files were cached, and about 3 s for the first
+proof including the download. Rebuilding the tree in the same run took about 1.4 s for 10,000
+leaves and 12.8 s for 100,000, which is why C2 is where the design is most likely to struggle.
+Phones will be slower on both. Parameter B2 measures proving on the phones we can borrow, and the
+failure mode that would actually trigger the fallback is not slowness but exhausting the mobile
+WASM memory ceiling while downloading and running several megabytes of circuit artifacts. That
+belongs in the risk table alongside slow proving.
 
 ## 7. Deployment targets
 

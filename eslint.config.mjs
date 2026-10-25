@@ -9,10 +9,14 @@ import tseslint from "typescript-eslint";
 const WEB_DIR = "apps/web";
 
 // Next.js's rules apply to the web app only; each of its file globs is moved under apps/web.
-const nextForWeb = nextVitals.map((config) => ({
-  ...config,
-  files: (config.files ?? ["**/*.{js,jsx,mjs,ts,tsx}"]).map((glob) => `${WEB_DIR}/${glob}`),
-}));
+// Its global-ignore entry is dropped, since the ignores below already cover those folders.
+const isGlobalIgnore = (config) => Object.keys(config).length === 1 && "ignores" in config;
+const nextForWeb = nextVitals
+  .filter((config) => !isGlobalIgnore(config))
+  .map((config) => ({
+    ...config,
+    files: (config.files ?? ["**/*.{js,jsx,mjs,ts,tsx}"]).map((glob) => `${WEB_DIR}/${glob}`),
+  }));
 
 export default defineConfig([
   globalIgnores([
@@ -20,6 +24,7 @@ export default defineConfig([
     "**/.next/",
     "**/dist/",
     "**/out/",
+    "**/build/",
     "**/next-env.d.ts",
     "contracts/",
     "reports/",

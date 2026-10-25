@@ -44,6 +44,9 @@ self-explanatory; write one when a reviewer would otherwise ask "why?".
 
 ## Local setup
 
+You need Node.js 22 or newer, pnpm 10 or newer (`npm install -g pnpm`; it switches itself to the
+version this repo pins), Docker, and Foundry for the contracts.
+
 ```bash
 pnpm install
 cp .env.example .env               # then fill in your own keys

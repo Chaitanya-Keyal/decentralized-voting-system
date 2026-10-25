@@ -1,9 +1,10 @@
 # Viva Preparation: DVote
 
-This is the study guide for the Evaluation 1 viva (25/26 September 2026). The examiners have
-the report and will not ask us to read it out. They will ask how the mechanisms work, where
-the cost goes, and what the design does not do. Nothing is built yet, so every number in the
-report is a target. Say so clearly. It is the right answer, not an excuse.
+This is the study guide for the questions examiners ask about DVote, first at the Evaluation 1
+presentation and again at the Evaluation 2 demo. They will ask how the mechanisms work, where
+the cost goes, and what the design does not do. The Evaluation 1 report deliberately sets no
+numeric targets, because nothing was built yet: each parameter says what will be measured, and
+Evaluation 2 reports the measured values. Never quote a number as a promise.
 
 Seven claims matter most, and examiners will push hardest on them, because each is easy to
 get wrong with a careless sentence. They are in "The seven claims to state exactly". Use that
@@ -47,9 +48,9 @@ ones".
    ballots for one candidate. We limit it with a signed receipt per accepted ballot and a
    client-side deadline. We do not eliminate it.
 7. **The go/no-go depends on M1, not on the calendar.** It happens one week after M1 is
-   actually done, or immediately if M1 is not done by 18 October. A second fallback is
-   decided on 1 November: tier 2 is a complete working voting system by itself, so the worst
-   case is a demo without anonymity, not no demo.
+   actually done. A second fallback is decided a week before the feature freeze: tier 2 is a
+   complete working voting system by itself, so the worst case is a demo without anonymity,
+   not no demo.
 
 ## The project in one page
 
@@ -254,21 +255,21 @@ reach the published roll size, but it cannot tell a fake leaf from a real studen
 A blockchain has no single server. Every full node re-runs your request and stores the result
 permanently, so the network charges per unit of work. That unit is **gas**. Each EVM
 operation has a fixed gas cost: adding two numbers is 3 gas, writing to an empty storage slot
-about 20,000, a pairing check roughly 200,000. The **gas price** is a per-unit bid that gets
+about 20,000, checking a zero-knowledge proof roughly 200,000 to 250,000. The **gas price** is a per-unit bid that gets
 you included. The **fee** is gas used times gas price, paid in the chain's native token (ETH
 on Ethereum). Since EIP-1559 the base fee is burned and only the priority tip goes to a
 validator. If execution runs out of gas, everything reverts and the gas is still spent.
 
-Worked example with our own budget (parameter A1 caps `castVote` at 400,000 gas, about half
-of it the pairing check):
+Worked example, using the roughly 300,000 gas a ballot cost in our prototype (most of it the
+proof check):
 
 ```
 300,000 gas x 30 gwei = 9,000,000 gwei = 0.009 ETH per ballot
 ```
 
 At Ethereum mainnet prices 0.009 ETH is real money, not a fraction of a rupee. So gas
-(parameter A1) is the engineering measure, and any fiat figure is just an illustration at a
-stated price, not a target. A large real election would use a cheaper execution layer, which
+(parameter A1) is the engineering measure, and we do not convert it to rupees, because that
+needs a gas price and an exchange rate we do not control. A large real election would use a cheaper execution layer, which
 is future work.
 
 The fee is paid by the account that signed and sent the transaction (`msg.sender` in
@@ -323,12 +324,12 @@ This path touches every component, so it is the thing to rehearse.
 | 2 | Registrar | Institute email OTP confirms eligibility; commitment stored in PostgreSQL |
 | 3 | Registrar, at close of registration | Builds the Merkle tree, publishes the leaf set to IPFS, writes the root, roll size and CID to `VoterRegistry` in one transaction |
 | 4 | Ballot booth | Loads the secret, reads root, roll size and CID from the chain, downloads the leaf set, rebuilds the tree in the browser, works out its own authentication path, checks the voter's commitment is in the set. The registrar is not contacted |
-| 5 | Web Worker | Builds the Groth16 proof (hypothesis: 1 to 3 s, which B2 exists to measure), with nullifier and signal as public inputs |
+| 5 | Web Worker | Builds the Groth16 proof (about 0.3 s on a laptop in our prototype; B2 measures it on phones), with nullifier and signal as public inputs |
 | 6 | Ballot booth | Wraps `castVote` in an ERC-2771 request, signs it with EIP-712, sends it to the relayer |
 | 7 | Relayer | Verifies the proof off-chain, checks the nullifier, pays for the transaction from its own funded account, returns a signed receipt |
 | 8 | `VoteForwarder` | Checks signature, nonce and deadline, calls `Election` with the signer added |
 | 9 | `Election.castVote` | Requires the `Voting` phase, verifies the proof against the frozen root, reverts if the nullifier is spent or if accepting would push spent nullifiers past the published roll size, records the nullifier, increases the candidate's count through `TallyLib`, emits `VoteCast` |
-| 10 | Indexer | Copies `VoteCast` into PostgreSQL for fast dashboard reads; lag is on the Phase 3 checklist, not a reported parameter |
+| 10 | Indexer | Copies `VoteCast` into PostgreSQL for fast dashboard reads; lag is on the M3 checklist, not a reported parameter |
 | 11 | Audit dashboard | Reads the chain through a public RPC endpoint, never our backend, and recomputes the tally from raw logs |
 
 Every check in step 9 is a revert, not a status flag, so a ballot is either counted or never
@@ -364,7 +365,7 @@ Each row gives a decision, the option we rejected, and why. Learn the reason, no
 | OpenZeppelin Contracts 5.x | Hand-rolled access control, forwarder, Merkle proofs, clones | In a security project, rewriting an audited role check is hard to justify and harder to review |
 | The audit dashboard reads a public RPC endpoint and never our backend | Serving the tally from our indexer | An audit through our server checks our claims, not the chain, and is useless exactly when it matters. That is why shutting down the backend mid-demo is a real test |
 | The backend is a convenience and liveness layer only | A backend that holds any authority over the result | The registrar only outputs a root, which then freezes. The relayer cannot forge, change or replay a ballot. The indexer is a cache rebuildable from the first block. Do not shorten this to "the relayer only pays gas and can be bypassed": it can still drop every ballot for one candidate, and bypassing it needs gas E2 says the voter lacks |
-| Tier 2 shipped before tier 3 | Building the anonymous version directly | The cost of anonymity is a difference, so it needs two measurements: a gas snapshot at M1 and again after Phase 2. If tier 3 fails, tier 2 is still a complete system to demo |
+| Tier 2 shipped before tier 3 | Building the anonymous version directly | The cost of anonymity is a difference, so it needs two measurements: a gas snapshot at M1 and again at M2. If tier 3 fails, tier 2 is still a complete system to demo |
 | IPFS with the CID stored on-chain for metadata | Storing manifestos on-chain | Same integrity guarantee for much less gas; the file is only available while someone pins it |
 | `TallyLib` as a separate library | Counting rules inside `Election` | The counting rule is published with the election and can be swapped for approval voting without touching lifecycle code, so it is fixed before any ballots exist |
 
@@ -471,9 +472,9 @@ below the roll size, it writes the nullifier, bumps the counter and adds one to 
 candidate's tally (three storage writes), then emits `VoteCast`. Every node ends with the same
 state root.
 
-> *Follow-up.* "Which part is expensive?" The pairing check at roughly 200k gas and a cold
-> storage write at about 20k. That is why A1 targets under 400k: verification uses most of the
-> budget before we write anything.
+> *Follow-up.* "Which part is expensive?" Checking the proof, at roughly 200k to 250k gas, and
+> cold storage writes at about 20k each. In our prototype a whole ballot came to about 325k gas,
+> and verification was most of it.
 >
 > *Trap.* Assuming the proof is checked off-chain and only the result sent. Then the contract
 > trusts our server and every security claim fails. Also, `castVote` is atomic: a revert undoes
@@ -504,8 +505,7 @@ Sepolia uses Ethereum's own proof of stake. Validators propose and attest to blo
 twelve-second slots, and a block is finalized once two epochs have attested to it, after
 about thirteen minutes. A newly included block is not final, and a short reorg (the chain
 switching to a different recent history) can drop it. That is why reorg handling is on the
-Phase 3 checklist, and why our B1 target of p95 under thirty seconds measures inclusion, not
-settlement.
+M3 checklist, and why B1 measures the time to inclusion, not to finality.
 
 > *Follow-up.* "Your voter gets a receipt at one confirmation. What do you tell them?" The
 > ballot is included, not yet finalized. We show a confirmation count; the receipt points to a
@@ -522,12 +522,12 @@ The transaction is no longer on the main chain, so the nullifier write and tally
 gone. If it is still valid and in a mempool, it can be included again and count then.
 Otherwise the vote was not cast and the voter resubmits, which is safe because the nullifier
 was never recorded and our double-vote check reads state, not receipts. The indexer must spot
-the reorg through a parent-hash mismatch and roll back its rows, which Phase 3 tests by
+the reorg through a parent-hash mismatch and roll back its rows, which we test in M3 by
 forcing a reorg on Anvil.
 
 > *Follow-up.* "How deep a reorg are you exposed to on Sepolia?" Only recent unfinalized
 > blocks, so a few in practice, and we wait several confirmations before showing a receipt as
-> settled. Phase 3 tests that the indexer recovers on its own, not how deep real reorgs get.
+> settled. Our M3 test checks that the indexer recovers on its own, not how deep real reorgs get.
 >
 > *Trap.* "It is on the blockchain, so it cannot be lost" confuses inclusion with finality.
 > Worse: "our database still has the ballot, so we would replay it". The backend has no
@@ -636,10 +636,10 @@ double votes. That gives ballot secrecy: unconditional against the chain, and ag
 operator only if the relayer is run separately from the registrar or the voter submits
 directly. Shipping tier 2 first lets us measure the cost, not guess it.
 
-> *Follow-up.* "What does tier 3 cost in gas compared with tier 2?" We do not know yet;
-> finding out is the point. A gas snapshot is committed at the M1 gate on 11 October. We
-> expect Merkle path verification at a few thousand gas per level and Groth16 at a flat couple
-> of hundred thousand, so tier 3 costs more per ballot but stops growing with the roll.
+> *Follow-up.* "What does tier 3 cost in gas compared with tier 2?" We will measure it:
+> a gas snapshot is committed at M1 and again at M2, and A1 reports the difference. We expect
+> Merkle path verification at a few hundred gas per level and Groth16 at a flat couple of
+> hundred thousand, so tier 3 costs more per ballot but stops growing with the roll.
 >
 > *Trap.* "The SNARK makes it cheaper." Almost certainly the opposite. It buys privacy and a
 > flat cost, not a lower number.
@@ -742,9 +742,10 @@ which C2 measures separately.
 A Groth16 proof is the same size at any depth: two G1 points and one G2 point, eight 256-bit
 words, 256 bytes. With four public signals, `castVote` calldata is about 400 bytes, roughly
 6,000 gas at 16 gas per non-zero byte. Verification runs through the elliptic-curve
-precompiles, about 200,000 to 250,000 gas, the biggest cost. A1 targets all of `castVote` under
-400,000, so verification is about half. The rest is the nullifier write, tally increment and
-event. None of this is measured yet.
+precompiles, about 200,000 to 250,000 gas, the biggest cost. In our prototype a whole ballot
+came to about 325,000 gas, so verification is most of it; the rest is the transaction's base
+cost, the calldata, the nullifier write, the tally increment and the event. A1 measures the real
+contracts.
 
 > *Follow-up.* "What if `castVote` comes in at 500,000?" We report and explain it. The pairing
 > cost is fixed with Groth16, so we would look at the nullifier storage layout and the event
@@ -785,7 +786,8 @@ which is linear, so C2 times the two separately. On real devices, memory and the
 download also matter, so B2 is measured per device class.
 
 > *Follow-up.* "So what limits the roll size for a voter on a phone?" The rebuild, not the proof.
-> That is why C2 targets ten thousand voters and only reports a hundred thousand.
+> In our prototype the rebuild took about 1.4 s for ten thousand voters and 12.8 s for a hundred
+> thousand on a laptop, and a phone will be slower. C2 measures both.
 >
 > *Trap.* "Proving time is constant because zero-knowledge proofs are constant size." Proof size
 > and verification cost are constant. Proving time depends on circuit size.
@@ -795,11 +797,11 @@ download also matter, so B2 is measured per device class.
 Not the contract: gas per ballot is flat. Three things break first. The relayer signs from one
 address, so its nonce is a global lock and transactions queue behind it. C3 should find that
 limit; the fix is a pool of relayer keys with separate nonces. Next, the hosted RPC provider's
-rate limit. Then the chain: Sepolia allows 60 million gas per twelve-second block, so at 400,000 gas a
-ballot that is about 12 ballots a second if we had the whole chain, which we do not. Registration is fine,
+rate limit. Then the chain: Sepolia allows 60 million gas per twelve-second block, so at about 325,000 gas a
+ballot that is about 15 ballots a second if we had the whole chain, which we do not. Registration is fine,
 since the tree is built off-chain.
 
-> *Follow-up.* "Twelve a second sounds low." A hundred thousand voters is about two hours of full block
+> *Follow-up.* "Fifteen a second sounds low." A hundred thousand voters is under two hours of full block
 > space, if we had the chain. Fine for a campus; not fine several orders of magnitude higher.
 >
 > *Trap.* Naming the contract or gas as the bottleneck. That is the one thing this design made
@@ -832,7 +834,7 @@ The indexer is only a cache. The audit dashboard never reads it; it reads the ch
 RPC endpoint, which we show by shutting down the backend. In the cache, every row is keyed on
 transaction hash plus log index, so replaying a block is harmless. We store each block's hash
 and check that each new block's parent hash matches; a mismatch means a fork. The database can
-be rebuilt from genesis, as Phase 3 shows. Indexer lag and reorg recovery are Phase 3 checklist
+be rebuilt from genesis, as we show in M3. Indexer lag and reorg recovery are M3 checklist
 items, not reported parameters.
 
 > *Follow-up.* "How do you know the rebuilt database equals the incrementally built one?" Rebuild
@@ -846,7 +848,8 @@ items, not reported parameters.
 voters. I want the arithmetic.**
 
 No. Sepolia allows 60 million gas per twelve-second block, about 5 million gas a second.
-At 400,000 gas a ballot that is about 12 ballots a second with the whole chain to ourselves. India
+At about 325,000 gas a ballot (our prototype's figure) that is about 15 ballots a second with the
+whole chain to ourselves. India
 cast about 640 million votes in 2024: well over a year of full block space with nothing else
 running. So the design fits elections of thousands (a campus, a society, a shareholder vote) and
 is about three orders of magnitude short for a country. The fix is combining many ballots into
@@ -1027,6 +1030,26 @@ very little: the root is frozen and they cannot vote or stop the count.
 
 ### The skeptic's questions
 
+**Others have already built online and blockchain voting. Why not use Helios or MACI?**
+
+Each one makes a different trade-off, and the report cites all of them. Helios publishes proofs
+anyone can check, but the election runs on the organiser's server. A lab study of Estonia's
+national internet voting found attacks on both the voter's computer and the servers, plus
+serious architectural and procedural gaps. Voatz advertised a blockchain, but its flaws were in
+the app and its servers, before any vote reached the chain. On Ethereum, the Open Vote Network
+needs no trusted authority but is built for small boardroom votes, and MACI resists bribery but
+trusts a coordinator not to reveal votes. DVote keeps the count on a public chain and hides who
+voted with zero-knowledge proofs and nullifiers, with no coordinator or tallying authority. The
+price is one trusted registrar for the voter list, and no coercion resistance.
+
+> *Follow-up.* "So why not just use MACI?" Its coordinator can see every vote, and it needs
+> encrypted messages and key changes on top. We chose verifiability without a coordinator, and
+> list coercion resistance as future work.
+>
+> *Trap.* "Voatz used a blockchain and failed, so blockchain voting does not work." Voatz failed
+> before the chain, in the app and the servers. A blockchain does not fix endpoint security, and
+> we say so.
+
 **In one sentence: what does putting this on a blockchain buy you that a well-run server with a
 signed, public, append-only log would not?**
 
@@ -1095,11 +1118,11 @@ arrive, so a partial result is visible and can influence late voters. Hiding it 
 homomorphic tallying (the contract adds encrypted votes, decrypted after the close) or
 commit-reveal (ballots go in encrypted and are opened later). Both are projects of their own.
 Commit-reveal also adds a second transaction per voter, and voters who never return to reveal
-break our usability targets.
+would hurt usability (E3).
 
-> *Follow-up.* "Commit-reveal is not that hard. Why not in eight weeks?" It would land on Phase
-> 2, already the riskiest phase since browser proving and the relayer arrive together, and the
-> freeze is 8 November. One working system beats two half-working ones.
+> *Follow-up.* "Commit-reveal is not that hard. Why not build it?" It would land in M2, already
+> the riskiest milestone since browser proving and the relayer arrive together, right before the
+> feature freeze. One working system beats two half-working ones.
 >
 > *Trap.* "It does not matter because ballots are anonymous." Hiding who cast a ballot and hiding
 > the running total are different properties.
@@ -1132,7 +1155,7 @@ deployment must choose whose security to rely on, on mainnet or a well-secured l
 work.
 
 > *Follow-up.* "So your integrity is only as strong as Sepolia's validators. What happens on a
-> reorg?" Phase 3 covers it: we simulate a reorg locally and check the indexer recovers instead
+> reorg?" M3 covers it: we simulate a reorg locally and check the indexer recovers instead
 > of showing an old tally. A deep reorg on a small validator set is a real risk we name, not
 > finality we claim.
 >
@@ -1197,14 +1220,14 @@ since it runs on devices we do not control.
 > And do not sell the flat line as a saving: tier 3 should cost more per ballot than tier 2 at
 > every roll size we can measure. That is the price of anonymity.
 
-**B1 says 95th percentile under thirty seconds. Most people report an average. Why the tail, and why thirty?**
+**B1 reports the 95th percentile. Most people report an average. Why the tail?**
 
 Each voter feels their own wait, not the average. Confirmation times are skewed: most
 transactions land in one or two blocks, a few wait on a repriced mempool or slow RPC. A fifteen
 second average can hide one voter in twenty waiting a minute, and that voter decides the site is
-broken. We report p50 next to p95 to show the shape. Thirty comes from the chain: Sepolia makes a
-block every twelve seconds, so waiting for the next block alone averages about six seconds and
-about eleven at p95, before proving and relaying.
+broken. We report p50 next to p95 to show the shape, alongside Sepolia's block time, because the
+chain sets most of the wait: a block comes every twelve seconds, so waiting for the next block
+alone averages about six seconds and about eleven at p95, before proving and relaying.
 
 > *Follow-up.* "Why not p99?" It needs a few hundred samples, which the testnet faucet budget
 > cannot fund. We report what our sample size supports and state the size.
@@ -1212,7 +1235,7 @@ about eleven at p95, before proving and relaying.
 > *Trap.* "The average is distorted by outliers we should discard." Those are real voters
 > waiting, not measurement errors.
 
-**E2's target is the word "zero". That is a design property. What experiment could ever return
+**E2 says the voter needs zero ETH. That is a design property. What experiment could ever return
 something else?**
 
 Fair: as written, E2 is a property, not a measurement. The test: create a new zero-balance
@@ -1278,11 +1301,11 @@ Every table caption says where it was measured.
 
 **What does a ballot cost, and what are you actually claiming?**
 
-Gas is the real claim, because it is deterministic: about 300,000 to 400,000 gas per ballot,
-measured with `forge snapshot`. Rupees need two prices we do not control, the gas price in gwei
-and the ETH-to-INR rate, so a rupee figure is an estimate, not a measurement, and is labelled so.
-At Ethereum mainnet prices a ballot costs real money, not paise, so gas is the headline and we
-price it at a stated rate as an example readers can redo with their own numbers.
+Gas is the real claim, because it is deterministic: our prototype measured about 325,000 gas
+per ballot, and A1 measures the real contracts with `forge snapshot`. Rupees need two prices we
+do not control, the gas price in gwei and the ETH-to-INR rate, so we do not report cost in
+rupees at all. At Ethereum mainnet prices a ballot costs real money, not paise, which is why gas
+is the measure: anyone can multiply it by today's gas price themselves.
 
 > *Follow-up.* "So it is expensive on Ethereum?" At L1 mainnet prices, yes, so a large real
 > electorate would use a cheaper execution layer. That is future work; this project measures the
@@ -1301,11 +1324,11 @@ so tier 3 should stay flat; C1 confirms it. Our code: a hidden loop or array pus
 the cost did not vanish; it moved to the registrar and the client, which C2 measures. The real
 claim is narrower than "gas is constant".
 
-> *Follow-up.* "What if it is not flat on 10 November?" Split the graph by call, snapshotting
+> *Follow-up.* "What if it is not flat when you measure it?" Split the graph by call, snapshotting
 > registration, root publication and `castVote` separately across roll sizes. If `castVote`
 > grows, it is our bug and a day's work. If registration grows, we wrote per-voter state, exactly
 > what the off-chain tree avoids. If it is truly linear and unavoidable, we report the slope and
-> name the cause. Feature freeze is 8 November: time to diagnose, not to redesign.
+> name the cause. Measurement comes after the feature freeze: time to diagnose, not to redesign.
 >
 > *Trap.* "The line will be flat because we only store the root." That repeats the hypothesis
 > and hides the per-voter cost instead of showing where it went.
@@ -1389,8 +1412,8 @@ notice?"
 **Why it bites.** Separately, reading the choice and choosing what to forward look like small
 costs. Together they can change the result unseen, because turnout below roll size is normal.
 The workaround, direct submission, does not suit the people we designed for: E2 sets the
-voter's holding to zero, E3 tests people who have never used a wallet, and the Phase 5 plan
-pre-funds only two or three audience wallets.
+voter's holding to zero, E3 tests people who have never used a wallet, and the demo plan
+pre-funds only a few audience wallets.
 
 **The answer.** "That is the strongest attack on our design, and we state it as one attack.
 A relayer that reads the choice and picks what to forward can bias the result without it
@@ -1488,7 +1511,7 @@ the tree has ten leaves or a hundred thousand."
 arithmetic, not an experiment, and needs a baseline next to it to mean anything. Worse, a
 blanket "flat" prediction is wrong for tier 2's ballot, which sends a log2(n) authentication
 path in calldata: at roughly 500 to 600 gas per level it rises by seven to eight thousand gas
-from depth 4 to depth 17. Our own Phase 1 snapshot would disprove a plain "gas does not grow" claim.
+from depth 4 to depth 17. Our own M1 gas snapshot would disprove a plain "gas does not grow" claim.
 
 **The answer.** "Yes, the registration line is flat by design. Its real job is to catch a bug
 that adds an O(n) cost, like storing commitments on-chain or emitting the leaf array in an
@@ -1597,39 +1620,37 @@ impossible once the root is frozen."
 
 ### 11. The go/no-go is conditional on M1, not on the calendar
 
-**The question.** "What is your plan if M1 lands on 18 October instead of 11 October?"
+**The question.** "What is your plan if M1 lands a week late?"
 
 **Why it bites.** A decision tied to a fixed date decides nothing here. Whether in-browser proving
-works on a phone cannot be judged until M1 exists, because Phase 2 is built on tier 2. M1 is due
-11 October, with seven days of slack before the 18 October cutoff, and Phase 1 is not a prototype. In fourteen days it needs
-the state machine, the factory with clones, `castVote` with Merkle verification, a Foundry test
-suite above 80 percent, TypeScript and Solidity tree builders that agree bit for bit, a Fastify
-service, a schema, an indexer, wallet connect, the admin console and a ballot screen.
+works on a phone cannot be judged until M1 exists, because M2 is built on tier 2. And M1 is not a
+prototype: it needs the state machine, the factory with clones, `castVote` with Merkle
+verification, a Foundry test suite, TypeScript and Solidity tree builders that agree bit for bit,
+a Fastify service, a schema, an indexer, wallet connect, the admin console, the registration page
+and a ballot screen.
 
-**The answer.** "So our decision is conditional: one week after M1 actually lands, or
-immediately if M1 has not landed by 18 October, because then the schedule is the problem, not
-the technology. There is a second fallback with its own date. Tier 2 is a complete working
-voting system, not half of tier 3, so the worst case is a demo without anonymity, not no demo.
-That call is made on 1 November, a week before the freeze, not discovered at the freeze.
-Server-side proving covers only one way Phase 2 can fail. It does nothing for the relayer or the
-contract-side proof wiring, and it moves the identity secret onto our server, a privacy loss we
-would document, not hide. The relayer risk has its own answer: the demo can use direct submission
-from pre-funded wallets, which costs us parameter E2 but not the election."
+**The answer.** "So our decision is conditional: one week after M1 actually lands, because before
+that there is nothing to judge. There is a second fallback. Tier 2 is a complete working voting
+system, not half of tier 3, so the worst case is a demo without anonymity, not no demo. That call
+is made a week before the feature freeze, not discovered at the freeze. Server-side proving
+covers only one way M2 can fail. It does nothing for the relayer or the contract-side proof
+wiring, and it moves the identity secret onto our server, a privacy loss we would document, not
+hide. The relayer risk has its own answer: the demo can use direct submission from pre-funded
+wallets, which costs us parameter E2 but not the election."
 
-> **On the hours.** If asked whether eight weeks is realistic, do not claim it is free time. The
-> phase budget assumes the hours available alongside other coursework, and the 8 November feature
-> freeze is partly there to absorb exam periods. Do not offer a split of the work in the room or
-> in the report.
+> **On the hours.** If asked whether the schedule is realistic, do not claim it is free time. The
+> plan assumes the hours available alongside other coursework, and the feature freeze is there to
+> absorb slippage. Do not offer a split of the work in the room or in the report.
 
 ### 12. Smaller points, stated rather than defended
 
 | Point | The position |
 | :-- | :-- |
 | Who is allowed to finalize an election | The closing steps are permissionless: once their timestamps pass, anyone can close voting and finalize. Only configuration and cancellation, both before voting opens, belong to the authority; every other step, including opening registration and voting, is open to anyone once its time passes. D5 tests an observer finalizing over the authority's objection |
-| Crediting the EIP-712 signature with stopping a relayer altering a ballot | The proof stops that, because the signal is a public input. ERC-2771 is not a security boundary here; we keep it for the request deadline, one code path shared with direct submission, and an audited implementation. If A1 goes over budget, dropping the forwarder is the first saving |
-| Listing OpenZeppelin `MerkleProof` and Semaphore as if tier 3 upgraded tier 2's tree | They are different trees: keccak over sorted pairs versus Poseidon in a LeanIMT. A keccak root is not a valid circuit input, as it is not kept below the field modulus. Phase 2 replaces the tree builder and what the registry treats as a root. Verification uses the standalone Semaphore verifier with our own root, and the tree depth fixed in the contract, not taken from the caller |
-| Extrapolating to ten crore voters at INR 5 crore | Throughput runs out long before money: about 12 ballots a second is roughly three months of all the block space. Quote one lakh. Ten crore also contradicts the scope set in Section 2 |
-| Proving time of roughly one to three seconds | An expectation from published desktop benchmarks, so a hypothesis that B2 measures. What would really trigger the fallback is phone memory running out or the file download, and both go in the risk table |
+| Crediting the EIP-712 signature with stopping a relayer altering a ballot | The proof stops that, because the signal is a public input. ERC-2771 is not a security boundary here; we keep it for the request deadline, one code path shared with direct submission, and an audited implementation. If gas becomes a problem, dropping the forwarder is the first saving |
+| Listing OpenZeppelin `MerkleProof` and Semaphore as if tier 3 upgraded tier 2's tree | They are different trees: keccak over sorted pairs versus Poseidon in a LeanIMT. A keccak root is not a valid circuit input, as it is not kept below the field modulus. M2 replaces the tree builder and what the registry treats as a root. Verification uses the standalone Semaphore verifier with our own root, and the tree depth fixed in the contract, not taken from the caller |
+| Extrapolating to ten crore voters at INR 5 crore | Throughput runs out long before money: about 15 ballots a second is roughly two and a half months of all the block space. Quote one lakh. Ten crore also contradicts the scope set in Section 2 |
+| Proving time | Our prototype took about 0.3 s per proof on a laptop; phones will be slower, and B2 measures them. What would really trigger the fallback is phone memory running out or the file download, and both go in the risk table |
 | Whether the timing should include wallet installation | Voting needs no wallet: the proof shows eligibility and the signing key is created in the browser. We measure the no-wallet path and report wallet install separately as the fallback cost |
 | "An observer can verify the tally even if every service we operate is lying" | Too broad. Narrow it: no special access is needed, and an auditor can use any provider or their own node. We run no light client in the browser, so someone who trusts nobody must run a node |
 | A relayer accepting a ballot near the close of voting and submitting it after | The ERC-2771 deadline expires before voting closes, relayed submission is refused in the last few minutes, and a receipt appears only once a confirmed transaction hash exists |
@@ -1651,7 +1672,7 @@ check the section and give the position below.
 | 8 | Ballot secrecy limited by anonymity set size; demo sized so the set is not one | Sections 3, 4 |
 | 9 | Coercion a non-goal; handing over the secret its own non-guarantee; where the hosted system is better admitted in the domain section | Sections 2, 3 |
 | 10 | A lost secret is the seventh non-guarantee; the booth offers a backup copy at registration | Section 3 |
-| 11 | Go/no-go tied to M1; tier 2 as second fallback, decided 1 November | Section 6 |
+| 11 | Go/no-go tied to M1; tier 2 as second fallback, decided a week before the feature freeze | Section 6 |
 | 12 | Permissionless closing steps; ERC-2771 credited correctly; tier 2 and tier 3 trees as a replacement; proving time a hypothesis; no-wallet path stated | Sections 3, 4, 5, 6 |
 
 ## Cheat sheet
@@ -1677,40 +1698,40 @@ is expected to cost more per ballot at every roll size we can measure. Registrat
 design, so the parameter that can really fail is C2: whether a phone can rebuild the tree and prove
 for a large roll.**
 
-**Before quoting any gas figure.** Nothing has been measured yet. Every number is a target we set
-or a rough expectation from published figures, so say which. "We expect roughly 200k gas for the
-proof check, and A1 measures it in November" is good. Stating it as fact is a claim you cannot
-back up.
+**Before quoting any number.** The report sets no numeric targets, so never quote a number as a
+promise. The only figures we have come from a prototype, so say so: "our prototype measured
+about 325,000 gas per ballot, and A1 will measure the real contracts" is good. Stating a number
+as a final result is a claim you cannot back up yet.
 
 | Number | Value |
 | :-- | :-- |
-| `castVote` gas budget (A1) | under 400,000, a target, not a measurement |
+| `castVote` gas | about 325,000 per ballot in our prototype; A1 measures the real contracts |
 | Groth16 proof | 8 field elements, 256 bytes, same at every tree depth |
-| Cost per ballot | graded as gas (A1); a money figure is not a parameter, since it needs a gas price and exchange rate we do not control |
-| Latency targets | B1 p95 under 30 s end to end, B2 p95 under 5 s proving on a mid-range phone |
-| Repetitions | n at least 30 per data point, report median and p95 |
+| Cost per ballot | measured in gas (A1), never converted to rupees, since that needs a gas price and an exchange rate we do not control |
+| Proving time | about 0.3 s per proof on a laptop in our prototype; B2 measures phones |
+| Tree rebuild | about 1.4 s for 10,000 voters and 12.8 s for 100,000 on a laptop in our prototype; C2 measures it properly |
+| Repetitions | several runs per data point, reported as the median and p95 |
 | Faucet reality | testnet faucets cannot fund a long load test, so throughput runs on a local node |
-| Usability targets | E1 at most 4 steps, E2 zero ETH held, E3 over 80 percent of 10 users unaided |
+| Usability | E1 counts the steps, E2 must be zero ETH, E3 is an unaided test with people new to cryptocurrency |
 
-| Date | What |
+| Milestone | What |
 | :-- | :-- |
-| 25/26 Sep 2026 | Evaluation 1: report, presentation, questions. No code required |
-| 28 Sep to 11 Oct | Phase 1, M1: tier 2 working end to end locally, first gas snapshot committed |
-| 12 to 25 Oct | Phase 2, M2: tier 3, anonymous and gasless on Sepolia |
-| **M1 plus one week** | **Go/no-go on in-browser proving, tied to M1, not the calendar: one week after M1 actually lands, or immediately if M1 has not landed by 18 October. Fallback is server-side proving, with the privacy loss documented** |
-| 26 Oct to 8 Nov | Phase 3, M3: feature freeze on 8 November |
-| **1 Nov** | **Second decision, a week before the freeze: if no anonymous ballot has been cast on Sepolia by then, we demonstrate tier 2. Tier 2 is a complete voting system, so the worst case is a demo without anonymity** |
-| 9 to 15 Nov | Phase 4: measurement campaign, C1 graph first |
-| 16 to 19 Nov | Phase 5: three timed rehearsals, pre-funded wallets, recorded fallback video |
-| 20/21 Nov 2026 | Evaluation 2: live demo, complete code, final report |
+| M1 | Tier 2 working end to end locally; first gas snapshot committed |
+| **Go/no-go** | **One week after M1: if phones cannot prove, proving moves to the server, with the privacy loss documented** |
+| M2 | Tier 3: anonymous and gasless on Sepolia; second gas snapshot committed |
+| **Tier 3 fallback** | **A week before the freeze: if no anonymous ballot has been cast on Sepolia, we demonstrate tier 2, a complete voting system without anonymity** |
+| M3 | Feature freeze |
+| Measurement | Every parameter measured, C1 graph first |
+| Demo | Three timed rehearsals, pre-funded wallets, a recorded backup video |
+| Evaluation 2 | Live demo, complete code, final report |
 
 **Testbed.** Ethereum Sepolia for latency and the live demo; it is the Ethereum Foundation's
 recommended testnet for building applications. Gas and throughput are measured on a local
 Foundry node, where gas is deterministic and testing many roll sizes is free.
 
-**Schedule honesty.** As in item 11: the phase budget assumes hours alongside other coursework,
-and the 8 November freeze partly absorbs exam periods. Do not call it free time or offer a split
-of the work.
+**Schedule honesty.** As in item 11: the plan assumes hours alongside other coursework, and the
+feature freeze is there to absorb slippage. Do not call it free time or offer a split of the
+work.
 
 **Six sentences worth having word-perfect.**
 
@@ -1783,7 +1804,7 @@ frontend host).
 | **Scope** | The election identifier mixed into the nullifier so ballots cannot be linked across elections |
 | **Semaphore v4** | The audited protocol for proving anonymous group membership; it supplies our circuit, verifier and nullifier scheme |
 | **Signal** | The public input carrying the candidate choice, tied into the proof so it cannot be changed in transit |
-| **Slither** | Static analyser for Solidity; run as part of the Phase 3 checklist, not reported as a parameter |
+| **Slither** | Static analyser for Solidity; part of the M3 checklist, not reported as a parameter |
 | **Soundness** | The property that a prover without a valid witness cannot produce an accepted proof |
 | **SSTORE** | The EVM opcode that writes a storage slot |
 | **Sybil resistance** | Resistance to one person enrolling many times; explicitly not guaranteed at our registrar |
