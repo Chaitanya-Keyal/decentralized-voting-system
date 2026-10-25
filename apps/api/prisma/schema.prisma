@@ -57,3 +57,72 @@ model VoterListPublication {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ---------------------------------------------------------------------------------------------
+// The indexer's copy of the chain. Everything below is public and can be rebuilt from the chain's
+// events at any time; the chain stays the source of truth.
+// ---------------------------------------------------------------------------------------------
+
+/// An election the factory created, as of the last block the indexer read.
+model Election {
+  address           String      @id
+  authority         String
+  registrar         String
+  title             String      @default("")
+  metadataCid       String      @default("")
+  /// Unix seconds.
+  registrationStart BigInt      @default(0)
+  registrationEnd   BigInt      @default(0)
+  votingStart       BigInt      @default(0)
+  votingEnd         BigInt      @default(0)
+  phase             Int         @default(0)
+  voterRoot         String?
+  voterCount        Int?
+  voterListCid      String?
+  /// Set by `Finalized`.
+  finalTally        Int[]
+  winners           Int[]
+  createdAtBlock    BigInt
+  createdTxHash     String
+  candidates        Candidate[]
+  ballots           Ballot[]
+}
+
+model Candidate {
+  electionAddress String
+  index           Int
+  name            String
+  manifestoCid    String
+  election        Election @relation(fields: [electionAddress], references: [address], onDelete: Cascade)
+
+  @@id([electionAddress, index])
+}
+
+/// One `VoteCast` event: a ballot the election accepted.
+model Ballot {
+  id              Int      @id @default(autoincrement())
+  electionAddress String
+  /// The voter's address in tier 2, the nullifier in tier 3.
+  key             String
+  candidate       Int
+  blockNumber     BigInt
+  /// Unix seconds.
+  timestamp       BigInt
+  txHash          String
+  logIndex        Int
+  election        Election @relation(fields: [electionAddress], references: [address], onDelete: Cascade)
+
+  @@unique([txHash, logIndex])
+  @@index([electionAddress])
+}
+
+/// The last block the indexer has read on each chain.
+model IndexerCursor {
+  chainId     Int      @id
+  /// Hash of the chain's first block. A restarted Anvil node is a new chain with a new one.
+  genesisHash String   @default("")
+  block       BigInt
+  /// Hash of `block`, to notice when the chain has replaced it.
+  blockHash   String   @default("")
+  updatedAt   DateTime @updatedAt
+}

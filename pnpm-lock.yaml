@@ -235,6 +235,9 @@ importers:
       nodemailer:
         specifier: ^10.2.1
         version: 10.2.1
+      pino:
+        specifier: ^10.4.0
+        version: 10.4.0
       viem:
         specifier: 'catalog:'
         version: 2.57.11(typescript@5.9.3)(zod@4.6.7)

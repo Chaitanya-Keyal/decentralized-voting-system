@@ -14,6 +14,7 @@ import { z } from "zod";
 import { chain, deployment, registrar } from "./chain";
 import { env } from "./env";
 import { clientError, loggable, parse } from "./http";
+import { getElection, indexerStatus, listBallots, listElections } from "./indexer/queries";
 import { pinJson } from "./ipfs";
 import { publishVoterList, register, registrationCount, sendCode } from "./registrar";
 
@@ -75,6 +76,23 @@ export async function buildApp(options: { logger?: boolean } = {}): Promise<Fast
     const { election } = parse(electionParams, request.params);
     return publishVoterList(election, request.log);
   });
+
+  // Indexer: a read cache of the chain, for pages that list elections and ballots. Anything shown
+  // from here can be checked against the chain itself.
+
+  app.get("/elections", () => listElections());
+
+  app.get("/elections/:election", async (request) => {
+    const { election } = parse(electionParams, request.params);
+    return getElection(election);
+  });
+
+  app.get("/elections/:election/ballots", async (request) => {
+    const { election } = parse(electionParams, request.params);
+    return listBallots(election);
+  });
+
+  app.get("/indexer", () => indexerStatus());
 
   // Metadata: ballot descriptions and manifestos, pinned to IPFS (FR1).
 
