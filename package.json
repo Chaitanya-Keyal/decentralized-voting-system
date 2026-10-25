@@ -8,8 +8,8 @@
   "scripts": {
     "dev": "pnpm --parallel --filter @dvote/web --filter @dvote/api dev",
     "build": "pnpm -r --if-present build",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "pnpm --filter @dvote/web typegen && eslint .",
+    "lint:fix": "pnpm --filter @dvote/web typegen && eslint . --fix",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
     "format": "prettier --write .",
