@@ -1,4 +1,5 @@
 // Small UI building blocks, styled with Tailwind.
+import Link from "next/link";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -33,6 +34,29 @@ export function Button({
       )}
       {...props}
     />
+  );
+}
+
+/** A link that looks like a button. */
+export function LinkButton({
+  href,
+  variant = "primary",
+  children,
+}: {
+  href: string;
+  variant?: keyof typeof buttonStyles;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cx(
+        "inline-flex w-fit items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+        buttonStyles[variant],
+      )}
+    >
+      {children}
+    </Link>
   );
 }
 
