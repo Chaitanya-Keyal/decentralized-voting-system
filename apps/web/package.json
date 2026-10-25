@@ -3,15 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NODE_OPTIONS=--no-experimental-webstorage next dev",
     "build": "next build",
     "start": "next start",
+    "typegen": "next typegen",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@dvote/shared": "workspace:*",
+    "@rainbow-me/rainbowkit": "2.2.11",
+    "@tanstack/react-query": "^5.104.5",
     "next": "16.4.3",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "viem": "catalog:",
+    "wagmi": "2.19.5",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",

@@ -16,6 +16,10 @@ allowBuilds:
   "@prisma/engines": true
   esbuild: true
   prisma: true
+  # Optional native speed-ups pulled in by wallet libraries; each has a JavaScript fallback.
+  bufferutil: false
+  keccak: false
+  utf-8-validate: false
   sharp: false
   unrs-resolver: false
 
@@ -24,3 +28,12 @@ peerDependencyRules:
     # esbuild is an optional peer of Vite 8, which does not use it here. The 0.25 copy in the
     # tree is the one @wagmi/cli pins.
     vite>esbuild: ">=0.25"
+    # Peers of WalletConnect's dependencies, which wagmi's connectors pull in. use-sync-external-store
+    # 1.2 works with React 19, and abitype only needs zod for an entry point nothing here imports.
+    use-sync-external-store>react: "19"
+    abitype>zod: "4"
+
+overrides:
+  # Base Account, inside wagmi's connectors, accepts any 1.x of the Coinbase SDK. From 1.53 that SDK
+  # imports optional payment packages that are not installed, which breaks the Next.js build.
+  "@coinbase/cdp-sdk": 1.52.0

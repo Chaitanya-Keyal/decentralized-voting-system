@@ -17,8 +17,8 @@ const schema = z
     // Localhost by default; set HOST=0.0.0.0 to reach the API from a phone on the same network.
     HOST: z.string().default("127.0.0.1"),
     PORT: z.coerce.number().int().positive().default(4000),
-    /** The web app's origin, allowed by CORS. */
-    WEB_ORIGIN: z.string().default("http://localhost:3000"),
+    /** The web app's origins, comma-separated, allowed by CORS. */
+    WEB_ORIGIN: z.string().default("http://localhost:3000,http://127.0.0.1:3000"),
     DATABASE_URL: z.string().min(1, "DATABASE_URL is required; see .env.example"),
 
     RPC_URL: z.url().default("http://127.0.0.1:8545"),
