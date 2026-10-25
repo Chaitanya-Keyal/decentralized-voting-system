@@ -16,7 +16,8 @@
     "build:contracts": "forge build --root contracts",
     "test:contracts": "forge test --root contracts",
     "format:contracts": "forge fmt --root contracts",
-    "lint:contracts": "forge lint --root contracts --deny warnings"
+    "lint:contracts": "forge lint --root contracts --deny warnings",
+    "deploy:local": "cd contracts && forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --unlocked --sender 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
