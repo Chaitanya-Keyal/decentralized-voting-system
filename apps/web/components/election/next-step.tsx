@@ -10,7 +10,7 @@ import { describeError } from "@/lib/errors";
 import { ipfsUrl } from "@/lib/ipfs";
 import { formatRelative, formatTime } from "@/lib/time";
 
-import { Button, Mono, Notice, Spinner } from "../ui";
+import { Button, LinkButton, Mono, Notice, Spinner } from "../ui";
 import { ActionButton } from "./action-button";
 import { SkipAhead } from "./skip-ahead";
 
@@ -122,9 +122,12 @@ function currentStep(election: OnchainElection, now: number): Step {
         message: `Registration is open until ${formatTime(schedule.registrationEnd)}.`,
         details: <RegistrationCount election={election} />,
         actions: (
-          <ActionButton election={address} step="openRegistration" variant="secondary">
-            Record on-chain that registration is open
-          </ActionButton>
+          <>
+            <LinkButton href={`/elections/${address}/register`}>Register to vote</LinkButton>
+            <ActionButton election={address} step="openRegistration" variant="secondary">
+              Record on-chain that registration is open
+            </ActionButton>
+          </>
         ),
         next: schedule.registrationEnd,
       };
@@ -134,6 +137,9 @@ function currentStep(election: OnchainElection, now: number): Step {
         return {
           message: `Registration is open until ${formatTime(schedule.registrationEnd)}.`,
           details: <RegistrationCount election={election} />,
+          actions: (
+            <LinkButton href={`/elections/${address}/register`}>Register to vote</LinkButton>
+          ),
           next: schedule.registrationEnd,
         };
       }
@@ -142,6 +148,11 @@ function currentStep(election: OnchainElection, now: number): Step {
         return {
           message: `The voter list is published, and voting opens ${formatRelative(schedule.votingStart, now)}. Until then, voters can check that they are on it.`,
           details: <VoterList election={election} />,
+          actions: (
+            <LinkButton href={`/elections/${address}/vote`} variant="secondary">
+              Check that you are on the list
+            </LinkButton>
+          ),
           next: schedule.votingStart,
         };
       }
@@ -167,6 +178,9 @@ function currentStep(election: OnchainElection, now: number): Step {
         return {
           message: `Voting is open until ${formatTime(schedule.votingEnd)}.`,
           details: <VoterList election={election} />,
+          actions: (
+            <LinkButton href={`/elections/${address}/vote`}>Go to the ballot booth</LinkButton>
+          ),
           next: schedule.votingEnd,
         };
       }
