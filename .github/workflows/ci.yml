@@ -27,6 +27,7 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm test
       - run: pnpm build
 
   contracts:
@@ -42,7 +43,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile --filter @dvote/contracts
+      - run: pnpm install --frozen-lockfile --filter @dvote/contracts --filter @dvote/shared
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: v1.8.6
@@ -52,3 +53,8 @@ jobs:
       - run: forge test
         env:
           FOUNDRY_PROFILE: ci
+      - name: Check the generated ABIs are up to date
+        working-directory: .
+        run: |
+          pnpm --filter @dvote/shared generate
+          git diff --exit-code packages/shared/src/generated.ts

@@ -10,8 +10,12 @@ solc_version = "0.8.28"
 evm_version = "cancun"
 optimizer = true
 optimizer_runs = 200
-# The deploy script records addresses in deployments/.
-fs_permissions = [{ access = "read-write", path = "./deployments" }]
+# The deploy script records addresses in deployments/, and a test reads a fixture written by
+# the TypeScript tree builder.
+fs_permissions = [
+    { access = "read-write", path = "./deployments" },
+    { access = "read", path = "./test/fixtures" },
+]
 
 [profile.ci.fuzz]
 runs = 1000

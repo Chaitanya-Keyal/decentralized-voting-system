@@ -19,35 +19,16 @@ contract MerkleElectionTest is Test {
     bytes32 internal root;
 
     function setUp() public {
-        ElectionFactory factory = new ElectionFactory(address(new MerkleElection()));
-
-        uint64 t = uint64(block.timestamp);
-        schedule = Election.Schedule(t + 100, t + 200, t + 300, t + 400);
-        Election.Candidate[] memory candidates = new Election.Candidate[](2);
-        candidates[0] = Election.Candidate("Alice", "");
-        candidates[1] = Election.Candidate("Bob", "");
-
-        vm.prank(authority);
-        election =
-            MerkleElection(factory.createElection(registrar, "Senate", "", schedule, candidates));
-
         // A four-leaf tree: root = H(H(l0, l1), H(l2, l3)), with sorted-pair hashing.
         for (uint256 i; i < 4; ++i) {
             voters[i] = makeAddr(string.concat("voter", vm.toString(i)));
-            leaves[i] = election.voterLeaf(voters[i]);
+            leaves[i] = keccak256(bytes.concat(keccak256(abi.encode(voters[i]))));
         }
         root = Hashes.commutativeKeccak256(
             Hashes.commutativeKeccak256(leaves[0], leaves[1]),
             Hashes.commutativeKeccak256(leaves[2], leaves[3])
         );
-
-        vm.warp(schedule.registrationStart);
-        election.openRegistration();
-        vm.warp(schedule.registrationEnd);
-        vm.prank(registrar);
-        election.publishVoterList(root, 4, "bafy-voter-list");
-        vm.warp(schedule.votingStart);
-        election.openVoting();
+        election = _openVoting(root, 4);
     }
 
     function test_castVote_registeredVoterIsCounted() public {
@@ -108,9 +89,26 @@ contract MerkleElectionTest is Test {
     }
 
     function test_voterLeaf_matchesStandardMerkleTreeEncoding() public view {
-        assertEq(
-            election.voterLeaf(voters[0]), keccak256(bytes.concat(keccak256(abi.encode(voters[0]))))
-        );
+        for (uint256 i; i < 4; ++i) {
+            assertEq(election.voterLeaf(voters[i]), leaves[i]);
+        }
+    }
+
+    /// @dev The fixture is written by packages/shared/src/voter-list.test.ts, so this checks that
+    /// proofs built by the TypeScript tree builder are accepted on-chain.
+    function test_castVote_acceptsProofsBuiltInTypeScript() public {
+        string memory json =
+            vm.readFile(string.concat(vm.projectRoot(), "/test/fixtures/voter-list.json"));
+        address[] memory listed = vm.parseJsonAddressArray(json, ".voters");
+        MerkleElection fromFixture = _openVoting(vm.parseJsonBytes32(json, ".root"), listed.length);
+
+        for (uint256 i; i < listed.length; ++i) {
+            bytes32[] memory proof =
+                vm.parseJsonBytes32Array(json, string.concat(".proofs[", vm.toString(i), "]"));
+            vm.prank(listed[i]);
+            fromFixture.castVote(i % 2, proof);
+        }
+        assertEq(fromFixture.ballotsCast(), listed.length);
     }
 
     function testFuzz_castVote_outsiderCannotUseAnyProof(address outsider, uint8 which) public {
@@ -121,6 +119,26 @@ contract MerkleElectionTest is Test {
         vm.expectRevert(MerkleElection.NotEligible.selector);
         vm.prank(outsider);
         election.castVote(0, proof);
+    }
+
+    /// @dev Creates an election, publishes the given voter list and opens voting.
+    function _openVoting(bytes32 voterRoot, uint256 count) internal returns (MerkleElection e) {
+        ElectionFactory factory = new ElectionFactory(address(new MerkleElection()));
+        uint64 t = uint64(block.timestamp);
+        schedule = Election.Schedule(t + 100, t + 200, t + 300, t + 400);
+        Election.Candidate[] memory candidates = new Election.Candidate[](2);
+        candidates[0] = Election.Candidate("Alice", "");
+        candidates[1] = Election.Candidate("Bob", "");
+
+        vm.prank(authority);
+        e = MerkleElection(factory.createElection(registrar, "Senate", "", schedule, candidates));
+        vm.warp(schedule.registrationStart);
+        e.openRegistration();
+        vm.warp(schedule.registrationEnd);
+        vm.prank(registrar);
+        e.publishVoterList(voterRoot, count, "bafy-voter-list");
+        vm.warp(schedule.votingStart);
+        e.openVoting();
     }
 
     /// @dev Proof for leaf `i` in the four-leaf tree built in setUp.

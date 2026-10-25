@@ -7,9 +7,20 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "generate": "wagmi generate",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "typescript": "catalog:"
+    "@types/node": "catalog:",
+    "@wagmi/cli": "2.10.0",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  },
+  "dependencies": {
+    "@openzeppelin/merkle-tree": "1.0.8",
+    "viem": "catalog:",
+    "zod": "catalog:"
   }
 }
