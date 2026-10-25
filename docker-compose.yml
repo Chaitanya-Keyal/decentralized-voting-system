@@ -1,6 +1,6 @@
-# Local Postgres (registrar and indexer) and Redis (relayer queue), reachable from this
-# machine only. Host ports are 5433 and 6380 so they don't clash with a locally installed
-# Postgres or Redis on the default ports.
+# Local Postgres (registrar and indexer), Redis (relayer queue), an IPFS node (voter lists and
+# ballot metadata) and a mail catcher, reachable from this machine only. Postgres and Redis use
+# host ports 5433 and 6380 so they don't clash with a locally installed Postgres or Redis.
 services:
   postgres:
     image: postgres:17-alpine
@@ -18,5 +18,25 @@ services:
     ports:
       - "127.0.0.1:6380:6379"
 
+  # 5001 is the node's RPC API, which can change its settings; 8080 is the read-only gateway the
+  # browser downloads from.
+  ipfs:
+    image: ipfs/kubo:v0.43.1
+    environment:
+      IPFS_PROFILE: server
+    ports:
+      - "127.0.0.1:5001:5001"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ipfs-data:/data/ipfs
+
+  # Catches the registrar's emails in development. Read them at http://127.0.0.1:8025.
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
 volumes:
   postgres-data:
+  ipfs-data:

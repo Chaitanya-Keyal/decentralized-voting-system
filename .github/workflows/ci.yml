@@ -16,6 +16,21 @@ jobs:
   web-and-api:
     name: Format, lint, typecheck, build
     runs-on: ubuntu-latest
+    # The API tests need Postgres, and Foundry for a local chain.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dvote
+          POSTGRES_PASSWORD: dvote
+          POSTGRES_DB: dvote
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -24,6 +39,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.6
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck

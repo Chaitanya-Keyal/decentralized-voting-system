@@ -26,6 +26,7 @@ export default defineConfig([
     "**/out/",
     "**/build/",
     "**/next-env.d.ts",
+    "apps/api/src/generated/",
     "contracts/",
     "reports/",
     "docs/",
