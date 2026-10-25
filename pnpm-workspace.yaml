@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+  - contracts
+
+# One version of these across every package.
+catalog:
+  "@types/node": ^22.0.0
+  typescript: ~5.9.3
+
+allowBuilds:
+  esbuild: true
+  sharp: false
+  unrs-resolver: false

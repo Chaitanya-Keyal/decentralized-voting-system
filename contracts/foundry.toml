@@ -1,0 +1,25 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+libs = ["node_modules"]
+solc_version = "0.8.28"
+# Cancun is the default target for solc 0.8.28 and is supported on Sepolia and Anvil.
+# OpenZeppelin 5.x needs it for `mcopy`.
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+
+[profile.ci.fuzz]
+runs = 1000
+
+# forge fmt always indents with spaces.
+[fmt]
+line_length = 100
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+quote_style = "double"
+number_underscore = "thousands"
+sort_imports = true

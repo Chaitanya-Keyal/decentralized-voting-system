@@ -1,0 +1,14 @@
+# Generated or vendored
+pnpm-lock.yaml
+**/.next/
+**/dist/
+**/out/
+**/next-env.d.ts
+
+# Formatted by their own tools (forge fmt for Solidity)
+contracts/
+
+# Prose and LaTeX are formatted by hand
+**/*.md
+docs/
+reports/

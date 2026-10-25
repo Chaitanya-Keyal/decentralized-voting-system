@@ -17,7 +17,7 @@
 
 - [ ] Tests added or updated (required for contract changes)
 - [ ] `forge test` passes
-- [ ] `pnpm lint && pnpm typecheck` pass
+- [ ] `pnpm format:check && pnpm lint && pnpm typecheck` pass
 - [ ] No secrets, keys, or `.env` files in the diff
 - [ ] Docs updated if behaviour or architecture changed
 

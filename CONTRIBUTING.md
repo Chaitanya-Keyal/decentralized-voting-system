@@ -37,7 +37,8 @@ self-explanatory; write one when a reviewer would otherwise ask "why?".
 
 - Keep them small.
 - Fill in the template, especially the *how to verify* section.
-- CI must be green: `forge test`, `forge fmt --check`, `slither`, `tsc`, `eslint`.
+- CI must be green: formatting, lint, typecheck and build for the TypeScript packages, and
+  `forge fmt --check`, `forge lint`, `forge build` and `forge test` for the contracts.
 - Contract changes must include tests. A contract PR with no new tests will be sent back.
 - Squash-merge into `main`.
 
@@ -45,15 +46,38 @@ self-explanatory; write one when a reviewer would otherwise ask "why?".
 
 ```bash
 pnpm install
-forge build && forge test          # contracts
 cp .env.example .env               # then fill in your own keys
+docker compose up -d               # Postgres and Redis
 pnpm dev                           # web + api
+pnpm test:contracts                # Foundry tests
 ```
 
-Foundry: `curl -L https://foundry.paradigm.xyz | bash && foundryup`
+`pnpm install` also fetches the Solidity libraries (OpenZeppelin, Semaphore, forge-std)
+into `contracts/node_modules`, so there are no git submodules.
+
+Foundry: `curl -L https://foundry.paradigm.xyz | bash && foundryup`, then add
+`~/.foundry/bin` to your `PATH`.
+
+## Code style
+
+Spaces, never tabs: two for TypeScript, JSON, YAML and CSS, four for Solidity and Python.
+`.editorconfig` sets this for any editor, and VS Code picks up the recommended extensions
+and format-on-save from `.vscode/`.
+
+```bash
+pnpm format              # Prettier, writes changes
+pnpm lint                # ESLint over the whole workspace (pnpm lint:fix to auto-fix)
+pnpm typecheck           # tsc in every package, strict mode
+pnpm format:contracts    # forge fmt
+pnpm lint:contracts      # forge lint
+```
+
+Run all of these before opening a pull request; CI runs the same checks and fails on any
+difference. TypeScript is strict everywhere, including `noUncheckedIndexedAccess`, and ESLint
+uses type-aware rules, so floating promises and unsafe `any` are errors.
 
 ## Gas discipline
 
 Every contract PR that touches a hot path runs `forge snapshot --diff` and pastes the
-result in the PR. Gas is a graded evaluation parameter; a regression that lands unnoticed
-in October is a worse number in the November report.
+result in the PR. Gas is a graded evaluation parameter, and a regression that lands
+unnoticed is a worse number in the final report.

@@ -43,7 +43,7 @@ quotes is a stated illustration rather than a target.
 
 | Choice | Why |
 |---|---|
-| **Next.js 15 (App Router) + TypeScript** | Server components for the public dashboard, static export possible for IPFS hosting, and a DApp served from IPFS is a genuinely decentralized front door |
+| **Next.js 16 (App Router) + TypeScript** | Server components for the public dashboard, static export possible for IPFS hosting, and a DApp served from IPFS is a genuinely decentralized front door |
 | **wagmi v2 + viem** | viem is typed, tree-shakeable, and far lighter than ethers v6; wagmi CLI generates hooks from our Foundry ABIs so contract changes surface as type errors |
 | **RainbowKit** | Multi-wallet connect with almost no code; wallet UX is not where we should spend our budget |
 | **Tailwind + shadcn/ui** | Three distinct role-based UIs to build on a tight schedule; component velocity matters |

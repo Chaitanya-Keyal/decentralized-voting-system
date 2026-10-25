@@ -20,6 +20,7 @@ contracts/.gas-snapshot.tmp
 .next/
 out/
 .vercel/
+next-env.d.ts
 
 # Build output
 dist/
@@ -48,6 +49,7 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 *.swp
 
 # LaTeX build artifacts. The built PDFs are tracked so they can be read without
