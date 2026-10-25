@@ -90,3 +90,57 @@ export const pinResponseSchema = z.object({ cid: z.string() });
 
 /** The error body Fastify sends. */
 export const apiErrorSchema = z.object({ message: z.string() });
+
+// ---------------------------------------------------------------------------------------------
+// Indexer: a read cache of the chain, for pages that list things
+// ---------------------------------------------------------------------------------------------
+
+export const electionSummarySchema = z.object({
+  address: addressSchema,
+  title: z.string(),
+  phase: z.number(),
+  /** Unix seconds. */
+  registrationStart: z.number(),
+  registrationEnd: z.number(),
+  votingStart: z.number(),
+  votingEnd: z.number(),
+  /** Null until the voter list is published. */
+  voterCount: z.number().nullable(),
+  ballotsCast: z.number(),
+});
+export type ElectionSummary = z.infer<typeof electionSummarySchema>;
+
+export const electionListSchema = z.object({ elections: z.array(electionSummarySchema) });
+
+export const electionDetailSchema = electionSummarySchema.extend({
+  authority: addressSchema,
+  registrar: addressSchema,
+  metadataCid: z.string(),
+  voterRoot: hexSchema.nullable(),
+  voterListCid: z.string().nullable(),
+  candidates: z.array(z.object({ name: z.string(), manifestoCid: z.string(), votes: z.number() })),
+  /** Null until the election is finalized. */
+  winners: z.array(z.number()).nullable(),
+  createdTxHash: hexSchema,
+});
+export type ElectionDetail = z.infer<typeof electionDetailSchema>;
+
+export const ballotSchema = z.object({
+  /** The voter's address in tier 2, the nullifier in tier 3. */
+  key: hexSchema,
+  candidate: z.number(),
+  blockNumber: z.number(),
+  /** Unix seconds. */
+  timestamp: z.number(),
+  txHash: hexSchema,
+});
+export type Ballot = z.infer<typeof ballotSchema>;
+
+export const ballotListSchema = z.object({ ballots: z.array(ballotSchema) });
+
+export const indexerStatusSchema = z.object({
+  chainId: z.number(),
+  /** The last block indexed, or null before the first batch. */
+  block: z.number().nullable(),
+  head: z.number(),
+});
