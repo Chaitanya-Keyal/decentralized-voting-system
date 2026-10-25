@@ -37,8 +37,9 @@ self-explanatory; write one when a reviewer would otherwise ask "why?".
 
 - Keep them small.
 - Fill in the template, especially the *how to verify* section.
-- CI must be green: formatting, lint, typecheck and build for the TypeScript packages, and
-  `forge fmt --check`, `forge lint`, `forge build` and `forge test` for the contracts.
+- CI must be green: formatting, lint, typecheck, tests and build for the TypeScript packages,
+  and `forge fmt --check`, `forge lint`, `forge build` and `forge test` for the contracts, plus a
+  check that the generated ABIs match the contracts.
 - Contract changes must include tests. A contract PR with no new tests will be sent back.
 - Squash-merge into `main`.
 
@@ -71,6 +72,7 @@ and format-on-save from `.vscode/`.
 pnpm format              # Prettier, writes changes
 pnpm lint                # ESLint over the whole workspace (pnpm lint:fix to auto-fix)
 pnpm typecheck           # tsc in every package, strict mode
+pnpm test                # Vitest in every package that has tests
 pnpm format:contracts    # forge fmt
 pnpm lint:contracts      # forge lint
 ```
@@ -78,6 +80,20 @@ pnpm lint:contracts      # forge lint
 Run all of these before opening a pull request; CI runs the same checks and fails on any
 difference. TypeScript is strict everywhere, including `noUncheckedIndexedAccess`, and ESLint
 uses type-aware rules, so floating promises and unsafe `any` are errors.
+
+## Generated code
+
+The web app and the API import contract ABIs and deployed addresses from
+`packages/shared/src/generated.ts`, which is generated from the Foundry build and
+`contracts/deployments/`. After changing a contract's interface or deploying somewhere new, run:
+
+```bash
+pnpm --filter @dvote/shared generate
+```
+
+The Solidity tests replay Merkle proofs built by the TypeScript tree builder, from
+`contracts/test/fixtures/voter-list.json`. After changing the tree builder, rewrite the fixture
+with `pnpm --filter @dvote/shared test -u`.
 
 ## Gas discipline
 
