@@ -36,7 +36,8 @@ checks. The lifecycle, the factory, the indexer and the gas baseline carry over.
 ## M1 · A vote works end to end (tier 2)
 
 Plurality voting with plain Merkle-proof eligibility, no anonymity, no gas sponsorship,
-on a local node (Anvil).
+on a local node (Anvil). A voter's entry on the list is their wallet address, so there is no
+secret to keep yet; the secret, and the backup copy of it, arrive with tier 3.
 
 **Contracts**
 - `Election` with the full lifecycle: Created, Registration, Voting, Tallying, Finalized,
@@ -61,24 +62,25 @@ on a local node (Anvil).
 
 **Backend**
 - Fastify service with Postgres (Prisma)
-- Registrar: institute email and one-time code, commitment intake with no personal data
-  on-chain, a receipt signed over the commitment and the election ID (FR2), and publication
-  of the voter list to IPFS with the root, the voter count and the address (FR3)
+- Registrar: institute email and one-time code, then the voter's wallet address, with no
+  personal data on-chain; a receipt signed over the address and the election ID (FR2); and
+  publication of the voter list to IPFS with the root, the voter count and the address (FR3)
 - Metadata service pinning the ballot description and candidate manifestos to IPFS (FR1)
 - Indexer reading `VoteCast` events into Postgres as a read cache
 
 **Frontend**
 - Admin console: create and configure an election, open each phase
-- Registration page: institute email and code; the voter's secret is created on their device
-  and only the commitment is sent; the signed receipt is shown; the voter is offered a backup
-  copy of the secret and told it is the only copy
-- Ballot booth: downloads the voter list, checks the voter's own commitment is on it,
-  builds its own proof path without asking the registrar (FR6), casts a ballot
+- Registration page: institute email and code; the voter signs with the wallet being
+  registered; the registrar's receipt is checked against the contract, shown and offered as a
+  download
+- Ballot booth: downloads the voter list, checks the voter's own wallet is on it, builds its
+  own proof path without asking the registrar (FR6), casts a ballot
 
 **Done when:** from a fresh clone, start Anvil, deploy, register five voters, cast five
 ballots from the browser, and see the tally.
 
-Commit the first gas snapshot here. It is the tier 2 side of A1.
+Commit the first gas snapshot here, in `contracts/snapshots/tier2.json`. It is the tier 2 side
+of A1.
 
 ---
 
@@ -102,6 +104,8 @@ Commit the first gas snapshot here. It is the tier 2 side of A1.
   registrar, and keeps no request logs
 
 **Frontend**
+- Registration creates the voter's Semaphore identity on their device and sends only its
+  commitment; the voter is offered a backup copy of the secret and told it is the only copy
 - Proving progress, receipt screen, Sepolia network handling
 - A fresh throwaway signing key for every ballot
 - If no transaction appears by a deadline, the booth warns the voter and offers direct

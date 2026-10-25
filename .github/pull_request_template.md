@@ -23,7 +23,7 @@
 
 ## Gas impact
 
-<!-- Contract changes: paste `forge snapshot --diff`. Otherwise write N/A. -->
+<!-- Contract changes: run `pnpm gas:contracts` and paste the change to contracts/snapshots/tier2.json. Otherwise write N/A. -->
 
 ```
 N/A

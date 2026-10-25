@@ -44,7 +44,7 @@ quotes is a stated illustration rather than a target.
 | Choice | Why |
 |---|---|
 | **Next.js 16 (App Router) + TypeScript** | Server components for the public dashboard, static export possible for IPFS hosting, and a DApp served from IPFS is a genuinely decentralized front door |
-| **wagmi v2 + viem** | viem is typed, tree-shakeable, and far lighter than ethers v6; wagmi CLI generates hooks from our Foundry ABIs so contract changes surface as type errors. Stay on wagmi 2: RainbowKit 2 does not support wagmi 3 |
+| **wagmi v2 + viem** | viem is typed, tree-shakeable, and far lighter than ethers v6; the wagmi CLI generates typed ABIs from our Foundry build, so contract changes surface as type errors. Stay on wagmi 2: RainbowKit 2 does not support wagmi 3 |
 | **RainbowKit** | Multi-wallet connect with almost no code; wallet UX is not where we should spend our budget |
 | **Tailwind + shadcn/ui** | Three distinct role-based UIs to build on a tight schedule; component velocity matters |
 | **@semaphore-protocol/proof + snarkjs in a Web Worker** | A quick prototype run of Semaphore v4 proving in Node.js on a laptop took about 0.3 s per proof once the setup files were cached. Phones will be slower, and proving blocks the main thread, so it runs in a worker to keep the UI responsive. Parameter B2 measures it on the phones we can borrow, and reports worker against main-thread proving time. |

@@ -1,0 +1,13 @@
+{
+  "castVote": "77849",
+  "castVote, a candidate's first vote": "94949",
+  "castVote, first ballot": "112039",
+  "closeVoting": "33121",
+  "createElection": "635893",
+  "createElection, a later election": "618793",
+  "deploy a full election contract": "1995656",
+  "finalize": "89881",
+  "openRegistration": "50225",
+  "openVoting": "66937",
+  "publishVoterList": "147165"
+}

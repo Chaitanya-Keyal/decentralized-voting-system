@@ -38,6 +38,8 @@ build/
 !**/verification_key.json
 
 # Test + coverage
+e2e/test-results/
+e2e/playwright-report/
 coverage/
 lcov.info
 .nyc_output/

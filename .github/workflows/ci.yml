@@ -71,8 +71,88 @@ jobs:
       - run: forge test
         env:
           FOUNDRY_PROFILE: ci
+      - name: Check the gas snapshot is up to date
+        run: forge test --match-contract GasSnapshot
+        env:
+          FOUNDRY_PROFILE: gas
+          GAS_SNAPSHOT: true
+          FORGE_SNAPSHOT_CHECK: true
       - name: Check the generated ABIs are up to date
         working-directory: .
         run: |
           pnpm --filter @dvote/shared generate
           git diff --exit-code packages/shared/src/generated.ts
+
+  e2e:
+    name: End to end
+    runs-on: ubuntu-latest
+    # The whole local stack: Postgres, IPFS and Mailpit as services, Anvil, the API, the indexer
+    # and a production build of the web app. Then a browser runs an election from start to finish.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dvote
+          POSTGRES_PASSWORD: dvote
+          POSTGRES_DB: dvote
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      ipfs:
+        image: ipfs/kubo:v0.43.1
+        env:
+          IPFS_PROFILE: server
+        ports:
+          - 5001:5001
+          - 8080:8080
+      mailpit:
+        image: axllent/mailpit:v1.32.0
+        ports:
+          - 1025:1025
+          - 8025:8025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.6
+      - name: Start Anvil and deploy the contracts
+        run: |
+          anvil --silent &
+          sleep 2
+          pnpm deploy:local
+      - name: Start the API, the indexer and the web app
+        run: |
+          cp .env.example .env
+          pnpm db:migrate
+          pnpm --filter @dvote/web build
+          pnpm --filter @dvote/api start > api.log 2>&1 &
+          pnpm --filter @dvote/api indexer > indexer.log 2>&1 &
+          pnpm --filter @dvote/web start > web.log 2>&1 &
+          for url in http://127.0.0.1:4000/health http://localhost:3000 http://127.0.0.1:5001/api/v0/version; do
+            for attempt in $(seq 60); do
+              curl -sf -X POST "$url" > /dev/null || curl -sf "$url" > /dev/null && break
+              sleep 1
+            done
+          done
+      - run: pnpm --filter @dvote/e2e exec playwright install --with-deps --only-shell chromium
+      - run: pnpm e2e
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+            api.log
+            indexer.log
+            web.log
