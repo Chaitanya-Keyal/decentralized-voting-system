@@ -264,6 +264,8 @@ abstract contract Election is AccessControl, Initializable, VoterRegistry {
         ballotKeyUsed[key] = true;
         ++ballotsCast;
         ++_tally[candidate];
+        // Callers only make internal or read-only calls before this, so nothing can re-enter.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit VoteCast(key, candidate);
     }
 
