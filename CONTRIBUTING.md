@@ -38,8 +38,9 @@ self-explanatory; write one when a reviewer would otherwise ask "why?".
 - Keep them small.
 - Fill in the template, especially the *how to verify* section.
 - CI must be green: formatting, lint, typecheck, tests and build for the TypeScript packages,
-  and `forge fmt --check`, `forge lint`, `forge build` and `forge test` for the contracts, plus a
-  check that the generated ABIs match the contracts.
+  and `forge fmt --check`, `forge lint`, `forge build` and `forge test` for the contracts, plus
+  checks that the generated ABIs and the gas snapshot match the contracts. A third job runs an
+  election end to end in a browser.
 - Contract changes must include tests. A contract PR with no new tests will be sent back.
 - Squash-merge into `main`.
 
@@ -50,17 +51,57 @@ version this repo pins), Docker, and Foundry for the contracts.
 
 ```bash
 pnpm install
-cp .env.example .env               # then fill in your own keys
-docker compose up -d               # Postgres and Redis
-pnpm dev                           # web + api
-pnpm test:contracts                # Foundry tests
+cp .env.example .env               # works as it is for a local chain
+docker compose up -d               # Postgres, Redis, IPFS and Mailpit
+anvil                              # a local chain; leave it running in its own terminal
+pnpm deploy:local                  # deploy the contracts to it
+pnpm db:migrate                    # create the database tables
+pnpm dev                           # the web app, the API and the indexer
 ```
+
+Then open <http://localhost:3000>.
 
 `pnpm install` also fetches the Solidity libraries (OpenZeppelin, Semaphore, forge-std)
 into `contracts/node_modules`, so there are no git submodules.
 
 Foundry: `curl -L https://foundry.paradigm.xyz | bash && foundryup`, then add
 `~/.foundry/bin` to your `PATH`.
+
+The contracts land at the addresses in `contracts/deployments/31337.json` only on a fresh chain,
+so restart `anvil` rather than deploying a second time. A restarted Anvil is a new chain that
+reuses those addresses; the indexer notices and clears everything the database held about the
+old one, registrations included.
+
+### Trying an election in the browser
+
+On Anvil, the wallet menu also lists Anvil's own accounts. The node holds their keys and signs
+for them, so you can play every role from one browser without a wallet extension:
+
+1. Connect Anvil account 0 and create an election under **New election**. The registrar is
+   filled in: it is Anvil account 1, which the API uses.
+2. On the election page, **Move the chain's clock** skips to the next step. A real chain's clock
+   cannot be moved, so the button appears only on Anvil.
+3. Register voters as other accounts. The codes are emailed to Mailpit, at
+   <http://127.0.0.1:8025>.
+4. Once registration closes, the registrar publishes the voter list by itself within a few
+   seconds. Then open voting, vote as each account, close voting and finalize.
+
+To use a browser wallet such as MetaMask instead, add a network with RPC URL
+`http://127.0.0.1:8545` and chain ID 31337, and import the test accounts `anvil` prints when it
+starts.
+
+### Tests
+
+```bash
+pnpm test:contracts                # Foundry
+pnpm test                          # Vitest; the API's tests need Postgres and Foundry
+pnpm e2e                           # Playwright: one election end to end, in a browser
+```
+
+The API's tests start their own Anvil node and create a database of their own for each run, so
+they never touch your development setup. `pnpm e2e` drives the running stack from the setup above;
+install its browser once with `pnpm --filter @dvote/e2e exec playwright install --only-shell
+chromium`.
 
 ## Code style
 
@@ -97,6 +138,8 @@ with `pnpm --filter @dvote/shared test -u`.
 
 ## Gas discipline
 
-Every contract PR that touches a hot path runs `forge snapshot --diff` and pastes the
-result in the PR. Gas is a graded evaluation parameter, and a regression that lands
-unnoticed is a worse number in the final report.
+`contracts/snapshots/tier2.json` records the gas of every step of a tier 2 election, each
+measured as its own transaction. CI fails if a contract change moves any of these numbers, so a
+PR that changes gas runs `pnpm gas:contracts` and explains the difference. Gas is a graded
+evaluation parameter, and a regression that lands unnoticed is a worse number in the final
+report.

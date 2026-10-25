@@ -4,27 +4,28 @@
 
 | Actor | On-chain identity | Can do | Explicitly *cannot* do |
 |---|---|---|---|
-| **Election Authority** | `ELECTION_ADMIN_ROLE` | Configure an election before registration opens (candidates, windows, metadata CID); cancel it before voting opens | Cast or alter a ballot, change the voter root after registration closes, delay or block the count |
+| **Election Authority** | `AUTHORITY_ROLE` | Configure an election before registration opens (windows, metadata CID); change its candidates and cancel it until voting opens | Cast or alter a ballot, change the voter root after registration closes, delay or block the count |
 | **Registrar** | `REGISTRAR_ROLE` | Verify eligibility off-chain, collect identity commitments into an off-chain tree, publish the root, the roll size and the leaf-set CID | Add voters after the root is frozen; learn which leaf is voting, because the booth derives its own authentication path |
 | **Voter** | *none* (anonymous) | Register an identity commitment, check that commitment appears in the published leaf set, cast exactly one ballot, verify their own ballot landed | Vote twice, vote without being in the committed set |
 | **Candidate** | address (optional) | Be listed on a ballot, publish a manifesto to IPFS | Anything privileged |
-| **Auditor / Observer** | *none* (permissionless) | Re-derive the full tally from chain events, verify every ZK proof, recompute the root from the published leaf set, close voting and finalize once the windows have passed | Alter anything |
+| **Auditor / Observer** | *none* (permissionless) | Re-derive the full tally from chain events, verify every ZK proof, recompute the root from the published leaf set, trigger any phase change once its time has passed | Alter anything |
 | **Relayer** | trusted forwarder address | Pay gas on a voter's behalf; it also reads the candidate choice in every ballot it forwards and decides whether to forward it | Forge or modify a ballot, because the proof binds the nullifier and the candidate signal; replay one, because the nullifier is already spent |
 
 Two rows in that table need their reasoning spelled out.
 
 The Registrar's row stops at "learn which leaf is voting" and does not extend to "see how anyone
-voted." Registrar and relayer are one deployment in this design, so one party holds both halves
-of the join. Section 2 therefore states ballot secrecy as conditional rather than absolute, and
-says what the condition is.
+voted." The same operator runs the registrar and the relayer in this design, so one party could
+hold both halves of the join. Section 2 therefore states ballot secrecy as conditional rather than
+absolute, and says what the condition is.
 
-The Authority's row denies it any power over the count. The design earns that by making the
-closing transitions permissionless: once their timestamps have passed, any observer can close
-voting, enter tallying and finalize. The authority is confined to configuration, to opening the
-phases, and to cancellation before voting opens, because those are administrative judgements
-with no cryptographic substitute. An authority-only finalization would
-be a silent veto, since an authority that dislikes the result could simply never call it and the
-time gate only prevents a transition happening earlier than announced, never later.
+The Authority's row denies it any power over the count. The design earns that by making every
+phase change permissionless: once its scheduled time has passed, anyone can open registration,
+open voting, close voting and finalize. The authority is confined to configuration and to
+cancellation before voting opens, because those are administrative judgements with no
+cryptographic substitute. An authority-only finalization would be a silent veto, since an
+authority that dislikes the result could simply never call it and the time gate only prevents a
+transition happening earlier than announced, never later. The same holds for opening
+registration and voting: an authority that could delay them could stall an election it dislikes.
 
 ### Two liveness dependencies, not one
 
@@ -227,7 +228,7 @@ and show the tally still verifies.**
 
 | Contract | Responsibility | Notes |
 |---|---|---|
-| `ElectionFactory.sol` | Deploys and registers elections | EIP-1167 minimal proxy clones; deploying election #50 should cost roughly 45k gas rather than roughly 2M |
+| `ElectionFactory.sol` | Deploys and registers elections | EIP-1167 minimal proxy clones. In the tier 2 gas snapshot, creating a later election, clone and set-up with three candidates, costs 618,793 gas; deploying a full copy of the election contract costs 1,995,656 |
 | `Election.sol` | Lifecycle state machine, candidate roster, ballot acceptance, tally storage | The clone implementation; one instance per election. `castVote` reverts once spent nullifiers reach the roll size |
 | `VoterRegistry.sol` | Merkle root, roll size and leaf-set CID per election | No commitment is stored on-chain. All three values are written in one transaction and freeze when registration closes |
 | `SemaphoreVerifier` | Groth16 verification of the membership proof | The standalone verifier called with our own root, not Semaphore's group contracts. The tree depth selects the verification key, so the depth is pinned in the contract and never taken from the caller |
@@ -252,26 +253,38 @@ authenticates itself.
 
 ```
 Created ──▶ Registration ──▶ Voting ──▶ Tallying ──▶ Finalized
-   │             │              │
-   └─────────────┴──────────────┴──▶ Cancelled   (authority only, pre-Voting)
+   │             │
+   └─────────────┴──▶ Cancelled   (authority only, before voting opens)
 ```
 
 Transitions are time-gated by block timestamp *and* require an explicit call, so the
 authority can never rewind a phase. Caller permissions are part of the design and are stated
 here rather than left to be inferred:
 
-- Configuration and the transition out of `Created` belong to the authority.
-- Cancellation belongs to the authority and is available only before voting opens.
+- Configuration belongs to the authority, and only until registration is due to open. The
+  candidates can change until voting is due to open, so a ballot's meaning never changes after it
+  is cast. Both limits go by the clock as well as the phase, because registration is open from its
+  start time even if nobody has recorded that on-chain yet.
+- Cancellation belongs to the authority until voting is due to open. Once the leaf set is
+  published and the voting window has begun, the authority can no longer stop the vote; an
+  election whose leaf set never appeared, or whose voting window passed without voting opening,
+  can still be cancelled.
 - The transition into `Voting` additionally requires a non-empty leaf-set CID alongside the
-  root, so a registrar that withholds the roll stops the election rather than going unnoticed.
-- Closing voting, entering `Tallying` and finalizing are permissionless once their timestamps
-  have passed: any observer may call them. The time gate prevents a transition happening earlier
-  than announced, so if these were authority-only the authority could delay them indefinitely,
-  which is exactly the silent veto we claim not to have.
+  root, so a registrar that withholds the roll stops the election rather than going unnoticed,
+  and it must happen before the voting window ends.
+- Every other transition, from opening registration to finalizing, is permissionless once its
+  timestamp has passed: any observer may call it. The time gate prevents a transition happening
+  earlier than announced, so if these were authority-only the authority could delay them
+  indefinitely, which is exactly the silent veto we claim not to have.
 
 Once `Voting` opens, the voter root is immutable.
 
 ### The ballot path
+
+This is the tier 3 path. Tier 2, built first, follows the same steps without the anonymity: the
+voter registers their wallet address instead of an identity commitment, the leaf set is the list
+of registered addresses, and the ballot is `castVote(candidate, proof)` sent from that wallet with
+an ordinary Merkle proof, so the chain shows which wallet voted for whom.
 
 1. The voter generates a Semaphore identity locally and the commitment is sent to the registrar,
    which returns a receipt signed over the commitment and the election id.
@@ -361,8 +374,11 @@ flat.
 
 One check turns an observation into an invariant the contract enforces. `castVote` compares the
 count of spent nullifiers against the roll size stored beside the root, and reverts when it would
-exceed it. It costs one comparison against a value already in storage plus a warm counter write
-of about 2,900 gas, declared in A1. Without it, the statement that accepted ballots can never
+exceed it. Under EIP-2929 it costs a cold read of the roll size, 2,100 gas, plus the counter it is
+compared with: a cold read of 2,100 and an update of 2,900, or 20,000 for the first ballot, which
+moves the counter off zero. In the tier 2 snapshot the first ballot costs 112,039 gas and later
+ones 77,849, almost all of the difference being that write and the candidate's count leaving zero
+(A1). Without it, the statement that accepted ballots can never
 outnumber the declared enrolment would rest on circuit soundness with no line of code behind it:
 the root and the roll size are two independent values written by the same registrar, and a Merkle
 root does not commit to a leaf count. With it, silent tree stuffing becomes a visible revert. It
@@ -373,9 +389,12 @@ still does not make the declared number honest, which is the roll correctness no
 Not a source of truth; it is a convenience and liveness layer. Four services:
 
 - **Registrar**: off-chain eligibility check (institute email OTP for the demo), builds the
-  Semaphore group, returns a signed receipt over each accepted commitment and the election id,
+  Semaphore group (in tier 2, the list of registered wallet addresses), returns a signed receipt
+  over each accepted commitment and the election id,
   and at the close of registration publishes the root, the roll size and the leaf-set CID in one
-  transaction. Personal data stays in Postgres, never on-chain. It is not involved at vote time.
+  transaction, by itself. Personal data stays in Postgres, never on-chain. It is not involved at
+  vote time. Since anyone can create an election naming it, it serves only elections where it
+  holds the registrar role and, when configured, whose authority it recognises.
 - **Relayer**: accepts a signed ballot and proof, **verifies the Groth16 proof off-chain before
   it spends anything**, pre-checks the nullifier, sponsors gas, and returns a signed receipt for
   every ballot it accepts. Off-chain verification with snarkjs takes milliseconds, needs no chain

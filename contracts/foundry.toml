@@ -20,6 +20,10 @@ fs_permissions = [
 [profile.ci.fuzz]
 runs = 1000
 
+# For the gas snapshot: every top-level call runs as its own transaction.
+[profile.gas]
+isolate = true
+
 [lint]
 # Phases are time-gated by design, over windows of hours or days. A validator can shift a
 # block's timestamp by only a few seconds, which cannot move a phase change meaningfully.
