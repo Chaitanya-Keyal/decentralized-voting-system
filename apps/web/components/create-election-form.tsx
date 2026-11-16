@@ -56,7 +56,7 @@ function Choice(props: {
         name={props.name}
         checked={props.checked}
         onChange={props.onChange}
-        className="mt-1"
+        className="mt-0.5 size-4 shrink-0 accent-zinc-900 dark:accent-zinc-100"
         aria-label={props.label}
       />
       <span className="flex flex-col gap-1">

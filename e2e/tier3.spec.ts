@@ -113,7 +113,7 @@ test("an anonymous approval election runs end to end without voter wallets", asy
     await test.step(`voter ${index + 1} votes anonymously, for ${marks.join(" and ")}`, async () => {
       const { page: booth } = voters[index]!;
       await booth.goto(`${election}/vote`);
-      await expect(booth.getByText("found your voting key on it")).toBeVisible();
+      await expect(booth.getByText("on the voter list, checked in this browser")).toBeVisible();
       for (const name of marks) await booth.getByLabel(name, { exact: true }).check();
       if (index === 0) await screenshot(booth, "12-booth-marked");
       await booth.getByRole("button", { name: /Cast my ballot, no wallet needed/ }).click();
@@ -122,7 +122,7 @@ test("an anonymous approval election runs end to end without voter wallets", asy
     });
   }
 
-  await test.step("a voter cannot vote twice, even from a fresh browser", async () => {
+  await test.step("a voter who has voted is told so, even in a fresh browser", async () => {
     const again = await voterBrowser(browser, errors);
     await again.page.goto(`${election}/vote`);
     await again.page.getByLabel("Restore from a backup").setInputFiles({
@@ -130,9 +130,9 @@ test("an anonymous approval election runs end to end without voter wallets", asy
       mimeType: "application/json",
       buffer: Buffer.from(voters[0]!.backup ?? ""),
     });
-    await again.page.getByLabel("Meera", { exact: true }).check();
-    await again.page.getByRole("button", { name: /Cast my ballot, no wallet needed/ }).click();
-    await expect(again.page.getByText("already voted")).toBeVisible({ timeout: 90_000 });
+    // Known from the key's nullifier before any proof is made, so no ballot form is offered.
+    await expect(again.page.getByText("You have voted")).toBeVisible();
+    await expect(again.page.getByRole("button", { name: /Cast my ballot/ })).toHaveCount(0);
     await screenshot(again.page, "14-booth-already-voted");
     await again.context.close();
   });
@@ -143,7 +143,8 @@ test("an anonymous approval election runs end to end without voter wallets", asy
     await page.getByRole("button", { name: "Close voting" }).click();
     await page.getByRole("button", { name: "Finalize the result" }).click();
     await expect(page.getByText("The result is final")).toBeVisible();
-    await expect(page.getByText("3 approvals")).toBeVisible();
+    await expect(page.getByText("Asha won with 3 approvals.")).toBeVisible();
+    await expect(page.getByText("3 approvals", { exact: true })).toBeVisible();
     await expect(page.getByText("1 approval", { exact: true })).toHaveCount(2);
     await expect(page.getByText("Winner")).toHaveCount(1);
   });

@@ -32,9 +32,35 @@ import { Button, Card, Mono, Notice } from "./ui";
  * Tier 3's voting key: a secret this browser creates and keeps. It is what proves, later, that the
  * ballot comes from someone on the list without saying who.
  */
-export function VotingKeyCard({ election }: { election: OnchainElection }) {
+export function VotingKeyCard({
+  election,
+  restoreOnly = false,
+  compact = false,
+}: {
+  election: OnchainElection;
+  /** In the booth a new key would not be on the published list, so only restoring makes sense. */
+  restoreOnly?: boolean;
+  /** Once registered, one line is enough: the key is here, and its backup is a click away. */
+  compact?: boolean;
+}) {
   const identity = useStoredIdentity(chain.id, election.address);
   const [problem, setProblem] = useState<string>();
+
+  if (compact && identity) {
+    return (
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        Your voting key is in this browser.{" "}
+        <button
+          type="button"
+          className="underline"
+          onClick={() => downloadIdentityBackup(chain.id, election.address, identity)}
+        >
+          Download a backup
+        </button>{" "}
+        to vote from another device; keep it private.
+      </p>
+    );
+  }
 
   const create = () => {
     const fresh = createIdentity();
@@ -82,8 +108,14 @@ export function VotingKeyCard({ election }: { election: OnchainElection }) {
         ) : (
           <>
             <div className="flex flex-wrap gap-3">
-              <Button onClick={create}>Create my voting key</Button>
-              <label className="inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-zinc-700">
+              {!restoreOnly && <Button onClick={create}>Create my voting key</Button>}
+              <label
+                className={
+                  restoreOnly
+                    ? "inline-flex cursor-pointer items-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white focus-within:ring-2 focus-within:ring-zinc-400 hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
+                    : "inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium focus-within:ring-2 focus-within:ring-zinc-400 dark:border-zinc-700"
+                }
+              >
                 Restore from a backup
                 <input
                   type="file"
@@ -94,8 +126,9 @@ export function VotingKeyCard({ election }: { election: OnchainElection }) {
               </label>
             </div>
             <p className="text-zinc-500">
-              Creating the key also downloads a backup. Without the key you cannot vote, and nobody
-              can recover it for you.
+              {restoreOnly
+                ? "Use the backup file you downloaded when you registered."
+                : "Creating the key also downloads a backup. Without the key you cannot vote, and nobody can recover it for you."}
             </p>
           </>
         )}
@@ -193,9 +226,9 @@ export function IdentityReceiptCard({ receipt }: { receipt: IdentityReceipt }) {
           {formatTime(receipt.issuedAt)}.
         </p>
         {valid === true && (
-          <Notice tone="success">
-            The receipt is signed by this election&apos;s registrar, as recorded in the contract.
-          </Notice>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            ✓ The receipt is signed by this election&apos;s registrar, as recorded in the contract.
+          </p>
         )}
         {valid === false && (
           <Notice tone="error">This receipt is not signed by the election&apos;s registrar.</Notice>

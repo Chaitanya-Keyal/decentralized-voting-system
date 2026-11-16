@@ -21,9 +21,9 @@ export function ReceiptCard({ receipt }: { receipt: Receipt }) {
           {formatTime(receipt.issuedAt)}.
         </p>
         {check.data?.valid === true && (
-          <Notice tone="success">
-            The receipt is signed by this election&apos;s registrar, as recorded in the contract.
-          </Notice>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            ✓ The receipt is signed by this election&apos;s registrar, as recorded in the contract.
+          </p>
         )}
         {check.data?.valid === false && (
           <Notice tone="error">

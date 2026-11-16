@@ -87,7 +87,7 @@ export function Audit({ election }: { election: OnchainElection }) {
       )}
       <div>
         <Button
-          variant={steps ? "secondary" : "primary"}
+          variant="secondary"
           onClick={() => void start()}
           disabled={running || !client || election.voterListCid === ""}
         >

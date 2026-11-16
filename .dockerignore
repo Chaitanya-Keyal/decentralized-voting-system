@@ -1,0 +1,14 @@
+**/node_modules
+**/.next
+**/.cache
+.git
+.claude
+.env
+apps/web/public/semaphore
+contracts/out
+contracts/cache
+contracts/broadcast
+e2e/test-results
+e2e/playwright-report
+reports
+bench/results

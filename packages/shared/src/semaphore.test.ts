@@ -6,6 +6,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { ensureArtifacts } from "../scripts/semaphore-artifacts.mjs";
 import {
+  ballotNullifier,
   buildIdentityList,
   identityTree,
   normalizeCommitments,
@@ -116,6 +117,9 @@ describe("ballots", () => {
       verifyBallot({ ballot: b, election, root: tree.root, voterCount: 3 });
 
     expect(await check(ballot, ELECTION)).toBe(true);
+    // The booth predicts the nullifier without proving, to tell a voter who has voted.
+    expect(ballotNullifier(voters[1]!, ELECTION)).toBe(ballot.nullifier);
+    expect(ballotNullifier(voters[1]!, OTHER_ELECTION)).not.toBe(ballot.nullifier);
     expect(await check({ ...ballot, choice: 1n }, ELECTION)).toBe(false);
     expect(await check(ballot, OTHER_ELECTION)).toBe(false);
   }, 120_000);

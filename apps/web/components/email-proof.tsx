@@ -53,6 +53,13 @@ export function EmailProof({
     );
   }
   const { googleClientId, emailCodes, emailDomain } = config.data;
+  if (googleClientId === null && !emailCodes) {
+    return (
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        Registration is not set up on this deployment yet: it has neither Google sign-in nor email.
+      </p>
+    );
+  }
   const offerGoogle = googleClientId !== null && !useCode;
 
   const sendCode = async () => {

@@ -1,11 +1,11 @@
 "use client";
 
-import { Phase, semaphoreElectionAbi, type AnonymousBallot } from "@dvote/shared";
+import { ballotNullifier, Phase, semaphoreElectionAbi, type AnonymousBallot } from "@dvote/shared";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { pad, toHex } from "viem";
-import { useConfig, usePublicClient } from "wagmi";
+import { useBlockNumber, useConfig, usePublicClient, useReadContract } from "wagmi";
 import { simulateContract, writeContract } from "wagmi/actions";
 
 import type { OnchainElection } from "@/lib/election";
@@ -253,44 +253,40 @@ function AnonymousBallotForm({
 }
 
 function CastBallotCard({ election, ballot }: { election: OnchainElection; ballot: CastBallot }) {
+  const link = ballot.txHash ? explorerTx(ballot.txHash) : undefined;
   return (
-    <Card
-      title="You have voted"
-      description="Your ballot is on-chain under a nullifier: a number that stops your key voting twice, but says nothing about who you are."
-    >
-      <div className="flex flex-col gap-3 text-sm">
-        <p>
-          Nullifier <Mono value={toHex(BigInt(ballot.nullifier))} />
-        </p>
-        {ballot.txHash && (
+    <>
+      <Notice tone="success">You have voted. Your ballot is counted.</Notice>
+      <details className="text-sm text-zinc-600 dark:text-zinc-400">
+        <summary className="cursor-pointer">Details</summary>
+        <div className="mt-2 flex flex-col gap-1.5">
           <p>
-            Transaction{" "}
-            {explorerTx(ballot.txHash) ? (
-              <a
-                href={explorerTx(ballot.txHash)}
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
+            Nullifier <Mono value={toHex(BigInt(ballot.nullifier))} />: it stops this key voting
+            twice, and says nothing about who you are.
+          </p>
+          {ballot.txHash && (
+            <p>
+              Transaction{" "}
+              {link ? (
+                <a href={link} target="_blank" rel="noreferrer" className="underline">
+                  <Mono value={ballot.txHash} />
+                </a>
+              ) : (
                 <Mono value={ballot.txHash} />
-              </a>
-            ) : (
-              <Mono value={ballot.txHash} />
-            )}
-          </p>
-        )}
-        {ballot.relayReceipt && (
-          <p className="text-zinc-500">
-            The relayer signed a receipt for it at {formatTime(ballot.relayReceipt.acceptedAt)}.
-          </p>
-        )}
-        <div>
-          <LinkButton href={`/elections/${election.address}`} variant="secondary">
-            See the count
-          </LinkButton>
+              )}
+            </p>
+          )}
+          {ballot.relayReceipt && (
+            <p>
+              The relayer signed a receipt for it at {formatTime(ballot.relayReceipt.acceptedAt)}.
+            </p>
+          )}
         </div>
-      </div>
-    </Card>
+      </details>
+      <LinkButton href={`/elections/${election.address}`} variant="secondary">
+        See the count
+      </LinkButton>
+    </>
   );
 }
 
@@ -300,6 +296,24 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
   const identity = useStoredIdentity(chain.id, election.address);
   const cast = useCastBallot(chain.id, election.address);
   const list = useIdentityList(election);
+  // Whether this key has voted, from the nullifier its ballot would carry: known before proving,
+  // so a voter who has voted, from this browser or another, is told so straight away.
+  const nullifier = useMemo(
+    () => (identity ? ballotNullifier(identity, election.address) : undefined),
+    [identity, election.address],
+  );
+  const { data: block } = useBlockNumber({ watch: true });
+  const voted = useReadContract({
+    address: election.address,
+    abi: semaphoreElectionAbi,
+    functionName: "ballotKeyUsed",
+    args: nullifier === undefined ? undefined : [pad(toHex(nullifier))],
+    query: { enabled: nullifier !== undefined },
+  });
+  const { refetch } = voted;
+  useEffect(() => {
+    void refetch();
+  }, [block, refetch]);
 
   if (election.phase === Phase.Cancelled) return <Notice>This election was cancelled.</Notice>;
   if (election.voterListCid === "") {
@@ -316,6 +330,14 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
     );
   }
   if (cast?.counted) return <CastBallotCard election={election} ballot={cast} />;
+  if (voted.data === true && nullifier !== undefined) {
+    return (
+      <CastBallotCard
+        election={election}
+        ballot={cast ?? { nullifier: nullifier.toString(), choice: "" }}
+      />
+    );
+  }
   if (!identity) {
     return (
       <>
@@ -323,7 +345,7 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
           This browser does not hold a voting key for this election. Restore yours from the backup
           you downloaded when you registered.
         </Notice>
-        <VotingKeyCard election={election} />
+        <VotingKeyCard election={election} restoreOnly />
       </>
     );
   }
@@ -355,9 +377,8 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
 
   const checked = (
     <Notice tone="success">
-      Your browser downloaded the voter list, checked that it produces the root recorded in the
-      contract, and found your voting key on it. Your ballot will prove that it comes from someone
-      on this list, without saying who.
+      You&apos;re on the voter list, checked in this browser against the contract. Your ballot
+      won&apos;t reveal who you are.
     </Notice>
   );
 

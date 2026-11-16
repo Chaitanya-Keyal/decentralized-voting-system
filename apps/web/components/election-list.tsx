@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { api } from "@/lib/api";
 import { describeError } from "@/lib/errors";
-import { formatTime, useChainNow } from "@/lib/time";
+import { formatShort, useChainNow } from "@/lib/time";
 
 import { BallotBadges, PhaseBadge } from "./phase";
 import { Card, Notice, Spinner } from "./ui";
@@ -52,11 +52,11 @@ export function ElectionList() {
                 </span>
               </div>
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                Voting {formatTime(election.votingStart)} – {formatTime(election.votingEnd)}
+                Voting {formatShort(election.votingStart)} – {formatShort(election.votingEnd)}
                 {" · "}
                 {election.voterCount === null
-                  ? "voter list not published yet"
-                  : `${election.ballotsCast} of ${election.voterCount} voted`}
+                  ? "list not published yet"
+                  : `${election.ballotsCast} of ${election.voterCount.toLocaleString()} voted`}
               </p>
             </Card>
           </Link>

@@ -67,8 +67,8 @@ export const env = parsed.data;
 
 /**
  * Why voters would have no way to prove their address, if they would not. A code in a log can be
- * read by whoever reads the log, so a public chain needs real email, or Google sign-in alone. The
- * registrar refuses to start without one; the indexer sends no mail and does not ask.
+ * read by whoever reads the log, so a public chain needs real email, or Google sign-in alone.
+ * Without either, registration is off.
  */
 export function emailProofProblem(settings: {
   SMTP_URL?: string;

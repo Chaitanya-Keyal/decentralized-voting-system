@@ -82,16 +82,18 @@ const voteCast = getAbiItem({ abi: merkleElectionAbi, name: "VoteCast" });
 const LOG_CHUNK = 5_000n;
 
 async function readBallots(client: PublicClient, election: Address) {
-  const head = await client.getBlockNumber();
+  const head = await client.getBlockNumber({ cacheTime: 0 });
   const logs: Log<bigint, number, false, typeof voteCast>[] = [];
   for (let from = BigInt(deployment?.startBlock ?? 0); from <= head; from += LOG_CHUNK) {
-    const to = from + LOG_CHUNK - 1n > head ? head : from + LOG_CHUNK - 1n;
+    // The last query asks for "latest": behind a load balancer, the node that answers may be a
+    // block behind the one that gave the head, and would refuse a range past its own.
+    const last = from + LOG_CHUNK - 1n >= head;
     logs.push(
       ...(await client.getLogs({
         address: election,
         event: voteCast,
         fromBlock: from,
-        toBlock: to,
+        toBlock: last ? "latest" : from + LOG_CHUNK - 1n,
       })),
     );
   }

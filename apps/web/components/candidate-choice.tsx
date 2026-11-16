@@ -46,6 +46,7 @@ export function CandidateChoice({
         >
           <input
             type={approval ? "checkbox" : "radio"}
+            className="size-4 accent-zinc-900 dark:accent-zinc-100"
             name="candidate"
             value={index}
             checked={marks.has(index)}

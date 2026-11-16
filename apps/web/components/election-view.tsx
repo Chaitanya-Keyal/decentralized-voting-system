@@ -52,7 +52,7 @@ export function ElectionView({ address }: { address: string }) {
         <Description cid={election.metadataCid} />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-[3fr_2fr]">
+      <div className="grid items-start gap-6 md:grid-cols-[3fr_2fr]">
         <Card title="Now">
           <NextStep election={election} now={now} />
         </Card>
@@ -77,7 +77,7 @@ export function ElectionView({ address }: { address: string }) {
       {election.voterListCid !== "" && (
         <Card
           title="Audit this election"
-          description="Check the election yourself, in this browser. The audit reads only the chain and IPFS, so it does not depend on DVote's servers, or trust them."
+          description="Recount the election yourself, in this browser, from the chain and IPFS alone."
         >
           <Audit election={election} />
         </Card>
@@ -85,7 +85,7 @@ export function ElectionView({ address }: { address: string }) {
 
       <Card
         title="Ballots"
-        description="Every ballot is a transaction on the chain. This list comes from our indexer, and each entry names its transaction, linked to a block explorer where the chain has one."
+        description="Each ballot is a transaction on the chain; each row links to it."
       >
         <Ballots
           election={election.address}

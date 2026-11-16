@@ -51,22 +51,35 @@ export function formatTime(seconds: number): string {
   return dateFormat.format(new Date(seconds * 1000));
 }
 
-/** "in 5 minutes", "2 hours ago" and so on. */
+const shortFormat = new Intl.DateTimeFormat(undefined, {
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** "16 Nov, 21:41": for lists, where space is short. */
+export function formatShort(seconds: number): string {
+  return shortFormat.format(new Date(seconds * 1000));
+}
+
+/** "in 5 min", "1 h 10 min ago", "in 2 days" and so on: precise enough to plan by. */
 export function formatRelative(seconds: number, now: number): string {
   const difference = seconds - now;
-  const units: [Intl.RelativeTimeFormatUnit, number][] = [
-    ["day", 86_400],
-    ["hour", 3_600],
-    ["minute", 60],
-    ["second", 1],
-  ];
-  const format = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-  for (const [unit, size] of units) {
-    if (Math.abs(difference) >= size || unit === "second") {
-      return format.format(Math.round(difference / size), unit);
-    }
+  const span = Math.abs(difference);
+  let text: string;
+  if (span < 60) text = `${span} s`;
+  else if (span < 3_600) text = `${Math.round(span / 60)} min`;
+  else if (span < 86_400) {
+    const hours = Math.floor(span / 3_600);
+    const minutes = Math.round((span % 3_600) / 60);
+    text = minutes > 0 && hours < 10 ? `${hours} h ${minutes} min` : `${hours} h`;
+  } else {
+    const days = Math.round(span / 86_400);
+    text = `${days} ${days === 1 ? "day" : "days"}`;
   }
-  return "";
+  if (span < 5) return "now";
+  return difference > 0 ? `in ${text}` : `${text} ago`;
 }
 
 /** The value a `datetime-local` input expects, in the browser's time zone. */

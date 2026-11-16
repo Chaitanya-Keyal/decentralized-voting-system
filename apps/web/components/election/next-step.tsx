@@ -1,6 +1,6 @@
 "use client";
 
-import { Phase } from "@dvote/shared";
+import { CountingRule, Phase } from "@dvote/shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -100,6 +100,17 @@ function awaitingList(election: OnchainElection, now: number): Step {
   };
 }
 
+/** Who won, in a sentence. */
+function resultSentence(election: OnchainElection): string {
+  const names = election.winners.map((index) => election.candidates[index]?.name ?? `#${index}`);
+  if (names.length === 0) return "Nobody voted, so nobody won.";
+  const votes = election.tally[election.winners[0] ?? 0] ?? 0;
+  const unit = election.countingRule === CountingRule.Approval ? "approval" : "vote";
+  const count = `${votes} ${unit}${votes === 1 ? "" : "s"}`;
+  if (names.length === 1) return `${names[0]} won with ${count}.`;
+  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)} tied with ${count} each.`;
+}
+
 /** What is happening in the election now, and what anyone can do next. */
 function currentStep(election: OnchainElection, now: number): Step {
   const { schedule, address } = election;
@@ -121,14 +132,7 @@ function currentStep(election: OnchainElection, now: number): Step {
       return {
         message: `Registration is open until ${formatTime(schedule.registrationEnd)}.`,
         details: <RegistrationCount election={election} />,
-        actions: (
-          <>
-            <LinkButton href={`/elections/${address}/register`}>Register to vote</LinkButton>
-            <ActionButton election={address} step="openRegistration" variant="secondary">
-              Record on-chain that registration is open
-            </ActionButton>
-          </>
-        ),
+        actions: <LinkButton href={`/elections/${address}/register`}>Register to vote</LinkButton>,
         next: schedule.registrationEnd,
       };
 
@@ -204,7 +208,7 @@ function currentStep(election: OnchainElection, now: number): Step {
       };
 
     case Phase.Finalized:
-      return { message: "The result is final and can no longer change." };
+      return { message: `The result is final. ${resultSentence(election)}` };
 
     default:
       return { message: "This election was cancelled." };

@@ -79,8 +79,9 @@ test("an election runs end to end in the browser", async ({ page }) => {
     await page.getByRole("button", { name: "Close voting" }).click();
     await page.getByRole("button", { name: "Finalize the result" }).click();
     await expect(page.getByText("The result is final")).toBeVisible();
-    await expect(page.getByText("3 votes")).toBeVisible();
-    await expect(page.getByText("2 votes")).toBeVisible();
+    await expect(page.getByText("Asha won with 3 votes.")).toBeVisible();
+    await expect(page.getByText("3 votes", { exact: true })).toBeVisible();
+    await expect(page.getByText("2 votes", { exact: true })).toBeVisible();
     await expect(page.getByText("Winner")).toHaveCount(1);
     await screenshot(page, "22-wallet-election-final");
   });

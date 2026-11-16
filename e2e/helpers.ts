@@ -10,15 +10,15 @@ export async function connect(page: Page, index: number) {
   const header = page.locator("header");
   const button = header.getByRole("button").last();
   await expect(button).toBeVisible();
-  // RainbowKit shows "Connect Wallet" until it has restored any earlier connection.
+  // The button reads "Connect wallet" until the wallet has restored any earlier connection.
   await page.waitForTimeout(300);
-  if (!(await button.textContent())?.includes("Connect Wallet")) {
+  if (!(await button.textContent())?.includes("Connect wallet")) {
     await button.click();
     await page.getByRole("button", { name: "Disconnect" }).click();
   }
-  await header.getByRole("button", { name: "Connect Wallet" }).click();
+  await header.getByRole("button", { name: "Connect wallet" }).click();
   await page.getByText(`Anvil account ${index} (`).click();
-  await expect(header.getByRole("button", { name: "Connect Wallet" })).toHaveCount(0);
+  await expect(header.getByRole("button", { name: "Connect wallet" })).toHaveCount(0);
 }
 
 /** Moves the chain's clock to the next step, with the election page's Anvil-only button. */

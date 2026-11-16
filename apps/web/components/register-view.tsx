@@ -134,12 +134,18 @@ function AnonymousRegistration({ election, now }: { election: OnchainElection; n
     <>
       <ElectionHeader election={election} action="Register to vote" />
       {status && <Notice>{status}</Notice>}
-      {receipt && <IdentityReceiptCard receipt={receipt} />}
+      {receipt && election.voterListCid === "" && (
+        <Notice tone="success">
+          You&apos;re registered. Voting opens {formatTime(election.schedule.votingStart)}; come
+          back then, from this browser or with your backup.
+        </Notice>
+      )}
       {identity && election.voterListCid !== "" && (
         <IdentityListCheck election={election} commitment={identity.commitment.toString()} />
       )}
-      {(open || identity) && <VotingKeyCard election={election} />}
+      {(open || identity) && <VotingKeyCard election={election} compact={Boolean(receipt)} />}
       {open && !receipt && <IdentityRegistrationForm election={election} />}
+      {receipt && <IdentityReceiptCard receipt={receipt} />}
     </>
   );
 }

@@ -5,7 +5,8 @@
 import { Group } from "@semaphore-protocol/group";
 import { Identity } from "@semaphore-protocol/identity";
 import { generateProof, verifyProof } from "@semaphore-protocol/proof";
-import { getAddress, isAddressEqual, type Address } from "viem";
+import { poseidon2 } from "poseidon-lite";
+import { getAddress, isAddressEqual, keccak256, pad, toHex, type Address } from "viem";
 import { z } from "zod";
 
 import { addressSchema } from "./voter-list";
@@ -134,6 +135,16 @@ export type ArtifactSource = (depth: number) => { wasm: string; zkey: string };
  * Proves a ballot: that `identity` is in `tree`, for `choice`, in `election`. The proof is made at
  * the depth the contract will check it at, with proving files from `artifacts`.
  */
+/**
+ * The nullifier a ballot from `identity` in `election` will carry, worked out without a proof:
+ * Poseidon of Semaphore's hash of the scope and the identity's secret scalar, as the circuit
+ * computes it. The booth uses it to see, before proving anything, whether this key has voted.
+ */
+export function ballotNullifier(identity: Identity, election: Address): bigint {
+  const scopeHash = BigInt(keccak256(pad(toHex(ballotScope(election))))) >> 8n;
+  return poseidon2([scopeHash, identity.secretScalar]);
+}
+
 export async function proveBallot(args: {
   identity: Identity;
   tree: Group;

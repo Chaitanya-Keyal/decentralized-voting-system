@@ -2,40 +2,47 @@ import { Phase, phaseName, CountingRule } from "@dvote/shared";
 
 import { Badge } from "./ui";
 
-/**
- * The phase to show. Registration is open once its time has come, whether or not anyone has yet
- * recorded that on-chain, so a created election inside its registration window shows as open.
- */
-export function shownPhase(
+/** What to call the phase now: the clock moves an election on before anyone records it. */
+export function phaseLabel(
   phase: number,
-  window?: { registrationStart: number; registrationEnd: number },
+  window?: { registrationStart: number; registrationEnd: number; votingEnd: number },
   now?: number,
-): number {
-  if (phase === Phase.Created && window && now !== undefined) {
-    if (now >= window.registrationStart && now < window.registrationEnd) return Phase.Registration;
+): { label: string; tone: "neutral" | "live" | "done" | "muted" } {
+  if (window && now !== undefined) {
+    const beforeVoting = phase === Phase.Created || phase === Phase.Registration;
+    if (phase === Phase.Created && now < window.registrationStart) {
+      return { label: "Upcoming", tone: "neutral" };
+    }
+    if (beforeVoting && now < window.registrationEnd) {
+      return { label: "Registration open", tone: "live" };
+    }
+    if (beforeVoting) return { label: "Registration closed", tone: "neutral" };
+    if (phase === Phase.Voting && now >= window.votingEnd) {
+      return { label: "Voting ended", tone: "neutral" };
+    }
   }
-  return phase;
-}
-
-export function PhaseBadge({
-  phase: recorded,
-  window,
-  now,
-}: {
-  phase: number;
-  window?: { registrationStart: number; registrationEnd: number };
-  now?: number;
-}) {
-  const phase = shownPhase(recorded, window, now);
   const tone =
-    phase === Phase.Registration || phase === Phase.Voting
+    phase === Phase.Voting
       ? "live"
       : phase === Phase.Finalized
         ? "done"
         : phase === Phase.Cancelled
           ? "muted"
           : "neutral";
-  return <Badge tone={tone}>{phaseName(phase)}</Badge>;
+  return { label: phase === Phase.Voting ? "Voting open" : phaseName(phase), tone };
+}
+
+export function PhaseBadge({
+  phase,
+  window,
+  now,
+}: {
+  phase: number;
+  window?: { registrationStart: number; registrationEnd: number; votingEnd: number };
+  now?: number;
+}) {
+  const { label, tone } = phaseLabel(phase, window, now);
+  return <Badge tone={tone}>{label}</Badge>;
 }
 
 /** How an election's ballots work: anonymous or by wallet, and how they are counted. */

@@ -373,6 +373,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      viem:
+        specifier: 'catalog:'
+        version: 2.57.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.6.7)
 
   packages/shared:
     dependencies:
@@ -388,6 +391,9 @@ importers:
       '@semaphore-protocol/proof':
         specifier: 4.14.5
         version: 4.14.5(@semaphore-protocol/group@4.14.5(bufferutil@4.1.0)(utf-8-validate@5.0.10))(@semaphore-protocol/identity@4.14.5)(@types/snarkjs@0.7.9)(bufferutil@4.1.0)(commander@12.1.0)(utf-8-validate@5.0.10)
+      poseidon-lite:
+        specifier: 0.3.0
+        version: 0.3.0
       viem:
         specifier: 'catalog:'
         version: 2.57.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.6.7)

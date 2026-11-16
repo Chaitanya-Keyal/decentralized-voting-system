@@ -177,7 +177,10 @@ export function Spinner() {
 export function Mono({ value, short = true }: { value: string; short?: boolean }) {
   const text = short && value.length > 14 ? `${value.slice(0, 8)}…${value.slice(-6)}` : value;
   return (
-    <code title={value} className="font-mono text-xs break-all">
+    <code
+      title={value}
+      className={`font-mono text-xs ${text === value ? "break-all" : "whitespace-nowrap"}`}
+    >
       {text}
     </code>
   );

@@ -10,7 +10,6 @@ import { simulateContract, writeContract } from "wagmi/actions";
 import { useElection, type OnchainElection } from "@/lib/election";
 import { chain, simulateAt } from "@/lib/env";
 import { describeError } from "@/lib/errors";
-import { useStoredReceipt } from "@/lib/receipts";
 import { formatRelative, formatTime, useChainNow } from "@/lib/time";
 import { useTransaction } from "@/lib/transaction";
 import { proofFor, useVoterList } from "@/lib/voter-list";
@@ -19,7 +18,6 @@ import { useWallet } from "@/lib/wallet";
 import { AnonymousBooth } from "./anonymous-booth";
 import { CandidateChoice, choiceFor, type Marks } from "./candidate-choice";
 import { ElectionHeader } from "./election-header";
-import { ReceiptCard } from "./receipt-card";
 import { TransactionStatus } from "./transaction-status";
 import { Button, Card, LinkButton, Notice, Spinner } from "./ui";
 
@@ -57,6 +55,10 @@ function Ballot({ election, proof }: { election: OnchainElection; proof: Hex[] }
           cast();
         }}
       >
+        <Notice>
+          Your vote will be public: anyone can see which wallet chose whom. Sending it costs a
+          little gas.
+        </Notice>
         <CandidateChoice election={election} marks={marks} onChange={setMarks} />
         <div>
           <Button
@@ -68,10 +70,6 @@ function Ballot({ election, proof }: { election: OnchainElection; proof: Hex[] }
           </Button>
         </div>
         {blocker && <p className="text-sm text-zinc-500">{blocker} to cast your ballot.</p>}
-        <p className="text-xs text-zinc-500">
-          In this election a ballot is sent from your wallet, so it is public which wallet voted for
-          whom, and the wallet pays a little gas. Elections with anonymous ballots need no wallet.
-        </p>
         <TransactionStatus state={transaction.state} />
       </form>
     </Card>
@@ -212,7 +210,6 @@ export function BoothView({ address }: { address: string }) {
   const electionAddress = valid ? getAddress(address) : undefined;
   const { data: election, error } = useElection(electionAddress);
   const { address: account } = useAccount();
-  const receipt = useStoredReceipt(chain.id, electionAddress, account);
   const now = useChainNow();
 
   if (!valid) return <Notice tone="error">That is not an election address.</Notice>;
@@ -259,7 +256,6 @@ export function BoothView({ address }: { address: string }) {
       ) : (
         <Booth election={election} account={account} />
       )}
-      {receipt && <ReceiptCard receipt={receipt} />}
     </>
   );
 }

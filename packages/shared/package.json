@@ -23,6 +23,7 @@
     "@semaphore-protocol/group": "4.14.5",
     "@semaphore-protocol/identity": "4.14.5",
     "@semaphore-protocol/proof": "4.14.5",
+    "poseidon-lite": "0.3.0",
     "viem": "catalog:",
     "zod": "catalog:"
   }
