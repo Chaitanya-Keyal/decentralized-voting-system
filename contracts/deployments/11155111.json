@@ -1,0 +1,10 @@
+{
+  "chainId": 11155111,
+  "electionFactory": "0xfb6D305cB23F7D233ab2E6fbE344a19E538eAc58",
+  "merkleElection": "0x3CcBFc55205AdB83C0b714B1B779abE5796caa58",
+  "semaphoreElection": "0x85712b02C376A26a605cCa94e899ae771c5dcc74",
+  "semaphoreFactory": "0x2cA6d0f416E075c98356C4B2998de383EDe289ec",
+  "semaphoreVerifier": "0xBb71E1bc9F003ddf90566D2Ee4B011Da7eEd0837",
+  "startBlock": 12149884,
+  "voteForwarder": "0x6fd0198a1e00eeba59F947b04d9aF6f3B50A3aBD"
+}

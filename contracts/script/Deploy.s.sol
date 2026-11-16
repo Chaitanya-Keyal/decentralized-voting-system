@@ -14,13 +14,21 @@ import {VoteForwarder} from "../src/VoteForwarder.sol";
 /// @notice Deploys both tiers: the tier 2 election and its factory, and the tier 3 election with
 /// Semaphore's verifier, the vote forwarder and its own factory. Records the addresses in
 /// `deployments/<chain id>.json`. A dry run, without `--broadcast`, records nothing.
-/// @dev Locally, start a fresh `anvil` and run `pnpm deploy:local`. On a fresh chain the
-/// addresses are always the same, because they depend only on the deployer and its nonce.
+/// @dev Locally, start a fresh `anvil` and run `pnpm deploy:local`. On a fresh chain the addresses
+/// are always the same, because they depend only on the deployer and its nonce. On Sepolia, set
+/// DEPLOYER_PRIVATE_KEY and SEPOLIA_RPC_URL and run `pnpm deploy:sepolia`, which also publishes the
+/// source to Sourcify so anyone can check the deployed bytecode against it. Sepolia runs Glamsterdam,
+/// whose EIP-8037 charges far more gas to create state than Foundry's local EVM does, so the
+/// Sepolia deploy skips the local simulation and takes its gas limits from the node.
 contract Deploy is Script {
     function run() external {
         uint256 startBlock = block.number;
 
-        vm.startBroadcast();
+        // On a testnet the deployer's key comes from the environment, never the command line;
+        // locally, Anvil's unlocked account is passed with --unlocked --sender.
+        uint256 deployerKey = vm.envOr("DEPLOYER_PRIVATE_KEY", uint256(0));
+        if (deployerKey != 0) vm.startBroadcast(deployerKey);
+        else vm.startBroadcast();
         MerkleElection merkleElection = new MerkleElection();
         ElectionFactory electionFactory = new ElectionFactory(address(merkleElection));
         SemaphoreVerifier verifier = new SemaphoreVerifier();
