@@ -14,15 +14,19 @@ import {Election} from "./Election.sol";
 contract MerkleElection is Election {
     error NotEligible();
 
+    function tier() external pure override returns (uint8) {
+        return 2;
+    }
+
     /// @notice Casts a ballot from a registered address.
-    /// @param candidate Index of the chosen candidate.
+    /// @param choice A candidate index, or a bitmask of approved candidates under approval voting.
     /// @param proof Merkle proof that `msg.sender` is on the published voter list.
-    function castVote(uint256 candidate, bytes32[] calldata proof) external {
+    function castVote(uint256 choice, bytes32[] calldata proof) external {
         _requireVotingOpen();
         if (!MerkleProof.verifyCalldata(proof, voterRoot, voterLeaf(msg.sender))) {
             revert NotEligible();
         }
-        _recordBallot(bytes32(uint256(uint160(msg.sender))), candidate);
+        _recordBallot(bytes32(uint256(uint160(msg.sender))), choice);
     }
 
     /// @notice The tree leaf for `voter`, hashed the way StandardMerkleTree hashes an `address`.

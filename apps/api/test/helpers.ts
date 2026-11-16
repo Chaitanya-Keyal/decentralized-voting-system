@@ -1,4 +1,9 @@
-import { deploymentFor, electionFactoryAbi, registrationTypedData } from "@dvote/shared";
+import {
+  deploymentFor,
+  electionFactoryAbi,
+  factoryFor,
+  registrationTypedData,
+} from "@dvote/shared";
 import {
   createTestClient,
   http,
@@ -18,6 +23,7 @@ export const REGISTRAR = process.env.REGISTRAR_ADDRESS as Address;
 const deployment = deploymentFor(anvil.id);
 if (!deployment) throw new Error("contracts/deployments/31337.json is missing");
 export const factory = deployment.electionFactory;
+export const contracts = deployment;
 
 /** Talks to the test node, and can move its clock. */
 export const node = createTestClient({
@@ -51,15 +57,18 @@ export interface TestElection {
 }
 
 /**
- * Creates an election whose registration opens in ten seconds and lasts a thousand. By default the
- * authority is Anvil's first account and the registrar is the API's.
+ * Creates an election whose registration opens in ten seconds and lasts a thousand. By default it
+ * is a tier 2 plurality election, the authority is Anvil's first account and the registrar is the
+ * API's.
  */
 export async function createElection(
   title = "Student Senate",
   {
     authority = AUTHORITY,
     registrar = REGISTRAR,
-  }: { authority?: Address; registrar?: Address } = {},
+    tier = 2,
+    countingRule = 0,
+  }: { authority?: Address; registrar?: Address; tier?: 2 | 3; countingRule?: number } = {},
 ): Promise<TestElection> {
   const now = await chainTime();
   const schedule = {
@@ -70,11 +79,12 @@ export async function createElection(
   };
   const hash = await node.writeContract({
     account: authority,
-    address: factory,
+    address: factoryFor(contracts, tier),
     abi: electionFactoryAbi,
     functionName: "createElection",
     args: [
       registrar,
+      countingRule,
       title,
       "",
       schedule,

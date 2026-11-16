@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
 import {Election} from "./Election.sol";
+import {TallyLib} from "./TallyLib.sol";
 
 /// @title ElectionFactory
 /// @notice The only way to create an election. Each election is an EIP-1167 clone of one
@@ -32,9 +33,11 @@ contract ElectionFactory {
 
     /// @notice Creates and configures an election. The caller becomes its authority.
     /// @param registrar Address that verifies voters and publishes the voter list.
+    /// @param countingRule Plurality or approval, fixed for the life of the election.
     /// @return election Address of the new election.
     function createElection(
         address registrar,
+        TallyLib.CountingRule countingRule,
         string calldata title,
         string calldata metadataCid,
         Election.Schedule calldata schedule,
@@ -48,7 +51,13 @@ contract ElectionFactory {
         emit ElectionCreated(election, msg.sender, registrar);
 
         Election(election)
-            .initialize(msg.sender, registrar, title, metadataCid, schedule, candidates);
+            .initialize(
+                Election.Setup(msg.sender, registrar, countingRule),
+                title,
+                metadataCid,
+                schedule,
+                candidates
+            );
     }
 
     /// @notice Every election created so far, oldest first.

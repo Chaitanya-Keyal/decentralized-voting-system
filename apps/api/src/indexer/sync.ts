@@ -3,7 +3,7 @@
 // every row here can be rebuilt from the events.
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { electionFactoryAbi, merkleElectionAbi } from "@dvote/shared";
+import { electionFactories, electionFactoryAbi, merkleElectionAbi } from "@dvote/shared";
 import type { Logger } from "pino";
 import { BlockNotFoundError, getAddress, type Address } from "viem";
 import { anvil } from "viem/chains";
@@ -11,7 +11,7 @@ import { anvil } from "viem/chains";
 import { chain, deployment, publicClient } from "../chain";
 import { db } from "../db";
 import type { Prisma } from "../generated/prisma/client";
-import { loggable } from "../http";
+import { loggable } from "../redact";
 
 /** Blocks per `eth_getLogs` request, within what public RPC providers allow. */
 const BATCH_SIZE = 500n;
@@ -24,7 +24,7 @@ const POLL_MS = chain.id === anvil.id ? 500 : 4_000;
 
 function readFactoryEvents(fromBlock: bigint, toBlock: bigint) {
   return publicClient.getContractEvents({
-    address: deployment.electionFactory,
+    address: electionFactories(deployment),
     abi: electionFactoryAbi,
     eventName: "ElectionCreated",
     fromBlock,
@@ -50,13 +50,24 @@ type ChainEvent =
 /** What applying the events needs from the chain, read before the database transaction. */
 interface Reads {
   candidates: Map<Address, readonly { name: string; manifestoCid: string }[]>;
+  /** Each new election's tier and counting rule, which never change. */
+  kinds: Map<Address, { tier: number; countingRule: number }>;
   timestamps: Map<bigint, bigint>;
 }
 
 async function readsFor(events: ChainEvent[]): Promise<Reads> {
-  const reads: Reads = { candidates: new Map(), timestamps: new Map() };
+  const reads: Reads = { candidates: new Map(), kinds: new Map(), timestamps: new Map() };
   for (const event of events) {
     const address = getAddress(event.address);
+    if (event.eventName === "ElectionCreated") {
+      const election = event.args.election;
+      const contract = { address: election, abi: merkleElectionAbi } as const;
+      const [tier, countingRule] = await Promise.all([
+        publicClient.readContract({ ...contract, functionName: "tier" }),
+        publicClient.readContract({ ...contract, functionName: "countingRule" }),
+      ]);
+      reads.kinds.set(getAddress(election), { tier, countingRule });
+    }
     if (event.eventName === "CandidatesSet" && !reads.candidates.has(address)) {
       // Candidates can only change before voting opens, so the latest list is the final one. It
       // is read at the latest block, not at the event's: a node without archive state cannot
@@ -97,6 +108,7 @@ async function apply(tx: Prisma.TransactionClient, event: ChainEvent, reads: Rea
           address: event.args.election,
           authority: event.args.authority,
           registrar: event.args.registrar,
+          ...reads.kinds.get(getAddress(event.args.election)),
           createdAtBlock: event.blockNumber,
           createdTxHash: event.transactionHash,
         },
@@ -146,7 +158,7 @@ async function apply(tx: Prisma.TransactionClient, event: ChainEvent, reads: Rea
         data: {
           electionAddress: address,
           key: event.args.key,
-          candidate: int(event.args.candidate),
+          choice: event.args.choice.toString(),
           blockNumber: event.blockNumber,
           timestamp: reads.timestamps.get(event.blockNumber) ?? 0n,
           txHash: event.transactionHash,

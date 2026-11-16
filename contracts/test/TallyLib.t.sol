@@ -49,6 +49,39 @@ contract TallyLibTest is Test {
         }
     }
 
+    function test_isValidChoice_pluralityTakesAnIndex() public pure {
+        assertTrue(TallyLib.isValidChoice(TallyLib.CountingRule.Plurality, 3, 0));
+        assertTrue(TallyLib.isValidChoice(TallyLib.CountingRule.Plurality, 3, 2));
+        assertFalse(TallyLib.isValidChoice(TallyLib.CountingRule.Plurality, 3, 3));
+    }
+
+    function test_isValidChoice_approvalTakesANonEmptyBitmask() public pure {
+        assertFalse(TallyLib.isValidChoice(TallyLib.CountingRule.Approval, 3, 0));
+        assertTrue(TallyLib.isValidChoice(TallyLib.CountingRule.Approval, 3, 7));
+        assertFalse(TallyLib.isValidChoice(TallyLib.CountingRule.Approval, 3, 8));
+        assertTrue(TallyLib.isValidChoice(TallyLib.CountingRule.Approval, 64, type(uint64).max));
+        assertFalse(TallyLib.isValidChoice(TallyLib.CountingRule.Approval, 64, 1 << 64));
+    }
+
+    uint256[] internal counted;
+
+    function testFuzz_count_approvalAddsOnePerApprovedCandidate(uint64 mask, uint8 n) public {
+        n = uint8(bound(n, 1, 64));
+        uint256 choice = uint256(mask) & ((uint256(1) << n) - 1);
+        vm.assume(choice != 0);
+        delete counted;
+        for (uint256 i; i < n; ++i) {
+            counted.push(0);
+        }
+        TallyLib.count(counted, TallyLib.CountingRule.Approval, choice);
+        uint256 total;
+        for (uint256 i; i < n; ++i) {
+            assertEq(counted[i], (choice >> i) & 1);
+            total += counted[i];
+        }
+        assertGt(total, 0);
+    }
+
     function _tally(uint256 a, uint256 b, uint256 c) internal pure returns (uint256[] memory t) {
         t = new uint256[](3);
         t[0] = a;

@@ -7,6 +7,7 @@ import {Test} from "forge-std/Test.sol";
 import {Election} from "../src/Election.sol";
 import {ElectionFactory} from "../src/ElectionFactory.sol";
 import {MerkleElection} from "../src/MerkleElection.sol";
+import {TallyLib} from "../src/TallyLib.sol";
 
 contract ElectionFactoryTest is Test {
     ElectionFactory internal factory;
@@ -62,7 +63,11 @@ contract ElectionFactoryTest is Test {
         Election election = Election(_create("Senate"));
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         election.initialize(
-            address(this), address(this), "Hijack", "", schedule, new Election.Candidate[](0)
+            Election.Setup(address(this), address(this), TallyLib.CountingRule.Plurality),
+            "Hijack",
+            "",
+            schedule,
+            new Election.Candidate[](0)
         );
     }
 
@@ -75,13 +80,17 @@ contract ElectionFactoryTest is Test {
         Election.Candidate[] memory candidates = new Election.Candidate[](1);
         candidates[0] = Election.Candidate("Alice", "");
         vm.expectRevert(Election.ZeroAddress.selector);
-        factory.createElection(address(0), "Senate", "", schedule, candidates);
+        factory.createElection(
+            address(0), TallyLib.CountingRule.Plurality, "Senate", "", schedule, candidates
+        );
     }
 
     function _create(string memory title) internal returns (address) {
         Election.Candidate[] memory candidates = new Election.Candidate[](2);
         candidates[0] = Election.Candidate("Alice", "");
         candidates[1] = Election.Candidate("Bob", "");
-        return factory.createElection(registrar, title, "", schedule, candidates);
+        return factory.createElection(
+            registrar, TallyLib.CountingRule.Plurality, title, "", schedule, candidates
+        );
     }
 }

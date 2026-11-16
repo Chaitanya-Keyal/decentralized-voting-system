@@ -1,5 +1,11 @@
 // What the API serves from the indexer's tables.
-import { Phase, type Ballot, type ElectionDetail, type ElectionSummary } from "@dvote/shared";
+import {
+  choiceCandidates,
+  Phase,
+  type Ballot,
+  type ElectionDetail,
+  type ElectionSummary,
+} from "@dvote/shared";
 import type { Address, Hex } from "viem";
 
 import { chain, publicClient } from "../chain";
@@ -10,6 +16,8 @@ import { HttpError } from "../http";
 function summary(election: Election, ballotsCast: number): ElectionSummary {
   return {
     address: election.address as Address,
+    tier: election.tier,
+    countingRule: election.countingRule,
     title: election.title,
     phase: election.phase,
     registrationStart: Number(election.registrationStart),
@@ -36,12 +44,23 @@ export async function getElection(address: Address): Promise<ElectionDetail> {
   });
   if (!election) throw new HttpError(404, "The indexer has not seen this election.");
 
+  // Under approval voting a ballot can count for several candidates, so the counts come from
+  // each ballot's choice rather than from grouping.
   const counts = await db.ballot.groupBy({
-    by: ["candidate"],
+    by: ["choice"],
     where: { electionAddress: address },
     _count: { _all: true },
   });
-  const votes = new Map(counts.map((count) => [count.candidate, count._count._all]));
+  const votes = new Map<number, number>();
+  for (const count of counts) {
+    for (const index of choiceCandidates(
+      election.countingRule,
+      BigInt(count.choice),
+      election.candidates.length,
+    )) {
+      votes.set(index, (votes.get(index) ?? 0) + count._count._all);
+    }
+  }
   const ballotsCast = counts.reduce((total, count) => total + count._count._all, 0);
 
   return {
@@ -62,6 +81,10 @@ export async function getElection(address: Address): Promise<ElectionDetail> {
 }
 
 export async function listBallots(address: Address): Promise<{ ballots: Ballot[] }> {
+  const election = await db.election.findUnique({
+    where: { address },
+    include: { _count: { select: { candidates: true } } },
+  });
   const ballots = await db.ballot.findMany({
     where: { electionAddress: address },
     orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }],
@@ -69,7 +92,12 @@ export async function listBallots(address: Address): Promise<{ ballots: Ballot[]
   return {
     ballots: ballots.map((ballot) => ({
       key: ballot.key as Hex,
-      candidate: ballot.candidate,
+      choice: ballot.choice,
+      candidates: choiceCandidates(
+        election?.countingRule ?? 0,
+        BigInt(ballot.choice),
+        election?._count.candidates ?? 0,
+      ),
       blockNumber: Number(ballot.blockNumber),
       timestamp: Number(ballot.timestamp),
       txHash: ballot.txHash as Hex,

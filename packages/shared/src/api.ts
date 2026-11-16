@@ -1,6 +1,7 @@
 // Request and response bodies of the API, shared so the web app and the API agree on them.
 import { z } from "zod";
 
+import { commitmentSchema } from "./semaphore";
 import { addressSchema } from "./voter-list";
 
 export const hexSchema = z
@@ -21,6 +22,7 @@ export const apiConfigSchema = z.object({
   chainId: z.number(),
   registrar: addressSchema,
   electionFactory: addressSchema,
+  semaphoreFactory: addressSchema,
   emailDomain: z.string(),
 });
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
@@ -39,6 +41,15 @@ export const registrationRequestSchema = z.object({
 });
 export type RegistrationRequest = z.input<typeof registrationRequestSchema>;
 
+/** Tier 3: the voter registers the commitment of an identity their device created. */
+export const identityRegistrationRequestSchema = z.object({
+  email: emailSchema,
+  code: z.string().regex(/^\d{6}$/, "The code has six digits"),
+  /** The identity commitment, in decimal. */
+  commitment: commitmentSchema.refine((value) => value !== "0", "Not an identity commitment"),
+});
+export type IdentityRegistrationRequest = z.input<typeof identityRegistrationRequestSchema>;
+
 /** What a voter keeps after registering. The signature is over `receiptTypedData`. */
 export const receiptSchema = z.object({
   chainId: z.number(),
@@ -50,6 +61,19 @@ export const receiptSchema = z.object({
   signature: hexSchema,
 });
 export type Receipt = z.infer<typeof receiptSchema>;
+
+/** What a tier 3 voter keeps. The signature is over `identityReceiptTypedData`. */
+export const identityReceiptSchema = z.object({
+  chainId: z.number(),
+  election: addressSchema,
+  /** The identity commitment, in decimal. */
+  commitment: z.string(),
+  /** Unix seconds. */
+  issuedAt: z.number().int(),
+  registrar: addressSchema,
+  signature: hexSchema,
+});
+export type IdentityReceipt = z.infer<typeof identityReceiptSchema>;
 
 export const registrationCountSchema = z.object({ count: z.number() });
 
@@ -97,6 +121,10 @@ export const apiErrorSchema = z.object({ message: z.string() });
 
 export const electionSummarySchema = z.object({
   address: addressSchema,
+  /** 2 for wallet ballots, 3 for anonymous ballots. */
+  tier: z.number(),
+  /** `CountingRule`: 0 plurality, 1 approval. */
+  countingRule: z.number(),
   title: z.string(),
   phase: z.number(),
   /** Unix seconds. */
@@ -128,7 +156,10 @@ export type ElectionDetail = z.infer<typeof electionDetailSchema>;
 export const ballotSchema = z.object({
   /** The voter's address in tier 2, the nullifier in tier 3. */
   key: hexSchema,
-  candidate: z.number(),
+  /** As cast: a candidate index, or under approval a bitmask of candidates, in decimal. */
+  choice: z.string(),
+  /** The candidates the ballot counts for. */
+  candidates: z.array(z.number()),
   blockNumber: z.number(),
   /** Unix seconds. */
   timestamp: z.number(),
@@ -144,3 +175,53 @@ export const indexerStatusSchema = z.object({
   block: z.number().nullable(),
   head: z.number(),
 });
+
+// ---------------------------------------------------------------------------------------------
+// Relayer: submits tier 3 ballots and pays their gas
+// ---------------------------------------------------------------------------------------------
+
+/** A ballot for the relayer: a `VoteForwarder` request signed by a throwaway key. */
+export const relayRequestSchema = z.object({
+  request: z.object({
+    from: addressSchema,
+    to: addressSchema,
+    value: z.string().regex(/^\d+$/),
+    gas: z.string().regex(/^\d+$/),
+    deadline: z.number().int().positive(),
+    data: hexSchema,
+    signature: hexSchema,
+  }),
+});
+export type RelayRequest = z.input<typeof relayRequestSchema>;
+
+/** The relayer's signed promise to submit a ballot. The signature is over `relayReceiptTypedData`. */
+export const relayReceiptSchema = z.object({
+  chainId: z.number(),
+  election: addressSchema,
+  /** In decimal. */
+  nullifier: z.string(),
+  /** In decimal. */
+  choice: z.string(),
+  /** Unix seconds. */
+  acceptedAt: z.number().int(),
+  relayer: addressSchema,
+  signature: hexSchema,
+});
+export type RelayReceipt = z.infer<typeof relayReceiptSchema>;
+
+export const relayAcceptedSchema = z.object({ id: z.string(), receipt: relayReceiptSchema });
+
+export const relayStatusSchema = z.object({
+  id: z.string(),
+  status: z.enum(["queued", "sending", "mined", "failed"]),
+  txHash: hexSchema.optional(),
+  error: z.string().optional(),
+});
+export type RelayStatus = z.infer<typeof relayStatusSchema>;
+
+export const relayConfigSchema = z.object({
+  chainId: z.number(),
+  relayer: addressSchema,
+  forwarder: addressSchema,
+});
+export type RelayConfig = z.infer<typeof relayConfigSchema>;

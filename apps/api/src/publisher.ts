@@ -2,7 +2,7 @@ import type { FastifyBaseLogger } from "fastify";
 import { anvil } from "viem/chains";
 
 import { chain } from "./chain";
-import { loggable } from "./http";
+import { loggable } from "./redact";
 import { publishDueVoterLists } from "./registrar";
 
 const INTERVAL_MS = chain.id === anvil.id ? 2_000 : 30_000;

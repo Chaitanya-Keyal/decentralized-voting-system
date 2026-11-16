@@ -76,6 +76,10 @@ model Election {
   votingStart       BigInt      @default(0)
   votingEnd         BigInt      @default(0)
   phase             Int         @default(0)
+  /// 2 for wallet ballots, 3 for anonymous ballots.
+  tier              Int         @default(2)
+  /// `CountingRule`: 0 plurality, 1 approval.
+  countingRule      Int         @default(0)
   voterRoot         String?
   voterCount        Int?
   voterListCid      String?
@@ -104,7 +108,8 @@ model Ballot {
   electionAddress String
   /// The voter's address in tier 2, the nullifier in tier 3.
   key             String
-  candidate       Int
+  /// As cast: a candidate index, or under approval a bitmask of candidates, in decimal.
+  choice          String
   blockNumber     BigInt
   /// Unix seconds.
   timestamp       BigInt

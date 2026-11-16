@@ -7,10 +7,15 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 import {Test} from "forge-std/Test.sol";
 
 import {Election} from "../src/Election.sol";
+import {TallyLib} from "../src/TallyLib.sol";
 import {VoterRegistry} from "../src/VoterRegistry.sol";
 
 /// @dev Exposes ballot recording so the shared lifecycle can be tested without a voting tier.
 contract ElectionHarness is Election {
+    function tier() external pure override returns (uint8) {
+        return 0;
+    }
+
     function recordBallot(bytes32 key, uint256 candidate) external {
         _requireVotingOpen();
         _recordBallot(key, candidate);
@@ -34,7 +39,13 @@ contract ElectionTest is Test {
 
         uint64 t = uint64(block.timestamp);
         schedule = Election.Schedule(t + 100, t + 200, t + 300, t + 400);
-        election.initialize(authority, registrar, "Senate", "bafy-ballot", schedule, _candidates(3));
+        election.initialize(
+            Election.Setup(authority, registrar, TallyLib.CountingRule.Plurality),
+            "Senate",
+            "bafy-ballot",
+            schedule,
+            _candidates(3)
+        );
     }
 
     // -------------------------------------------------------------------------------------------
@@ -53,21 +64,45 @@ contract ElectionTest is Test {
 
     function test_initialize_onlyOnce() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        election.initialize(anyone, anyone, "Again", "", schedule, _candidates(2));
+        election.initialize(
+            Election.Setup(anyone, anyone, TallyLib.CountingRule.Plurality),
+            "Again",
+            "",
+            schedule,
+            _candidates(2)
+        );
     }
 
     function test_implementation_cannotBeInitialized() public {
         ElectionHarness implementation = new ElectionHarness();
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        implementation.initialize(authority, registrar, "Senate", "", schedule, _candidates(2));
+        implementation.initialize(
+            Election.Setup(authority, registrar, TallyLib.CountingRule.Plurality),
+            "Senate",
+            "",
+            schedule,
+            _candidates(2)
+        );
     }
 
     function test_initialize_rejectsZeroAddresses() public {
         ElectionHarness fresh = _freshClone();
         vm.expectRevert(Election.ZeroAddress.selector);
-        fresh.initialize(address(0), registrar, "Senate", "", schedule, _candidates(2));
+        fresh.initialize(
+            Election.Setup(address(0), registrar, TallyLib.CountingRule.Plurality),
+            "Senate",
+            "",
+            schedule,
+            _candidates(2)
+        );
         vm.expectRevert(Election.ZeroAddress.selector);
-        fresh.initialize(authority, address(0), "Senate", "", schedule, _candidates(2));
+        fresh.initialize(
+            Election.Setup(authority, address(0), TallyLib.CountingRule.Plurality),
+            "Senate",
+            "",
+            schedule,
+            _candidates(2)
+        );
     }
 
     function test_roles_cannotBeChangedByAnyone() public {
@@ -509,11 +544,11 @@ contract ElectionTest is Test {
         election.recordBallot(key, 1);
     }
 
-    function test_recordBallot_rejectsUnknownCandidate() public {
+    function test_recordBallot_rejectsInvalidChoice() public {
         _toRegistration();
         _publish(5);
         _toVoting();
-        vm.expectRevert(abi.encodeWithSelector(Election.UnknownCandidate.selector, 3));
+        vm.expectRevert(abi.encodeWithSelector(Election.InvalidChoice.selector, 3));
         election.recordBallot(bytes32(uint256(1)), 3);
     }
 
@@ -555,6 +590,72 @@ contract ElectionTest is Test {
     }
 
     // -------------------------------------------------------------------------------------------
+    // Approval voting
+    // -------------------------------------------------------------------------------------------
+
+    function test_countingRule_isFixedAtCreation() public view {
+        assertEq(uint8(election.countingRule()), uint8(TallyLib.CountingRule.Plurality));
+    }
+
+    function test_approval_countsEveryApprovedCandidate() public {
+        election = _approvalElection();
+        _toRegistration();
+        _publish(5);
+        _toVoting();
+        // Bitmasks: 5 approves candidates 0 and 2, 3 approves 0 and 1, 4 approves 2 alone.
+        election.recordBallot(bytes32(uint256(1)), 5);
+        election.recordBallot(bytes32(uint256(2)), 3);
+        election.recordBallot(bytes32(uint256(3)), 4);
+        uint256[] memory counts = election.tally();
+        assertEq(counts[0], 2);
+        assertEq(counts[1], 1);
+        assertEq(counts[2], 2);
+        assertEq(election.ballotsCast(), 3);
+
+        vm.warp(schedule.votingEnd);
+        election.closeVoting();
+        election.finalize();
+        assertEq(election.winners().length, 2);
+        assertEq(election.winners()[0], 0);
+        assertEq(election.winners()[1], 2);
+    }
+
+    function test_approval_rejectsAnEmptyBallotAndUnknownCandidates() public {
+        election = _approvalElection();
+        _toRegistration();
+        _publish(5);
+        _toVoting();
+        vm.expectRevert(abi.encodeWithSelector(Election.InvalidChoice.selector, 0));
+        election.recordBallot(bytes32(uint256(1)), 0);
+        // 8 would approve a fourth candidate, which does not exist.
+        vm.expectRevert(abi.encodeWithSelector(Election.InvalidChoice.selector, 8));
+        election.recordBallot(bytes32(uint256(1)), 8);
+        election.recordBallot(bytes32(uint256(1)), 7);
+        assertEq(election.ballotsCast(), 1);
+    }
+
+    function test_singleCandidateElection() public {
+        ElectionHarness fresh = _freshClone();
+        fresh.initialize(
+            Election.Setup(authority, registrar, TallyLib.CountingRule.Plurality),
+            "Referendum",
+            "",
+            schedule,
+            _candidates(1)
+        );
+        election = fresh;
+        _toRegistration();
+        _publish(1);
+        _toVoting();
+        election.recordBallot(bytes32(uint256(1)), 0);
+        vm.warp(schedule.votingEnd);
+        election.closeVoting();
+        election.finalize();
+        assertEq(election.winners().length, 1);
+        assertEq(election.winners()[0], 0);
+    }
+
+    // -------------------------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------------------------
 
@@ -572,6 +673,17 @@ contract ElectionTest is Test {
     function _toVoting() internal {
         vm.warp(schedule.votingStart);
         election.openVoting();
+    }
+
+    function _approvalElection() internal returns (ElectionHarness fresh) {
+        fresh = _freshClone();
+        fresh.initialize(
+            Election.Setup(authority, registrar, TallyLib.CountingRule.Approval),
+            "Committee",
+            "",
+            schedule,
+            _candidates(3)
+        );
     }
 
     function _freshClone() internal returns (ElectionHarness) {

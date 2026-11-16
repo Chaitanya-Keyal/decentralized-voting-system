@@ -1,7 +1,16 @@
 import { createHash } from "node:crypto";
 
 import {
+  Identity,
+  identityReceiptSchema,
+  identityReceiptTypedData,
+  identityTree,
   merkleElectionAbi,
+  parseIdentityList,
+  proveBallot,
+  rootToBytes32,
+  semaphoreElectionAbi,
+  verifyIdentityList,
   parseVoterList,
   receiptSchema,
   receiptTypedData,
@@ -12,6 +21,7 @@ import type { FastifyInstance } from "fastify";
 import { recoverTypedDataAddress, type Address } from "viem";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ensureArtifacts } from "../../../packages/shared/scripts/semaphore-artifacts.mjs";
 import { buildApp } from "../src/app";
 import { db } from "../src/db";
 import { publishDueVoterLists } from "../src/registrar";
@@ -484,6 +494,139 @@ describe("publishing the voter list", () => {
       true,
     );
   });
+});
+
+describe("tier 3: anonymous voters", () => {
+  let test: TestElection;
+  const artifacts = new URL("../node_modules/.cache/semaphore-artifacts/", import.meta.url)
+    .pathname;
+
+  beforeAll(async () => {
+    await ensureArtifacts(artifacts, [2]);
+  }, 120_000);
+
+  beforeEach(async () => {
+    test = await createElection("Anonymous senate", { tier: 3 });
+    await warpTo(test.schedule.registrationStart);
+  });
+
+  async function registerIdentity(identity = new Identity(), email = newEmail()) {
+    const code = await requestCode(test.election, email);
+    const response = await post(`/elections/${test.election}/registrations`, {
+      email,
+      code,
+      commitment: identity.commitment.toString(),
+    });
+    return { response, identity, email };
+  }
+
+  it("registers an identity commitment, with a receipt signed by the registrar", async () => {
+    const { response, identity } = await registerIdentity();
+    expect(response.statusCode, response.body).toBe(200);
+    const receipt = identityReceiptSchema.parse(response.json());
+    expect(receipt).toMatchObject({
+      election: test.election,
+      commitment: identity.commitment.toString(),
+      registrar: REGISTRAR,
+    });
+    const signer = await recoverTypedDataAddress({
+      ...identityReceiptTypedData(receipt),
+      signature: receipt.signature,
+    });
+    expect(signer).toBe(REGISTRAR);
+  });
+
+  it("refuses a wallet where it expects an identity", async () => {
+    const email = newEmail();
+    const voter = newVoter();
+    const code = await requestCode(test.election, email);
+    const response = await post(`/elections/${test.election}/registrations`, {
+      email,
+      code,
+      voter: voter.address,
+      signature: await signRegistration(voter, test.election, email),
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("keeps an email address's first identity", async () => {
+    const email = newEmail();
+    const identity = new Identity();
+    await registerIdentity(identity, email);
+    try {
+      vi.useFakeTimers({ now: Date.now() + 61_000, toFake: ["Date"] });
+      const again = await registerIdentity(identity, email);
+      expect(again.response.statusCode, again.response.body).toBe(200);
+      vi.useFakeTimers({ now: Date.now() + 61_000, toFake: ["Date"] });
+      const other = await registerIdentity(new Identity(), email);
+      expect(other.response.statusCode).toBe(409);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("publishes the identity list, and a registered voter's anonymous ballot counts", async () => {
+    const voters = [new Identity(), new Identity(), new Identity()];
+    for (const voter of voters) {
+      const { response } = await registerIdentity(voter);
+      expect(response.statusCode, response.body).toBe(200);
+    }
+
+    await warpTo(test.schedule.registrationEnd);
+    const published = await post(`/elections/${test.election}/voter-list`, {});
+    expect(published.statusCode, published.body).toBe(200);
+    const { root, cid } = published.json<{ root: `0x${string}`; cid: string }>();
+
+    // The pinned list rebuilds to the root on-chain, as the booth and auditors check.
+    const contract = { address: test.election, abi: semaphoreElectionAbi } as const;
+    expect(await node.readContract({ ...contract, functionName: "voterRoot" })).toBe(root);
+    const list = parseIdentityList(ipfs.pinned.get(cid));
+    const tree = verifyIdentityList(list, {
+      chainId: chain.id,
+      election: test.election,
+      root,
+      count: 3n,
+    });
+    expect(rootToBytes32(identityTree(list.commitments).root)).toBe(root);
+
+    await warpTo(test.schedule.votingStart);
+    await node.waitForTransactionReceipt({
+      hash: await node.writeContract({
+        ...contract,
+        account: REGISTRAR,
+        functionName: "openVoting",
+      }),
+    });
+    const ballot = await proveBallot({
+      identity: voters[1]!,
+      tree,
+      election: test.election,
+      choice: 1n,
+      artifacts: (depth) => ({
+        wasm: `${artifacts}semaphore-${depth}.wasm`,
+        zkey: `${artifacts}semaphore-${depth}.zkey`,
+      }),
+    });
+    // Anyone can submit an anonymous ballot; here the registrar's account pays the gas.
+    const cast = () =>
+      node.writeContract({
+        ...contract,
+        account: REGISTRAR,
+        functionName: "castVote",
+        args: [ballot.choice, ballot.nullifier, ballot.points],
+      });
+    expect((await node.waitForTransactionReceipt({ hash: await cast() })).status).toBe("success");
+    expect(await node.readContract({ ...contract, functionName: "tally" })).toEqual([0n, 1n]);
+    // The same voter cannot vote again: the nullifier is spent.
+    await expect(
+      node.simulateContract({
+        ...contract,
+        account: REGISTRAR,
+        functionName: "castVote",
+        args: [ballot.choice, ballot.nullifier, ballot.points],
+      }),
+    ).rejects.toThrow(/AlreadyVoted/);
+  }, 120_000);
 });
 
 describe("POST /metadata", () => {

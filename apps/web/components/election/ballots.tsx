@@ -50,7 +50,8 @@ export function Ballots({ election, candidates }: { election: Address; candidate
                   <Mono value={voterOf(ballot.key)} />
                 </td>
                 <td className="py-2 pr-4">
-                  {candidates[ballot.candidate] ?? `#${ballot.candidate}`}
+                  {ballot.candidates.map((index) => candidates[index] ?? `#${index}`).join(", ") ||
+                    `choice ${ballot.choice}`}
                 </td>
                 <td className="py-2 pr-4 text-zinc-500">{formatTime(ballot.timestamp)}</td>
                 <td className="py-2">

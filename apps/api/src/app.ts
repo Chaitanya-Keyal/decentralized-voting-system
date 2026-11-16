@@ -1,22 +1,17 @@
 import { STATUS_CODES } from "node:http";
 
 import cors from "@fastify/cors";
-import {
-  addressSchema,
-  codeRequestSchema,
-  metadataSchema,
-  registrationRequestSchema,
-  type ApiConfig,
-} from "@dvote/shared";
+import { addressSchema, codeRequestSchema, metadataSchema, type ApiConfig } from "@dvote/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { chain, deployment, registrar } from "./chain";
 import { env } from "./env";
-import { clientError, loggable, parse } from "./http";
+import { clientError, parse } from "./http";
+import { loggable } from "./redact";
 import { getElection, indexerStatus, listBallots, listElections } from "./indexer/queries";
 import { pinJson } from "./ipfs";
-import { publishVoterList, register, registrationCount, sendCode } from "./registrar";
+import { publishVoterList, registerVoter, registrationCount, sendCode } from "./registrar";
 
 const electionParams = z.object({ election: addressSchema });
 
@@ -48,6 +43,7 @@ export async function buildApp(options: { logger?: boolean } = {}): Promise<Fast
     chainId: chain.id,
     registrar: registrar.account.address,
     electionFactory: deployment.electionFactory,
+    semaphoreFactory: deployment.semaphoreFactory,
     emailDomain: env.EMAIL_DOMAIN,
   }));
 
@@ -61,7 +57,7 @@ export async function buildApp(options: { logger?: boolean } = {}): Promise<Fast
 
   app.post("/elections/:election/registrations", async (request) => {
     const { election } = parse(electionParams, request.params);
-    return register(election, parse(registrationRequestSchema, request.body));
+    return registerVoter(election, request.body);
   });
 
   app.get("/elections/:election/registrations/count", async (request) => {

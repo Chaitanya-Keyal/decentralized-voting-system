@@ -1,7 +1,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-import { deploymentFor, electionFactoryAbi } from "@dvote/shared";
+import { deploymentFor, electionFactoryAbi, semaphoreElectionAbi } from "@dvote/shared";
 import pg from "pg";
 import { createWalletClient, http, isAddressEqual, publicActions, type Hex } from "viem";
 import { anvil } from "viem/chains";
@@ -61,19 +61,44 @@ async function deployContracts(rpcUrl: string) {
     return contractAddress;
   };
 
-  const implementation = await deploy(
+  // In the deploy script's order, so the addresses match contracts/deployments/31337.json.
+  const merkleElection = await deploy(
     await client.deployContract({ abi: [], bytecode: bytecode("MerkleElection") }),
   );
-  const factory = await deploy(
+  const electionFactory = await deploy(
     await client.deployContract({
       abi: electionFactoryAbi,
       bytecode: bytecode("ElectionFactory"),
-      args: [implementation],
+      args: [merkleElection],
     }),
   );
-  const expected = deploymentFor(anvil.id)?.electionFactory;
-  if (!expected || !isAddressEqual(factory, expected)) {
-    throw new Error(`The factory was deployed at ${factory}, not at ${expected}`);
+  const verifier = await deploy(
+    await client.deployContract({ abi: [], bytecode: bytecode("SemaphoreVerifier") }),
+  );
+  const forwarder = await deploy(
+    await client.deployContract({ abi: [], bytecode: bytecode("VoteForwarder") }),
+  );
+  const semaphoreElection = await deploy(
+    await client.deployContract({
+      abi: semaphoreElectionAbi,
+      bytecode: bytecode("SemaphoreElection"),
+      args: [verifier, forwarder],
+    }),
+  );
+  const semaphoreFactory = await deploy(
+    await client.deployContract({
+      abi: electionFactoryAbi,
+      bytecode: bytecode("ElectionFactory"),
+      args: [semaphoreElection],
+    }),
+  );
+  const expected = deploymentFor(anvil.id);
+  const deployed = { electionFactory, voteForwarder: forwarder, semaphoreFactory };
+  for (const [name, address] of Object.entries(deployed)) {
+    const want = expected?.[name as keyof typeof deployed];
+    if (!want || !isAddressEqual(address, want)) {
+      throw new Error(`${name} was deployed at ${address}, not at ${want}`);
+    }
   }
 }
 

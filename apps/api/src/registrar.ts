@@ -4,12 +4,19 @@
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 
 import {
+  buildIdentityList,
   buildVoterList,
+  identityReceiptTypedData,
+  identityRegistrationRequestSchema,
+  identityTree,
   merkleElectionAbi,
   Phase,
   receiptTypedData,
+  registrationRequestSchema,
   registrationTypedData,
+  rootToBytes32,
   voterTree,
+  type IdentityReceipt,
   type Publication,
   type Receipt,
 } from "@dvote/shared";
@@ -37,7 +44,8 @@ import {
 import { db } from "./db";
 import { env } from "./env";
 import type { Prisma } from "./generated/prisma/client";
-import { HttpError, loggable } from "./http";
+import { HttpError, parse } from "./http";
+import { loggable } from "./redact";
 import { pinJson } from "./ipfs";
 import { sendCode as emailCode } from "./mailer";
 
@@ -184,12 +192,16 @@ async function checkCode(election: Address, email: string, code: string) {
 export async function register(
   election: Address,
   request: { email: string; code: string; voter: Address; signature: Hex },
+  known?: ElectionState,
 ): Promise<Receipt> {
   const { email, voter } = request;
   requireInstituteEmail(email);
   // An invalid signature recovers to the zero address, so it must never be a voter.
   if (isAddressEqual(voter, zeroAddress)) throw new HttpError(400, "That is not a wallet address.");
-  const state = await readElection(election);
+  const state = known ?? (await readElection(election));
+  if (state.tier === 3) {
+    throw new HttpError(400, "This election registers identities, not wallets.");
+  }
   await requireRegistrationOpen(state);
   await checkCode(election, email, request.code);
 
@@ -251,6 +263,87 @@ export async function register(
   return receipt;
 }
 
+/**
+ * Tier 3: registers the commitment of a Semaphore identity the voter's device created, once they
+ * have proved their email address, and returns the registrar's signed receipt (FR2). The secret
+ * behind the commitment never leaves the device, so the registrar cannot vote in the voter's
+ * name or tell which ballot is theirs. As with wallets, an email address registers one identity
+ * and the pair never changes.
+ */
+export async function registerIdentity(
+  election: Address,
+  request: { email: string; code: string; commitment: string },
+  known?: ElectionState,
+): Promise<IdentityReceipt> {
+  const { email, commitment } = request;
+  requireInstituteEmail(email);
+  const state = known ?? (await readElection(election));
+  if (state.tier !== 3) {
+    throw new HttpError(400, "This election registers wallets, not identities.");
+  }
+  await requireRegistrationOpen(state);
+  await checkCode(election, email, request.code);
+
+  const issuedAt = Number(await chainNow());
+  const receipt: IdentityReceipt = {
+    chainId: chain.id,
+    election,
+    commitment,
+    issuedAt,
+    registrar: registrar.account.address,
+    signature: await registrar.signTypedData({
+      account: registrar.account,
+      ...identityReceiptTypedData({ chainId: chain.id, election, commitment, issuedAt }),
+    }),
+  };
+
+  await withElectionLock(election, async (tx) => {
+    if (await tx.voterListPublication.findUnique({ where: { election } })) {
+      throw new HttpError(409, "Registration for this election has closed.");
+    }
+    const holder = await tx.registration.findUnique({
+      where: { election_voter: { election, voter: commitment } },
+    });
+    if (holder && holder.email !== email) {
+      throw new HttpError(409, "This identity is already registered with another email address.");
+    }
+    const existing = await tx.registration.findUnique({
+      where: { election_email: { election, email } },
+    });
+    if (existing && existing.voter !== commitment) {
+      throw new HttpError(
+        409,
+        "This email address is registered with another identity, which stays its identity for " +
+          "this election. Restore that identity from its backup to get your receipt again.",
+      );
+    }
+    const record = {
+      voter: commitment,
+      voterSignature: "",
+      receiptSignature: receipt.signature,
+      issuedAt: new Date(issuedAt * 1000),
+    };
+    await tx.registration.upsert({
+      where: { election_email: { election, email } },
+      create: { election, email, ...record },
+      update: record,
+    });
+    await tx.emailCode.deleteMany({ where: { election, email } });
+  });
+  return receipt;
+}
+
+/** Registers a voter in either tier, reading which one the election uses. */
+export async function registerVoter(
+  election: Address,
+  body: unknown,
+): Promise<Receipt | IdentityReceipt> {
+  const state = await readElection(election);
+  return state.tier === 3
+    ? registerIdentity(election, parse(identityRegistrationRequestSchema, body), state)
+    : register(election, parse(registrationRequestSchema, body), state);
+}
+
 export async function registrationCount(election: Address): Promise<{ count: number }> {
   await readElection(election);
   return { count: await db.registration.count({ where: { election } }) };
@@ -299,7 +392,7 @@ async function publish(election: Address, log: FastifyBaseLogger): Promise<Publi
 
   // Freezing the list stops any later registration. If an earlier attempt failed after this
   // point, the list it froze is rebuilt unchanged. Hashing a large list takes a few seconds.
-  const { list, root } = await withElectionLock(
+  const { list, root, count } = await withElectionLock(
     election,
     async (tx) => {
       const registrations = await tx.registration.findMany({
@@ -309,23 +402,34 @@ async function publish(election: Address, log: FastifyBaseLogger): Promise<Publi
       if (registrations.length === 0) {
         throw new HttpError(409, "Nobody has registered, so there is no voter list to publish.");
       }
-      const list = buildVoterList({
-        chainId: chain.id,
-        election,
-        voters: registrations.map((registration) => registration.voter),
-      });
-      const root = voterTree(list.voters).root as Hex;
+      const voters = registrations.map((registration) => registration.voter);
+      // Tier 2 lists wallet addresses under a keccak Merkle tree; tier 3 lists identity
+      // commitments under Semaphore's Poseidon tree.
+      const built =
+        state.tier === 3
+          ? (() => {
+              const list = buildIdentityList({ chainId: chain.id, election, commitments: voters });
+              const tree = identityTree(list.commitments);
+              return { list, root: rootToBytes32(tree.root), count: list.commitments.length };
+            })()
+          : (() => {
+              const list = buildVoterList({ chainId: chain.id, election, voters });
+              return {
+                list,
+                root: voterTree(list.voters).root as Hex,
+                count: list.voters.length,
+              };
+            })();
       await tx.voterListPublication.upsert({
         where: { election },
-        create: { election, root, count: list.voters.length },
+        create: { election, root: built.root, count: built.count },
         update: {},
       });
-      return { list, root };
+      return built;
     },
     { timeout: 60_000 },
   );
 
-  const count = list.voters.length;
   const cid = await pinJson(list, `voter-list-${election}.json`);
   await db.voterListPublication.update({ where: { election }, data: { cid, txHash: null } });
 

@@ -10,8 +10,6 @@ const CONTRACTS = "../../contracts";
 interface Deployment {
   chainId: number;
   startBlock: number;
-  merkleElection: string;
-  electionFactory: string;
 }
 
 /** Exports the addresses in contracts/deployments, keyed by chain id. */
@@ -38,7 +36,9 @@ export default defineConfig({
       project: CONTRACTS,
       include: [
         "MerkleElection.sol/MerkleElection.json",
+        "SemaphoreElection.sol/SemaphoreElection.json",
         "ElectionFactory.sol/ElectionFactory.json",
+        "VoteForwarder.sol/VoteForwarder.json",
       ],
     }),
     deployments(),

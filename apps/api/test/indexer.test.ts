@@ -109,7 +109,8 @@ describe("indexer", () => {
     expect(ballots.map((ballot) => ballot.key)).toEqual(
       voters.map((voter) => pad(voter.address.toLowerCase() as Hex)),
     );
-    expect(ballots.map((ballot) => ballot.candidate)).toEqual([1, 1, 0]);
+    expect(ballots.map((ballot) => ballot.candidates)).toEqual([[1], [1], [0]]);
+    expect(ballots.map((ballot) => ballot.choice)).toEqual(["1", "1", "0"]);
   });
 
   it("follows an election in batches after the one that created it", async () => {

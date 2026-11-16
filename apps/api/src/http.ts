@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { env } from "./env";
-
 /** An error with an HTTP status, whose message is written for the client and sent as is. */
 export class HttpError extends Error {
   constructor(
@@ -32,28 +30,4 @@ export function clientError(error: unknown): { status: number; message: string }
     return { status: statusCode, message: error.message };
   }
   return undefined;
-}
-
-// Errors from viem quote the RPC URL, whose path or query can hold the provider's API key.
-const rpcUrl = new URL(env.RPC_URL);
-const rpcSpellings = [
-  ...new Set([
-    env.RPC_URL,
-    Object.assign(new URL(env.RPC_URL), { username: "", password: "" }).href,
-  ]),
-];
-const redact = (text: string) =>
-  rpcSpellings.reduce(
-    (result, spelling) => result.replaceAll(spelling, `${rpcUrl.origin}/…`),
-    text,
-  );
-
-/** An error as it can be logged: its message and stack, with the RPC URL cut down to its origin. */
-export function loggable(error: unknown): { type: string; message: string; stack?: string } {
-  if (!(error instanceof Error)) return { type: typeof error, message: redact(String(error)) };
-  return {
-    type: error.name,
-    message: redact(error.message),
-    ...(error.stack === undefined ? {} : { stack: redact(error.stack) }),
-  };
 }

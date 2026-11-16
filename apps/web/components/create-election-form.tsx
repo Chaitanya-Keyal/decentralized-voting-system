@@ -1,6 +1,6 @@
 "use client";
 
-import { electionFactoryAbi } from "@dvote/shared";
+import { CountingRule, electionFactoryAbi } from "@dvote/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -102,6 +102,7 @@ export function CreateElectionForm() {
           functionName: "createElection",
           args: [
             registrarAddress as Address,
+            CountingRule.Plurality,
             title.trim(),
             metadataCid,
             parsed.schedule,

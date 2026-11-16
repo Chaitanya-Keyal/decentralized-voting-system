@@ -1,6 +1,7 @@
 import {
   AUTHORITY_ROLE,
   deploymentFor,
+  electionFactories,
   electionFactoryAbi,
   merkleElectionAbi,
   REGISTRAR_ROLE,
@@ -47,6 +48,8 @@ export const registrar = createWalletClient({
 });
 
 export interface ElectionState {
+  /** 2 for wallet ballots, 3 for anonymous ballots. */
+  tier: number;
   phase: number;
   title: string;
   registrationStart: bigint;
@@ -62,13 +65,7 @@ export interface ElectionState {
  * these checks it would email codes under anyone's title and pay gas to publish anyone's list.
  */
 export async function readElection(election: Address): Promise<ElectionState> {
-  const created = await publicClient.readContract({
-    address: deployment.electionFactory,
-    abi: electionFactoryAbi,
-    functionName: "isElection",
-    args: [election],
-  });
-  if (!created) throw new HttpError(404, "There is no such election.");
+  if (!(await isElection(election))) throw new HttpError(404, "There is no such election.");
 
   const contract = { address: election, abi: merkleElectionAbi } as const;
   const hasRole = (role: Hex, account: Address) =>
@@ -85,14 +82,43 @@ export async function readElection(election: Address): Promise<ElectionState> {
     throw new HttpError(403, "This registrar does not serve that election.");
   }
 
-  const [phase, [registrationStart, registrationEnd, votingStart], title, isVoterListPublished] =
-    await Promise.all([
-      publicClient.readContract({ ...contract, functionName: "phase" }),
-      publicClient.readContract({ ...contract, functionName: "schedule" }),
-      publicClient.readContract({ ...contract, functionName: "title" }),
-      publicClient.readContract({ ...contract, functionName: "isVoterListPublished" }),
-    ]);
-  return { phase, title, registrationStart, registrationEnd, votingStart, isVoterListPublished };
+  const [
+    tier,
+    phase,
+    [registrationStart, registrationEnd, votingStart],
+    title,
+    isVoterListPublished,
+  ] = await Promise.all([
+    publicClient.readContract({ ...contract, functionName: "tier" }),
+    publicClient.readContract({ ...contract, functionName: "phase" }),
+    publicClient.readContract({ ...contract, functionName: "schedule" }),
+    publicClient.readContract({ ...contract, functionName: "title" }),
+    publicClient.readContract({ ...contract, functionName: "isVoterListPublished" }),
+  ]);
+  return {
+    tier,
+    phase,
+    title,
+    registrationStart,
+    registrationEnd,
+    votingStart,
+    isVoterListPublished,
+  };
+}
+
+/** Whether one of this deployment's factories created `election`. */
+export async function isElection(election: Address): Promise<boolean> {
+  const created = await Promise.all(
+    electionFactories(deployment).map((factory) =>
+      publicClient.readContract({
+        address: factory,
+        abi: electionFactoryAbi,
+        functionName: "isElection",
+        args: [election],
+      }),
+    ),
+  );
+  return created.includes(true);
 }
 
 /**

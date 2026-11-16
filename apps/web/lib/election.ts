@@ -1,6 +1,11 @@
 "use client";
 
-import { deploymentFor, electionFactoryAbi, merkleElectionAbi } from "@dvote/shared";
+import {
+  deploymentFor,
+  electionFactories,
+  electionFactoryAbi,
+  merkleElectionAbi,
+} from "@dvote/shared";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { Address, Hex } from "viem";
 import { useBlockNumber, usePublicClient, useReadContract } from "wagmi";
@@ -58,13 +63,17 @@ export function useElection(address: Address | undefined) {
     queryFn: async (): Promise<OnchainElection | null> => {
       if (!deployment) throw new Error(`DVote's contracts are not deployed on ${chain.name} yet.`);
       if (!client || !address) throw new Error("Not ready");
-      const created = await client.readContract({
-        address: deployment.electionFactory,
-        abi: electionFactoryAbi,
-        functionName: "isElection",
-        args: [address],
-      });
-      if (!created) return null;
+      const created = await Promise.all(
+        electionFactories(deployment).map((factory) =>
+          client.readContract({
+            address: factory,
+            abi: electionFactoryAbi,
+            functionName: "isElection",
+            args: [address],
+          }),
+        ),
+      );
+      if (!created.includes(true)) return null;
 
       const contract = { address, abi: merkleElectionAbi } as const;
       const [

@@ -1,16 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import {ERC2771Forwarder} from "@openzeppelin/contracts/metatx/ERC2771Forwarder.sol";
+import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Hashes} from "@openzeppelin/contracts/utils/cryptography/Hashes.sol";
+import {SemaphoreVerifier} from "@semaphore-protocol/contracts/base/SemaphoreVerifier.sol";
+import {ISemaphoreVerifier} from "@semaphore-protocol/contracts/interfaces/ISemaphoreVerifier.sol";
 import {Test} from "forge-std/Test.sol";
 
 import {Election} from "../src/Election.sol";
 import {ElectionFactory} from "../src/ElectionFactory.sol";
 import {MerkleElection} from "../src/MerkleElection.sol";
+import {SemaphoreElection} from "../src/SemaphoreElection.sol";
+import {TallyLib} from "../src/TallyLib.sol";
+import {VoteForwarder} from "../src/VoteForwarder.sol";
 
-/// @notice The gas of every step of a tier 2 election, for evaluation parameter A1. Ballots are
-/// measured against a voter list of 1,024, a tree of depth 10.
-/// @dev `pnpm gas:contracts` writes the figures to snapshots/tier2.json. It runs with call
+/// @notice The gas of every step of a tier 2 and a tier 3 election, for evaluation parameter A1.
+/// Ballots are measured against a voter list of 1,024, a tree of depth 10. Tier 3's ballots are
+/// real Semaphore proofs from fixtures/semaphore-ballots.json.
+/// @dev `pnpm gas:contracts` writes the figures to snapshots/tier2.json and snapshots/tier3.json. It runs with call
 /// isolation, so each call is measured as its own transaction, including the 21,000 base cost,
 /// calldata and cold storage. A plain `forge test` runs the same steps without writing.
 contract GasSnapshotTest is Test {
@@ -38,13 +46,27 @@ contract GasSnapshotTest is Test {
 
         vm.prank(authority);
         MerkleElection election = MerkleElection(
-            factory.createElection(registrar, "Student Senate 2026", CID, schedule, candidates)
+            factory.createElection(
+                registrar,
+                TallyLib.CountingRule.Plurality,
+                "Student Senate 2026",
+                CID,
+                schedule,
+                candidates
+            )
         );
         _snapshot("createElection");
 
         // The factory's list of elections is no longer empty, which makes later ones cheaper.
         vm.prank(authority);
-        factory.createElection(registrar, "Hostel Council 2026", CID, schedule, candidates);
+        factory.createElection(
+            registrar,
+            TallyLib.CountingRule.Plurality,
+            "Hostel Council 2026",
+            CID,
+            schedule,
+            candidates
+        );
         _snapshot("createElection, a later election");
 
         vm.warp(schedule.registrationStart);
@@ -105,6 +127,149 @@ contract GasSnapshotTest is Test {
 
         assertEq(election.tally()[1], 2);
         assertEq(election.tally()[2], 1);
+    }
+
+    VoteForwarder internal forwarder;
+    SemaphoreElection internal tier3;
+    string internal fixture;
+
+    function test_tier3Election() public {
+        _tier3Setup();
+
+        _cast(0);
+        _snapshot3("castVote, first ballot");
+        _cast(1);
+        _snapshot3("castVote");
+        _cast(2);
+        _snapshot3("castVote, a candidate's first vote");
+
+        // A gasless ballot: signed by a throwaway key, submitted and paid for by the relayer.
+        (address throwaway, uint256 key) = makeAddrAndKey("throwaway");
+        forwarder.execute(_forwardRequest(throwaway, key, _calldata(3)));
+        _snapshot3("castVote through the forwarder");
+
+        assertEq(tier3.tally()[1], 3);
+        assertEq(tier3.tally()[2], 1);
+    }
+
+    function _tier3Setup() internal {
+        fixture =
+            vm.readFile(string.concat(vm.projectRoot(), "/test/fixtures/semaphore-ballots.json"));
+        SemaphoreVerifier verifier = new SemaphoreVerifier();
+        forwarder = new VoteForwarder();
+        SemaphoreElection implementation =
+            new SemaphoreElection(ISemaphoreVerifier(address(verifier)), address(forwarder));
+        ElectionFactory factory = new ElectionFactory(address(implementation));
+        uint64 t = uint64(block.timestamp);
+        Election.Schedule memory schedule =
+            Election.Schedule(t + 1 days, t + 2 days, t + 3 days, t + 4 days);
+        Election.Candidate[] memory candidates = new Election.Candidate[](3);
+        candidates[0] = Election.Candidate("Aarav Mehta", CID);
+        candidates[1] = Election.Candidate("Diya Nair", CID);
+        candidates[2] = Election.Candidate("Kabir Rao", CID);
+
+        vm.prank(authority);
+        factory.createElection(
+            registrar,
+            TallyLib.CountingRule.Plurality,
+            "Student Senate 2026",
+            CID,
+            schedule,
+            candidates
+        );
+        _snapshot3("createElection");
+
+        // The fixture's proofs are bound to one election address, so the election that receives
+        // ballots is a clone placed there.
+        tier3 = SemaphoreElection(vm.parseJsonAddress(fixture, ".election"));
+        vm.etch(address(tier3), Clones.clone(address(implementation)).code);
+        tier3.initialize(
+            Election.Setup(authority, registrar, TallyLib.CountingRule.Plurality),
+            "Student Senate 2026",
+            CID,
+            schedule,
+            candidates
+        );
+        vm.warp(schedule.registrationStart);
+        tier3.openRegistration();
+        vm.warp(schedule.registrationEnd);
+        vm.prank(registrar);
+        tier3.publishVoterList(
+            vm.parseJsonBytes32(fixture, ".root"), vm.parseJsonUint(fixture, ".voterCount"), CID
+        );
+        _snapshot3("publishVoterList");
+        vm.warp(schedule.votingStart);
+        tier3.openVoting();
+    }
+
+    function _calldata(uint256 i) internal view returns (bytes memory) {
+        string memory path = string.concat(".ballots[", vm.toString(i), "]");
+        uint256[] memory raw = vm.parseJsonUintArray(fixture, string.concat(path, ".points"));
+        uint256[8] memory points;
+        for (uint256 j; j < 8; ++j) {
+            points[j] = raw[j];
+        }
+        return abi.encodeCall(
+            SemaphoreElection.castVote,
+            (
+                vm.parseJsonUint(fixture, string.concat(path, ".choice")),
+                vm.parseJsonUint(fixture, string.concat(path, ".nullifier")),
+                points
+            )
+        );
+    }
+
+    function _cast(uint256 i) internal {
+        (bool ok,) = address(tier3).call(_calldata(i));
+        assertTrue(ok);
+    }
+
+    function _forwardRequest(address from, uint256 key, bytes memory data)
+        internal
+        view
+        returns (ERC2771Forwarder.ForwardRequestData memory request)
+    {
+        request = ERC2771Forwarder.ForwardRequestData({
+            from: from,
+            to: address(tier3),
+            value: 0,
+            gas: 1_000_000,
+            deadline: uint48(block.timestamp + 1 hours),
+            data: data,
+            signature: ""
+        });
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256(
+                    "ForwardRequest(address from,address to,uint256 value,uint256 gas,uint256 nonce,uint48 deadline,bytes data)"
+                ),
+                from,
+                address(tier3),
+                uint256(0),
+                request.gas,
+                forwarder.nonces(from),
+                request.deadline,
+                keccak256(data)
+            )
+        );
+        bytes32 domain = keccak256(
+            abi.encode(
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                ),
+                keccak256("DVote VoteForwarder"),
+                keccak256("1"),
+                block.chainid,
+                address(forwarder)
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(key, keccak256(abi.encodePacked("\x19\x01", domain, structHash)));
+        request.signature = abi.encodePacked(r, s, v);
+    }
+
+    function _snapshot3(string memory name) internal {
+        if (vm.envOr("GAS_SNAPSHOT", false)) vm.snapshotGasLastFrame("tier3", name);
     }
 
     function _snapshot(string memory name) internal {

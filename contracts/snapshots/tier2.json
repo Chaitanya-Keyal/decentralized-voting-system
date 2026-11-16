@@ -1,13 +1,13 @@
 {
-  "castVote": "77849",
-  "castVote, a candidate's first vote": "94949",
-  "castVote, first ballot": "112039",
-  "closeVoting": "33121",
-  "createElection": "635893",
-  "createElection, a later election": "618793",
-  "deploy a full election contract": "1995656",
+  "castVote": "80221",
+  "castVote, a candidate's first vote": "97321",
+  "castVote, first ballot": "114397",
+  "closeVoting": "33143",
+  "createElection": "639362",
+  "createElection, a later election": "622262",
+  "deploy a full election contract": "2084623",
   "finalize": "89881",
-  "openRegistration": "50225",
+  "openRegistration": "50247",
   "openVoting": "66937",
   "publishVoterList": "147165"
 }

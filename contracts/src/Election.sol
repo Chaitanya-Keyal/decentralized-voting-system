@@ -41,6 +41,13 @@ abstract contract Election is AccessControl, Initializable, VoterRegistry {
         string manifestoCid;
     }
 
+    /// @notice Who runs an election and how it counts, fixed when it is created.
+    struct Setup {
+        address authority;
+        address registrar;
+        TallyLib.CountingRule countingRule;
+    }
+
     bytes32 public constant AUTHORITY_ROLE = keccak256("AUTHORITY_ROLE");
     bytes32 public constant REGISTRAR_ROLE = keccak256("REGISTRAR_ROLE");
 
@@ -53,6 +60,9 @@ abstract contract Election is AccessControl, Initializable, VoterRegistry {
 
     /// @notice IPFS address of the ballot description.
     string public metadataCid;
+
+    /// @notice How ballots are counted, fixed when the election is created.
+    TallyLib.CountingRule public countingRule;
 
     /// @notice Number of ballots accepted so far.
     uint256 public ballotsCast;
@@ -67,7 +77,8 @@ abstract contract Election is AccessControl, Initializable, VoterRegistry {
     event Configured(string title, string metadataCid, Schedule schedule);
     event CandidatesSet(uint256 count);
     event PhaseChanged(Phase indexed from, Phase indexed to);
-    event VoteCast(bytes32 indexed key, uint256 indexed candidate);
+    /// @param choice A candidate index under plurality, a bitmask of candidates under approval.
+    event VoteCast(bytes32 indexed key, uint256 indexed choice);
     event Finalized(uint256[] tally, uint256[] winners);
 
     error ZeroAddress();
@@ -79,7 +90,7 @@ abstract contract Election is AccessControl, Initializable, VoterRegistry {
     error InvalidTitle();
     error InvalidCandidates();
     error VoterListNotPublished();
-    error UnknownCandidate(uint256 candidate);
+    error InvalidChoice(uint256 choice);
     error AlreadyVoted(bytes32 key);
     error BallotCapReached();
 
@@ -110,18 +121,18 @@ abstract contract Election is AccessControl, Initializable, VoterRegistry {
 
     /// @notice Sets up a fresh clone. Called by the factory in the same transaction as the clone.
     function initialize(
-        address authority,
-        address registrar,
+        Setup calldata setup,
         string calldata title_,
         string calldata metadataCid_,
         Schedule calldata schedule_,
         Candidate[] calldata candidates_
     ) external initializer {
-        if (authority == address(0) || registrar == address(0)) {
+        if (setup.authority == address(0) || setup.registrar == address(0)) {
             revert ZeroAddress();
         }
-        _grantRole(AUTHORITY_ROLE, authority);
-        _grantRole(REGISTRAR_ROLE, registrar);
+        _grantRole(AUTHORITY_ROLE, setup.authority);
+        _grantRole(REGISTRAR_ROLE, setup.registrar);
+        countingRule = setup.countingRule;
         _configure(title_, metadataCid_, schedule_);
         _setCandidates(candidates_);
     }
@@ -226,6 +237,10 @@ abstract contract Election is AccessControl, Initializable, VoterRegistry {
     // Views
     // ---------------------------------------------------------------------------------------
 
+    /// @notice The voting tier: 2 for wallet ballots against a Merkle root, 3 for anonymous
+    /// ballots with a zero-knowledge proof.
+    function tier() external pure virtual returns (uint8);
+
     function candidates() external view returns (Candidate[] memory) {
         return _candidates;
     }
@@ -255,18 +270,21 @@ abstract contract Election is AccessControl, Initializable, VoterRegistry {
     }
 
     /// @dev Records a ballot whose eligibility the caller has already proven. `key` must be unique
-    /// per voter: their address in tier 2, the nullifier in tier 3.
-    function _recordBallot(bytes32 key, uint256 candidate) internal {
+    /// per voter: their address in tier 2, the nullifier in tier 3. `choice` follows the counting
+    /// rule: a candidate index, or a bitmask of approved candidates.
+    function _recordBallot(bytes32 key, uint256 choice) internal {
         if (ballotKeyUsed[key]) revert AlreadyVoted(key);
-        if (candidate >= _tally.length) revert UnknownCandidate(candidate);
+        if (!TallyLib.isValidChoice(countingRule, _tally.length, choice)) {
+            revert InvalidChoice(choice);
+        }
         if (ballotsCast >= voterCount) revert BallotCapReached();
 
         ballotKeyUsed[key] = true;
         ++ballotsCast;
-        ++_tally[candidate];
+        TallyLib.count(_tally, countingRule, choice);
         // Callers only make internal or read-only calls before this, so nothing can re-enter.
         // forge-lint: disable-next-line(reentrancy-events)
-        emit VoteCast(key, candidate);
+        emit VoteCast(key, choice);
     }
 
     // ---------------------------------------------------------------------------------------

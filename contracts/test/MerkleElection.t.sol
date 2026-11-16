@@ -7,6 +7,7 @@ import {Test} from "forge-std/Test.sol";
 import {Election} from "../src/Election.sol";
 import {ElectionFactory} from "../src/ElectionFactory.sol";
 import {MerkleElection} from "../src/MerkleElection.sol";
+import {TallyLib} from "../src/TallyLib.sol";
 
 contract MerkleElectionTest is Test {
     MerkleElection internal election;
@@ -131,7 +132,11 @@ contract MerkleElectionTest is Test {
         candidates[1] = Election.Candidate("Bob", "");
 
         vm.prank(authority);
-        e = MerkleElection(factory.createElection(registrar, "Senate", "", schedule, candidates));
+        e = MerkleElection(
+            factory.createElection(
+                registrar, TallyLib.CountingRule.Plurality, "Senate", "", schedule, candidates
+            )
+        );
         vm.warp(schedule.registrationStart);
         e.openRegistration();
         vm.warp(schedule.registrationEnd);
