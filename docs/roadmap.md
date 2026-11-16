@@ -35,6 +35,9 @@ checks. The lifecycle, the factory, the indexer and the gas baseline carry over.
 
 ## M1 · A vote works end to end (tier 2)
 
+**Status: done.** Merged as pull requests #3 to #10; the gas snapshot is in
+`contracts/snapshots/tier2.json`.
+
 Plurality voting with plain Merkle-proof eligibility, no anonymity, no gas sponsorship,
 on a local node (Anvil). A voter's entry on the list is their wallet address, so there is no
 secret to keep yet; the secret, and the backup copy of it, arrive with tier 3.
@@ -86,6 +89,18 @@ of A1.
 
 ## M2 · Anonymous and gasless, on Sepolia (tier 3)
 
+**Status: built; the full stack on Sepolia is being finished.** Everything below works end to end
+on a local chain, in a browser test that also covers a voter restoring their key on a new
+browser and a refused second ballot. The contracts are on Sepolia and verified on Sourcify
+(`contracts/deployments/11155111.json`), and anonymous ballots have been cast there by script.
+Three things changed from the plan. The relayer submits `castVote` itself instead of going
+through `VoteForwarder`, so there is no throwaway signing key: the proof already binds the
+ballot, and the forwarder cost about 127,000 gas more per ballot on Sepolia
+([architecture.md](architecture.md), section 4). The proving files are pinned by SHA-256,
+checked against the `@zk-kit/semaphore-artifacts` npm package. And the go/no-go below has not
+been needed so far: proving takes about 0.6 to 1.5 s in Node.js, and phones are still to be
+measured.
+
 **Proofs**
 - Poseidon LeanIMT replacing the tier 2 tree; nullifiers scoped to the election ID
 - Browser proving with Semaphore v4 in a Web Worker
@@ -126,6 +141,11 @@ Commit the second gas snapshot here. The difference from M1's is the cost of ano
 
 ## M3 · Feature freeze
 
+**Status: mostly done.** Approval voting, Slither (no findings, one detector excluded) and
+coverage (97.8% of lines, every branch), reorg handling and the rebuild, the edge cases, and the
+audit panel are built, and the end-to-end tests run the audit. Still open: written instructions
+for auditors to pin their own copy of the lists, and the relayer reachable from a phone.
+
 - Approval voting in `TallyLib`
 - A clean Slither report and good test coverage
 - Reorg handling in the indexer, and rebuilding the indexer from scratch
@@ -145,6 +165,11 @@ Sepolia by then, tier 2 is what gets demonstrated, and tier 3 is reported as unf
 ---
 
 ## Measurement
+
+**Status: in progress.** A1 under mainnet's rules, C1, and C2 on one machine are measured, in
+`bench/results/`; A1 under Glamsterdam's rules was measured on Sepolia once and is to be repeated
+after the next deploy. B1, B2 on a laptop and a phone, C3, D3 and E1 to E3 are still to do; D1, D2,
+D4 and D5 are covered by tests.
 
 Every parameter in [`evaluation-parameters.md`](evaluation-parameters.md) gets a measured
 value, or a written reason why it has none.
