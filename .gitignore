@@ -76,3 +76,6 @@ Thumbs.db
 # Local scratch
 tmp/
 scratch/
+
+# Semaphore proving files, downloaded and hash-checked by `pnpm --filter @dvote/web artifacts`
+apps/web/public/semaphore/

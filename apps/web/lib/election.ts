@@ -33,6 +33,10 @@ export interface Schedule {
 
 export interface OnchainElection {
   address: Address;
+  /** 2: ballots from registered wallets. 3: anonymous ballots, proved with Semaphore. */
+  tier: number;
+  /** `CountingRule`: 0 plurality, 1 approval. */
+  countingRule: number;
   phase: number;
   title: string;
   metadataCid: string;
@@ -77,6 +81,8 @@ export function useElection(address: Address | undefined) {
 
       const contract = { address, abi: merkleElectionAbi } as const;
       const [
+        tier,
+        countingRule,
         phase,
         [registrationStart, registrationEnd, votingStart, votingEnd],
         title,
@@ -89,6 +95,8 @@ export function useElection(address: Address | undefined) {
         voterCount,
         voterListCid,
       ] = await Promise.all([
+        client.readContract({ ...contract, functionName: "tier" }),
+        client.readContract({ ...contract, functionName: "countingRule" }),
         client.readContract({ ...contract, functionName: "phase" }),
         client.readContract({ ...contract, functionName: "schedule" }),
         client.readContract({ ...contract, functionName: "title" }),
@@ -103,6 +111,8 @@ export function useElection(address: Address | undefined) {
       ]);
       return {
         address,
+        tier,
+        countingRule,
         phase,
         title,
         metadataCid,

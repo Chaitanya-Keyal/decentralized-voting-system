@@ -1,6 +1,6 @@
 "use client";
 
-import { CountingRule, electionFactoryAbi } from "@dvote/shared";
+import { CountingRule, electionFactoryAbi, factoryFor } from "@dvote/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -42,6 +42,31 @@ function defaultSchedule(now: number): ScheduleDraft {
   };
 }
 
+function Choice(props: {
+  name: string;
+  checked: boolean;
+  onChange: () => void;
+  label: string;
+  detail: string;
+}) {
+  return (
+    <label className="flex cursor-pointer gap-3 rounded-lg border border-zinc-200 px-4 py-3 has-[:checked]:border-zinc-900 dark:border-zinc-800 dark:has-[:checked]:border-zinc-100">
+      <input
+        type="radio"
+        name={props.name}
+        checked={props.checked}
+        onChange={props.onChange}
+        className="mt-1"
+        aria-label={props.label}
+      />
+      <span className="flex flex-col gap-1">
+        <span className="font-medium">{props.label}</span>
+        <span className="text-zinc-500">{props.detail}</span>
+      </span>
+    </label>
+  );
+}
+
 export function CreateElectionForm() {
   const router = useRouter();
   const config = useConfig();
@@ -60,6 +85,8 @@ export function CreateElectionForm() {
   const [edited, setSchedule] = useState<ScheduleDraft>();
   const schedule = edited ?? defaultSchedule(now);
   const [registrar, setRegistrar] = useState("");
+  const [tier, setTier] = useState<2 | 3>(3);
+  const [countingRule, setCountingRule] = useState<number>(CountingRule.Plurality);
   const [step, setStep] = useState<string>();
   const [problem, setProblem] = useState<string>();
 
@@ -80,7 +107,7 @@ export function CreateElectionForm() {
     setProblem(undefined);
     transaction.reset();
     if (!deployment || !ready) return;
-    const factory = deployment.electionFactory;
+    const factory = factoryFor(deployment, tier);
 
     const parsed = parseSchedule(schedule);
     const invalid = problemWith(parsed);
@@ -102,7 +129,7 @@ export function CreateElectionForm() {
           functionName: "createElection",
           args: [
             registrarAddress as Address,
-            CountingRule.Plurality,
+            countingRule,
             title.trim(),
             metadataCid,
             parsed.schedule,
@@ -162,6 +189,45 @@ export function CreateElectionForm() {
         </div>
       </Card>
 
+      <Card title="Ballots" description="Both are fixed once the election is created.">
+        <div className="flex flex-col gap-5 text-sm">
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 font-medium">Who can see how someone voted</legend>
+            <Choice
+              name="tier"
+              checked={tier === 3}
+              onChange={() => setTier(3)}
+              label="Anonymous ballots"
+              detail="Voters register a key made on their own device and vote with a zero-knowledge proof. Nobody can link a ballot to a voter, and voters need no wallet or ETH: a relayer pays the gas."
+            />
+            <Choice
+              name="tier"
+              checked={tier === 2}
+              onChange={() => setTier(2)}
+              label="Wallet ballots"
+              detail="Voters register a wallet and vote from it, paying a little gas. Cheaper on-chain, but anyone can see which wallet voted for whom."
+            />
+          </fieldset>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 font-medium">How votes are counted</legend>
+            <Choice
+              name="rule"
+              checked={countingRule === CountingRule.Plurality}
+              onChange={() => setCountingRule(CountingRule.Plurality)}
+              label="Plurality"
+              detail="Each voter picks one candidate; the most votes wins."
+            />
+            <Choice
+              name="rule"
+              checked={countingRule === CountingRule.Approval}
+              onChange={() => setCountingRule(CountingRule.Approval)}
+              label="Approval"
+              detail="Each voter ticks every candidate they approve of; the most approvals wins."
+            />
+          </fieldset>
+        </div>
+      </Card>
+
       <Card
         title="Candidates"
         description="Candidates can be changed until voting opens, but not after."
@@ -176,25 +242,29 @@ export function CreateElectionForm() {
         <ScheduleEditor value={schedule} onChange={setSchedule} />
       </Card>
 
-      <Card
-        title="Registrar"
-        description="The registrar checks voters' email addresses and publishes the voter list."
-      >
-        <Field
-          label="Registrar's address"
-          hint={
-            apiConfig.data
-              ? `Leave empty to use this deployment's registrar, ${apiConfig.data.registrar}.`
-              : undefined
-          }
-        >
-          <Input
-            value={registrar}
-            onChange={(event) => setRegistrar(event.target.value)}
-            placeholder={apiConfig.data?.registrar ?? "0x…"}
-          />
-        </Field>
-      </Card>
+      <details className="rounded-xl border border-zinc-200 px-5 py-4 text-sm dark:border-zinc-800">
+        <summary className="cursor-pointer font-medium">Advanced: the registrar</summary>
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="text-zinc-600 dark:text-zinc-400">
+            The registrar checks voters&apos; email addresses and publishes the voter list. Most
+            elections use this deployment&apos;s own.
+          </p>
+          <Field
+            label="Registrar's address"
+            hint={
+              apiConfig.data
+                ? `Leave empty to use this deployment's registrar, ${apiConfig.data.registrar}.`
+                : undefined
+            }
+          >
+            <Input
+              value={registrar}
+              onChange={(event) => setRegistrar(event.target.value)}
+              placeholder={apiConfig.data?.registrar ?? "0x…"}
+            />
+          </Field>
+        </div>
+      </details>
 
       {problem && <Notice tone="error">{problem}</Notice>}
       {step && <Notice>{step}</Notice>}

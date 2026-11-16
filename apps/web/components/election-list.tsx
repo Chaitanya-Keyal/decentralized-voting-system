@@ -5,12 +5,13 @@ import Link from "next/link";
 
 import { api } from "@/lib/api";
 import { describeError } from "@/lib/errors";
-import { formatTime } from "@/lib/time";
+import { formatTime, useChainNow } from "@/lib/time";
 
-import { PhaseBadge } from "./phase";
+import { BallotBadges, PhaseBadge } from "./phase";
 import { Card, Notice, Spinner } from "./ui";
 
 export function ElectionList() {
+  const now = useChainNow();
   const { data, error, isPending } = useQuery({
     queryKey: ["elections"],
     queryFn: api.elections,
@@ -45,7 +46,10 @@ export function ElectionList() {
             <Card className="transition-colors hover:border-zinc-400 dark:hover:border-zinc-600">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold">{election.title || "Untitled election"}</span>
-                <PhaseBadge phase={election.phase} />
+                <span className="flex flex-wrap items-center gap-2">
+                  <BallotBadges tier={election.tier} countingRule={election.countingRule} />
+                  <PhaseBadge phase={election.phase} window={election} now={now} />
+                </span>
               </div>
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                 Voting {formatTime(election.votingStart)} – {formatTime(election.votingEnd)}

@@ -3,6 +3,7 @@ packages:
   - packages/*
   - contracts
   - e2e
+  - bench
 
 # One version of these across every package.
 catalog:
@@ -23,6 +24,8 @@ allowBuilds:
   utf-8-validate: false
   sharp: false
   unrs-resolver: false
+  # BullMQ's optional native MessagePack decoder.
+  msgpackr-extract: false
 
 peerDependencyRules:
   allowedVersions:

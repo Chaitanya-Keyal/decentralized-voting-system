@@ -6,12 +6,14 @@ import {
   codeResponseSchema,
   electionDetailSchema,
   electionListSchema,
+  identityReceiptSchema,
   indexerStatusSchema,
   pinResponseSchema,
   publicationSchema,
   receiptSchema,
   registrationCountSchema,
   type ElectionMetadata,
+  type IdentityRegistrationRequest,
   type Manifesto,
   type RegistrationRequest,
 } from "@dvote/shared";
@@ -29,20 +31,21 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T extends z.ZodType>(
+export async function call<T extends z.ZodType>(
   schema: T,
   path: string,
   body?: object,
+  base = apiUrl,
 ): Promise<z.output<T>> {
   let response: Response;
   try {
-    response = await fetch(`${apiUrl}${path}`, {
+    response = await fetch(`${base}${path}`, {
       method: body ? "POST" : "GET",
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError(0, `Could not reach the API at ${apiUrl}. Is it running?`);
+    throw new ApiError(0, `Could not reach ${base}. Is it running?`);
   }
   const data: unknown = await response.json().catch(() => undefined);
   if (!response.ok) {
@@ -59,6 +62,8 @@ export const api = {
     call(codeResponseSchema, `/elections/${election}/codes`, { email }),
   register: (election: Address, request: RegistrationRequest) =>
     call(receiptSchema, `/elections/${election}/registrations`, request),
+  registerIdentity: (election: Address, request: IdentityRegistrationRequest) =>
+    call(identityReceiptSchema, `/elections/${election}/registrations`, request),
   registrationCount: (election: Address) =>
     call(registrationCountSchema, `/elections/${election}/registrations/count`),
   publishVoterList: (election: Address) =>

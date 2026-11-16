@@ -18,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     # The API tests need Postgres, and Foundry for a local chain.
     services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
       postgres:
         image: postgres:17-alpine
         env:
@@ -89,6 +93,10 @@ jobs:
     # The whole local stack: Postgres, IPFS and Mailpit as services, Anvil, the API, the indexer
     # and a production build of the web app. Then a browser runs an election from start to finish.
     services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
       postgres:
         image: postgres:17-alpine
         env:
@@ -134,11 +142,13 @@ jobs:
         run: |
           cp .env.example .env
           pnpm db:migrate
+          node packages/shared/scripts/semaphore-artifacts.mjs apps/web/public/semaphore 4
           pnpm --filter @dvote/web build
           pnpm --filter @dvote/api start > api.log 2>&1 &
           pnpm --filter @dvote/api indexer > indexer.log 2>&1 &
+          pnpm --filter @dvote/api relayer > relayer.log 2>&1 &
           pnpm --filter @dvote/web start > web.log 2>&1 &
-          for url in http://127.0.0.1:4000/health http://localhost:3000 http://127.0.0.1:5001/api/v0/version; do
+          for url in http://127.0.0.1:4000/health http://127.0.0.1:4100/health http://localhost:3000 http://127.0.0.1:5001/api/v0/version; do
             for attempt in $(seq 60); do
               curl -sf -X POST "$url" > /dev/null || curl -sf "$url" > /dev/null && break
               sleep 1
@@ -155,4 +165,5 @@ jobs:
             e2e/playwright-report
             api.log
             indexer.log
+            relayer.log
             web.log

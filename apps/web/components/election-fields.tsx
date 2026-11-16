@@ -123,7 +123,8 @@ export function CandidatesEditor({
                 update(index, { manifesto: event.target.value, unloadedCid: undefined })
               }
               placeholder="Manifesto (optional, saved to IPFS)"
-              className="min-h-16"
+              rows={2}
+              className="min-h-14"
               maxLength={20_000}
               aria-label={`Manifesto of candidate ${index + 1}`}
             />

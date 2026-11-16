@@ -1,45 +1,9 @@
 // M1 is done when an election runs end to end from the browser: the authority creates it, five
 // voters register and vote from their own wallets, and the tally is final. This test does exactly
 // that, on Anvil, using its unlocked accounts as wallets and moving its clock between steps.
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:8025";
-
-/** Connects Anvil's account `index`, disconnecting whichever wallet was connected. */
-async function connect(page: Page, index: number) {
-  const header = page.locator("header");
-  const button = header.getByRole("button").last();
-  await expect(button).toBeVisible();
-  // RainbowKit shows "Connect Wallet" until it has restored any earlier connection.
-  await page.waitForTimeout(300);
-  if (!(await button.textContent())?.includes("Connect Wallet")) {
-    await button.click();
-    await page.getByRole("button", { name: "Disconnect" }).click();
-  }
-  await header.getByRole("button", { name: "Connect Wallet" }).click();
-  await page.getByText(`Anvil account ${index} (`).click();
-  await expect(header.getByRole("button", { name: "Connect Wallet" })).toHaveCount(0);
-}
-
-/** Moves the chain's clock to the next step, with the election page's Anvil-only button. */
-async function skipAhead(page: Page) {
-  await page.getByRole("button", { name: /Move the chain's clock/ }).click();
-}
-
-/** The latest code the registrar emailed to `email`, read from Mailpit. */
-async function emailedCode(email: string): Promise<string> {
-  let code: string | undefined;
-  await expect
-    .poll(async () => {
-      const query = encodeURIComponent(`to:"${email}"`);
-      const response = await fetch(`${MAILPIT}/api/v1/search?query=${query}`);
-      const { messages } = (await response.json()) as { messages?: { Subject: string }[] };
-      code = /^(\d{6}) is your DVote code/.exec(messages?.[0]?.Subject ?? "")?.[1];
-      return code;
-    })
-    .toBeTruthy();
-  return code ?? "";
-}
+import { connect, emailedCode, screenshot, skipAhead } from "./helpers";
 
 test("an election runs end to end in the browser", async ({ page }) => {
   const errors: string[] = [];
@@ -56,6 +20,7 @@ test("an election runs end to end in the browser", async ({ page }) => {
     await page.getByPlaceholder("Student Senate 2026").fill("Hostel council");
     await page.getByLabel("Name of candidate 1").fill("Asha");
     await page.getByLabel("Name of candidate 2").fill("Ravi");
+    await page.getByLabel("Wallet ballots").check();
     await page.getByRole("button", { name: "Create election" }).click();
     await page.waitForURL(/\/elections\/0x[0-9a-fA-F]{40}$/);
     election = new URL(page.url()).pathname;
@@ -73,6 +38,7 @@ test("an election runs end to end in the browser", async ({ page }) => {
       await page.goto(`${election}/register`);
       await connect(page, index);
       await page.getByLabel("Institute email address").fill(email);
+      if (index === 2) await screenshot(page, "20-wallet-register");
       await page.getByRole("button", { name: "Send me a code" }).click();
       await page.getByLabel("Code").fill(await emailedCode(email));
       await page.getByRole("button", { name: /Sign with my wallet and register/ }).click();
@@ -100,6 +66,7 @@ test("an election runs end to end in the browser", async ({ page }) => {
       await page.goto(`${election}/vote`);
       await connect(page, index);
       await expect(page.getByText("found your wallet on it")).toBeVisible();
+      if (index === 2) await screenshot(page, "21-wallet-booth");
       await page.getByLabel(choices[index] ?? "").check();
       await page.getByRole("button", { name: "Cast my ballot" }).click();
       await expect(page.getByText("You have voted in this election")).toBeVisible();
@@ -115,6 +82,7 @@ test("an election runs end to end in the browser", async ({ page }) => {
     await expect(page.getByText("3 votes")).toBeVisible();
     await expect(page.getByText("2 votes")).toBeVisible();
     await expect(page.getByText("Winner")).toHaveCount(1);
+    await screenshot(page, "22-wallet-election-final");
   });
 
   await test.step("the indexer lists every ballot", async () => {

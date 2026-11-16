@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typegen": "next typegen",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "artifacts": "node ../../packages/shared/scripts/semaphore-artifacts.mjs public/semaphore 12"
   },
   "dependencies": {
     "@dvote/shared": "workspace:*",

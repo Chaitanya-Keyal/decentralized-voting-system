@@ -36,11 +36,48 @@ function WrongNetwork() {
   );
 }
 
+/**
+ * The wallet button, in the app's own style: small, and quiet, since anonymous elections need no
+ * wallet at all. RainbowKit still provides the dialogs behind it.
+ */
+function WalletButton() {
+  return (
+    <ConnectButton.Custom>
+      {({ account, chain: connected, mounted, openAccountModal, openConnectModal }) => {
+        const ready = mounted;
+        const shown = ready && account && connected;
+        return (
+          <div aria-hidden={!ready} className={ready ? undefined : "pointer-events-none opacity-0"}>
+            {shown ? (
+              <button
+                type="button"
+                onClick={openAccountModal}
+                className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-1.5 font-mono text-xs text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+              >
+                <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
+                {account.displayName}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={openConnectModal}
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+              >
+                Connect Wallet
+              </button>
+            )}
+          </div>
+        );
+      }}
+    </ConnectButton.Custom>
+  );
+}
+
 export function Header() {
   return (
     <header className="border-b border-zinc-200 dark:border-zinc-800">
-      <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <nav className="flex items-center gap-5 text-sm">
+      <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-4 py-3">
+        <nav className="flex items-center gap-4 text-sm sm:gap-5">
           <Link href="/" className="text-base font-semibold tracking-tight">
             DVote
           </Link>
@@ -54,10 +91,11 @@ export function Header() {
             href="/elections/new"
             className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           >
-            New election
+            <span className="hidden sm:inline">New election</span>
+            <span className="sm:hidden">New</span>
           </Link>
         </nav>
-        <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
+        <WalletButton />
       </div>
       <WrongNetwork />
     </header>

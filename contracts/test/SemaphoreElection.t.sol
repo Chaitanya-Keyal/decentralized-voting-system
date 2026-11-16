@@ -102,7 +102,7 @@ contract SemaphoreElectionTest is Test {
         _openVoting(TallyLib.CountingRule.Plurality, _root(), _count());
         Ballot memory b = _ballot(".ballots[0]");
         b.points[7] = b.points[7] ^ 1;
-        vm.expectRevert();
+        vm.expectRevert(SemaphoreElection.InvalidProof.selector);
         _cast(b);
     }
 
@@ -158,6 +158,28 @@ contract SemaphoreElectionTest is Test {
         vm.expectRevert();
         vm.prank(relayer);
         forwarder.execute(request);
+    }
+
+    function test_forwarder_aSecondKeyCannotReplayACountedBallot() public {
+        _openVoting(TallyLib.CountingRule.Plurality, _root(), _count());
+        Ballot memory b = _ballot(".ballots[2]");
+        (address first, uint256 firstKey) = makeAddrAndKey("first throwaway");
+        (address second, uint256 secondKey) = makeAddrAndKey("second throwaway");
+        vm.prank(relayer);
+        forwarder.execute(_request(first, firstKey, b));
+
+        // A fresh key passes the forwarder's checks, so only the nullifier stops the replay.
+        ERC2771Forwarder.ForwardRequestData memory replay = _request(second, secondKey, b);
+        assertTrue(forwarder.verify(replay));
+        vm.expectRevert();
+        vm.prank(relayer);
+        forwarder.execute(replay);
+        // What the forwarder ran into: the election refuses the spent nullifier, whoever sends it.
+        vm.expectRevert(
+            abi.encodeWithSelector(Election.AlreadyVoted.selector, bytes32(b.nullifier))
+        );
+        _cast(b);
+        assertEq(election.ballotsCast(), 1);
     }
 
     function test_forwarder_cannotChangeTheBallotItCarries() public {

@@ -26,6 +26,9 @@ export const rpcUrl: string =
 
 export const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000";
 
+/** The relayer, which submits anonymous ballots and pays their gas. */
+export const relayerUrl = process.env.NEXT_PUBLIC_RELAYER_URL ?? "http://127.0.0.1:4100";
+
 export const ipfsGateway = process.env.NEXT_PUBLIC_IPFS_GATEWAY ?? "http://127.0.0.1:8080";
 
 /** A block explorer link for a transaction, where the chain has an explorer. */

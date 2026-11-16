@@ -12,12 +12,18 @@ import { api } from "@/lib/api";
 import { useElection, type OnchainElection } from "@/lib/election";
 import { chain, isLocalChain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
+import { useStoredIdentity, useStoredIdentityReceipt } from "@/lib/identity";
 import { saveReceipt, useStoredReceipt } from "@/lib/receipts";
 import { formatRelative, formatTime, useChainNow } from "@/lib/time";
 import { useWallet } from "@/lib/wallet";
 
 import { ElectionHeader } from "./election-header";
-import { ListCheck } from "./list-check";
+import {
+  IdentityReceiptCard,
+  IdentityRegistrationForm,
+  VotingKeyCard,
+} from "./identity-registration";
+import { IdentityListCheck, ListCheck } from "./list-check";
 import { ReceiptCard } from "./receipt-card";
 import { Button, Card, Field, Input, Notice, Spinner } from "./ui";
 
@@ -198,6 +204,35 @@ function RegistrationForm({
   );
 }
 
+function registrationStatus(election: OnchainElection, now: number): string | undefined {
+  if (election.phase === Phase.Cancelled) return "This election was cancelled.";
+  if (registrationOpen(election, now)) return undefined;
+  if (now < election.schedule.registrationStart) {
+    return `Registration opens ${formatRelative(election.schedule.registrationStart, now)}, on ${formatTime(election.schedule.registrationStart)}.`;
+  }
+  return "Registration for this election has closed.";
+}
+
+/** Tier 3: a voting key made on this device, registered by its public fingerprint. */
+function AnonymousRegistration({ election, now }: { election: OnchainElection; now: number }) {
+  const receipt = useStoredIdentityReceipt(chain.id, election.address);
+  const identity = useStoredIdentity(chain.id, election.address);
+  const open = registrationOpen(election, now);
+  const status = registrationStatus(election, now);
+  return (
+    <>
+      <ElectionHeader election={election} action="Register to vote" />
+      {status && <Notice>{status}</Notice>}
+      {receipt && <IdentityReceiptCard receipt={receipt} />}
+      {identity && election.voterListCid !== "" && (
+        <IdentityListCheck election={election} commitment={identity.commitment.toString()} />
+      )}
+      {(open || identity) && <VotingKeyCard election={election} />}
+      {open && !receipt && <IdentityRegistrationForm election={election} />}
+    </>
+  );
+}
+
 export function RegisterView({ address }: { address: string }) {
   const valid = isAddress(address);
   const electionAddress = valid ? getAddress(address) : undefined;
@@ -220,6 +255,7 @@ export function RegisterView({ address }: { address: string }) {
   if (election === null) {
     return <Notice tone="error">This contract was not created by the election factory.</Notice>;
   }
+  if (election.tier === 3) return <AnonymousRegistration election={election} now={now} />;
 
   const open = registrationOpen(election, now);
   let status: string | undefined;

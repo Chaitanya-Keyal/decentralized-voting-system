@@ -1,0 +1,20 @@
+{
+  "name": "@dvote/bench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gas": "tsx src/gas.ts",
+    "booth": "tsx src/booth.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dvote/shared": "workspace:*",
+    "viem": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "^4.23.15",
+    "typescript": "catalog:"
+  }
+}

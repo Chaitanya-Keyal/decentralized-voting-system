@@ -16,6 +16,12 @@ export default defineConfig({
       AUTHORITIES: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
       EMAIL_DOMAIN: "hyderabad.bits-pilani.ac.in",
       SMTP_URL: "",
+      // The relayer: Anvil's last default account pays, and each run keeps to its own Redis keys.
+      REDIS_URL: process.env.REDIS_URL ?? "redis://127.0.0.1:6380",
+      RELAYER_ADDRESS: "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720",
+      RELAYER_PRIVATE_KEY: "",
+      RELAYER_PREFIX: `dvote-relayer-test-${Date.now()}`,
+      RELAYER_RATE_LIMIT: "100",
     },
     // The test files share one chain and one database.
     fileParallelism: false,

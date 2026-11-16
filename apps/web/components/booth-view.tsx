@@ -16,6 +16,8 @@ import { useTransaction } from "@/lib/transaction";
 import { proofFor, useVoterList } from "@/lib/voter-list";
 import { useWallet } from "@/lib/wallet";
 
+import { AnonymousBooth } from "./anonymous-booth";
+import { CandidateChoice, choiceFor, type Marks } from "./candidate-choice";
 import { ElectionHeader } from "./election-header";
 import { ReceiptCard } from "./receipt-card";
 import { TransactionStatus } from "./transaction-status";
@@ -25,7 +27,8 @@ function Ballot({ election, proof }: { election: OnchainElection; proof: Hex[] }
   const config = useConfig();
   const { account, ready, blocker } = useWallet();
   const transaction = useTransaction();
-  const [choice, setChoice] = useState<number>();
+  const [marks, setMarks] = useState<Marks>(new Set());
+  const choice = choiceFor(election, marks);
 
   const cast = () =>
     void transaction.send(async () => {
@@ -37,7 +40,7 @@ function Ballot({ election, proof }: { election: OnchainElection; proof: Hex[] }
         address: election.address,
         abi: merkleElectionAbi,
         functionName: "castVote",
-        args: [BigInt(choice), proof],
+        args: [choice, proof],
       });
       return writeContract(config, request);
     });
@@ -54,24 +57,7 @@ function Ballot({ election, proof }: { election: OnchainElection; proof: Hex[] }
           cast();
         }}
       >
-        <fieldset className="flex flex-col gap-2">
-          <legend className="sr-only">Candidates</legend>
-          {election.candidates.map((candidate, index) => (
-            <label
-              key={index}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 px-4 py-3 text-sm has-[:checked]:border-zinc-900 dark:border-zinc-800 dark:has-[:checked]:border-zinc-100"
-            >
-              <input
-                type="radio"
-                name="candidate"
-                value={index}
-                checked={choice === index}
-                onChange={() => setChoice(index)}
-              />
-              {candidate.name}
-            </label>
-          ))}
-        </fieldset>
+        <CandidateChoice election={election} marks={marks} onChange={setMarks} />
         <div>
           <Button
             type="submit"
@@ -83,8 +69,8 @@ function Ballot({ election, proof }: { election: OnchainElection; proof: Hex[] }
         </div>
         {blocker && <p className="text-sm text-zinc-500">{blocker} to cast your ballot.</p>}
         <p className="text-xs text-zinc-500">
-          In this version a ballot is sent from your wallet, so it is public which wallet voted for
-          whom, and the wallet pays a little gas. Anonymous, gasless ballots come next.
+          In this election a ballot is sent from your wallet, so it is public which wallet voted for
+          whom, and the wallet pays a little gas. Elections with anonymous ballots need no wallet.
         </p>
         <TransactionStatus state={transaction.state} />
       </form>
@@ -240,6 +226,15 @@ export function BoothView({ address }: { address: string }) {
   }
   if (election === null) {
     return <Notice tone="error">This contract was not created by the election factory.</Notice>;
+  }
+
+  if (election.tier === 3) {
+    return (
+      <>
+        <ElectionHeader election={election} action="Ballot booth" />
+        <AnonymousBooth election={election} />
+      </>
+    );
   }
 
   return (

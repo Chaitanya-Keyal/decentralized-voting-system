@@ -1,6 +1,12 @@
 "use client";
 
-import { verifyVoterList, voterListSchema, voterProof } from "@dvote/shared";
+import {
+  identityListSchema,
+  verifyIdentityList,
+  verifyVoterList,
+  voterListSchema,
+  voterProof,
+} from "@dvote/shared";
 import { useQuery } from "@tanstack/react-query";
 import type { Address } from "viem";
 
@@ -35,4 +41,28 @@ export function useVoterList(election: OnchainElection | undefined) {
 /** The voter's own Merkle proof, or undefined if they are not on the list. */
 export function proofFor(list: ReturnType<typeof useVoterList>["data"], voter: Address) {
   return list ? voterProof(list.tree, voter) : undefined;
+}
+
+/**
+ * Tier 3: downloads the published list of identity commitments and rebuilds its Poseidon tree in
+ * the browser, checking it against the contract's root and count before the booth proves anything
+ * against it.
+ */
+export function useIdentityList(election: OnchainElection | undefined) {
+  return useQuery({
+    queryKey: ["identity-list", election?.address, election?.voterListCid],
+    enabled: election?.tier === 3 && election.voterListCid !== "",
+    staleTime: Infinity,
+    queryFn: async () => {
+      if (!election) throw new Error("Not ready");
+      const list = await fetchFromIpfs(identityListSchema, election.voterListCid);
+      const tree = verifyIdentityList(list, {
+        chainId: chain.id,
+        election: election.address,
+        root: election.voterRoot,
+        count: BigInt(election.voterCount),
+      });
+      return { commitments: list.commitments, tree };
+    },
+  });
 }

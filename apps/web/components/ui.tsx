@@ -95,7 +95,8 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
 }
 
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={cx(fieldStyles, "min-h-24", className)} {...props} />;
+  // The default height gives way to any height the caller sets.
+  return <textarea className={cx(fieldStyles, className ?? "min-h-24")} {...props} />;
 }
 
 export function Field({

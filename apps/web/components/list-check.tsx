@@ -4,7 +4,7 @@ import type { Address } from "viem";
 
 import type { OnchainElection } from "@/lib/election";
 import { describeError } from "@/lib/errors";
-import { proofFor, useVoterList } from "@/lib/voter-list";
+import { proofFor, useIdentityList, useVoterList } from "@/lib/voter-list";
 
 import { Notice, Spinner } from "./ui";
 
@@ -37,6 +37,42 @@ export function ListCheck({ election, voter }: { election: OnchainElection; vote
   ) : (
     <Notice tone="error">
       Your wallet is not on the published voter list. If you registered it, its receipt is evidence
+      that the registrar left you out.
+    </Notice>
+  );
+}
+
+/** Tier 3: whether this browser's voting key is on the published list, checked the same way. */
+export function IdentityListCheck({
+  election,
+  commitment,
+}: {
+  election: OnchainElection;
+  commitment: string;
+}) {
+  const list = useIdentityList(election);
+  if (list.isPending) {
+    return (
+      <Notice>
+        <span className="flex items-center gap-2">
+          <Spinner /> Downloading the voter list and checking it against the contract…
+        </span>
+      </Notice>
+    );
+  }
+  if (list.error) {
+    return (
+      <Notice tone="error">The voter list could not be checked: {describeError(list.error)}</Notice>
+    );
+  }
+  return list.data.commitments.includes(commitment) ? (
+    <Notice tone="success">
+      Your voting key is on the published list of {list.data.commitments.length}. The list matches
+      the root in the contract.
+    </Notice>
+  ) : (
+    <Notice tone="error">
+      Your voting key is not on the published list. If you registered it, your receipt is evidence
       that the registrar left you out.
     </Notice>
   );

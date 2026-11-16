@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { ElectionList } from "@/components/election-list";
 
@@ -19,7 +20,10 @@ export default function Home() {
           New election
         </Link>
       </div>
-      <ElectionList />
+      {/* Phases follow the clock, so the list renders per visit. */}
+      <Suspense fallback={<p className="text-sm text-zinc-500">Loading elections…</p>}>
+        <ElectionList />
+      </Suspense>
     </>
   );
 }

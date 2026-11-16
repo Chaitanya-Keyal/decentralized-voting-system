@@ -12,7 +12,7 @@ import { Description } from "./election/description";
 import { NextStep } from "./election/next-step";
 import { Results } from "./election/results";
 import { Timeline } from "./election/timeline";
-import { PhaseBadge } from "./phase";
+import { BallotBadges, PhaseBadge } from "./phase";
 import { Card, Mono, Notice, Spinner } from "./ui";
 
 export function ElectionView({ address }: { address: string }) {
@@ -42,7 +42,8 @@ export function ElectionView({ address }: { address: string }) {
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{election.title}</h1>
-          <PhaseBadge phase={election.phase} />
+          <PhaseBadge phase={election.phase} window={election.schedule} now={now} />
+          <BallotBadges tier={election.tier} countingRule={election.countingRule} />
         </div>
         <p className="text-xs text-zinc-500">
           Contract <Mono value={election.address} short={false} />
@@ -79,6 +80,7 @@ export function ElectionView({ address }: { address: string }) {
         <Ballots
           election={election.address}
           candidates={election.candidates.map((candidate) => candidate.name)}
+          tier={election.tier}
         />
       </Card>
     </>
