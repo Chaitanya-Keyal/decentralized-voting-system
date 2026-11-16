@@ -24,6 +24,10 @@ export const apiConfigSchema = z.object({
   electionFactory: addressSchema,
   semaphoreFactory: addressSchema,
   emailDomain: z.string(),
+  /** Google sign-in's client ID, or null where only email codes are offered. */
+  googleClientId: z.string().nullable(),
+  /** Whether codes can be emailed. */
+  emailCodes: z.boolean(),
 });
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
 
@@ -32,22 +36,41 @@ export type CodeRequest = z.input<typeof codeRequestSchema>;
 
 export const codeResponseSchema = z.object({ expiresAt: z.number() });
 
-export const registrationRequestSchema = z.object({
-  email: emailSchema,
-  code: z.string().regex(/^\d{6}$/, "The code has six digits"),
-  voter: addressSchema,
-  /** The voter's signature over `registrationTypedData`. */
-  signature: hexSchema,
-});
+/**
+ * How a voter proves their institute address: the code emailed to it, or a Google ID token for a
+ * Google account in the institute's domain. Exactly one is given.
+ */
+const emailProof = {
+  code: z
+    .string()
+    .regex(/^\d{6}$/, "The code has six digits")
+    .optional(),
+  googleIdToken: z.string().min(20).max(4096).optional(),
+};
+const oneProof = (request: { code?: string; googleIdToken?: string }) =>
+  (request.code === undefined) !== (request.googleIdToken === undefined);
+const oneProofMessage = { message: "Give an email code or a Google sign-in, not both" };
+
+export const registrationRequestSchema = z
+  .object({
+    email: emailSchema,
+    ...emailProof,
+    voter: addressSchema,
+    /** The voter's signature over `registrationTypedData`. */
+    signature: hexSchema,
+  })
+  .refine(oneProof, oneProofMessage);
 export type RegistrationRequest = z.input<typeof registrationRequestSchema>;
 
 /** Tier 3: the voter registers the commitment of an identity their device created. */
-export const identityRegistrationRequestSchema = z.object({
-  email: emailSchema,
-  code: z.string().regex(/^\d{6}$/, "The code has six digits"),
-  /** The identity commitment, in decimal. */
-  commitment: commitmentSchema.refine((value) => value !== "0", "Not an identity commitment"),
-});
+export const identityRegistrationRequestSchema = z
+  .object({
+    email: emailSchema,
+    ...emailProof,
+    /** The identity commitment, in decimal. */
+    commitment: commitmentSchema.refine((value) => value !== "0", "Not an identity commitment"),
+  })
+  .refine(oneProof, oneProofMessage);
 export type IdentityRegistrationRequest = z.input<typeof identityRegistrationRequestSchema>;
 
 /** What a voter keeps after registering. The signature is over `receiptTypedData`. */
@@ -180,17 +203,14 @@ export const indexerStatusSchema = z.object({
 // Relayer: submits tier 3 ballots and pays their gas
 // ---------------------------------------------------------------------------------------------
 
-/** A ballot for the relayer: a `VoteForwarder` request signed by a throwaway key. */
+const decimalSchema = z.string().regex(/^\d{1,78}$/, "Expected a number in decimal");
+
+/** An anonymous ballot for the relayer to submit: the choice, the nullifier and the proof. */
 export const relayRequestSchema = z.object({
-  request: z.object({
-    from: addressSchema,
-    to: addressSchema,
-    value: z.string().regex(/^\d+$/),
-    gas: z.string().regex(/^\d+$/),
-    deadline: z.number().int().positive(),
-    data: hexSchema,
-    signature: hexSchema,
-  }),
+  election: addressSchema,
+  choice: decimalSchema,
+  nullifier: decimalSchema,
+  points: z.array(decimalSchema).length(8),
 });
 export type RelayRequest = z.input<typeof relayRequestSchema>;
 

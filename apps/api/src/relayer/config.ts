@@ -9,8 +9,11 @@ import { privateKeyToAccount } from "viem/accounts";
 import { anvil, sepolia } from "viem/chains";
 import { z } from "zod";
 
+import { loadFileSettings } from "../file-settings";
+
 const envFile = new URL("../../../../.env", import.meta.url);
 if (existsSync(envFile)) process.loadEnvFile(envFile);
+loadFileSettings();
 
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => (value === "" ? undefined : value), schema.optional());

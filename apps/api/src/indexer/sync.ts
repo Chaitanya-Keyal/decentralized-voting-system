@@ -263,7 +263,9 @@ export async function indexNextBatch(): Promise<BatchResult> {
   const problem = await checkChain(cursor, genesis.hash);
   if (problem) return problem;
 
-  const head = (await publicClient.getBlockNumber()) - CONFIRMATIONS;
+  // viem caches the block number for a polling interval; the indexer needs the true head, or a
+  // block mined just after the last batch can be missed until the cache expires.
+  const head = (await publicClient.getBlockNumber({ cacheTime: 0 })) - CONFIRMATIONS;
   const from = cursor ? cursor.block + 1n : BigInt(deployment.startBlock);
   if (from > head) return { kind: "caught-up" };
   const to = from + BATCH_SIZE - 1n < head ? from + BATCH_SIZE - 1n : head;
@@ -306,7 +308,7 @@ export async function indexNextBatch(): Promise<BatchResult> {
 
 /** Keeps indexing until `signal` aborts, waiting for new blocks once it has caught up. */
 export async function runIndexer(log: Logger, signal: AbortSignal): Promise<void> {
-  log.info({ chainId: chain.id, factory: deployment.electionFactory }, "Indexing");
+  log.info({ chainId: chain.id, factories: electionFactories(deployment) }, "Indexing");
   while (!signal.aborted) {
     try {
       const batch = await indexNextBatch();

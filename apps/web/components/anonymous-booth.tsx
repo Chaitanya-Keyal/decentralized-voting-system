@@ -8,7 +8,7 @@ import { pad, toHex } from "viem";
 import { useConfig, usePublicClient } from "wagmi";
 import { simulateContract, writeContract } from "wagmi/actions";
 
-import { deployment, type OnchainElection } from "@/lib/election";
+import type { OnchainElection } from "@/lib/election";
 import { chain, explorerTx, simulateAt } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 import { saveCastBallot, useCastBallot, useStoredIdentity, type CastBallot } from "@/lib/identity";
@@ -121,15 +121,10 @@ function AnonymousBallotForm({
 
   async function castThroughRelayer() {
     try {
-      if (!client || !deployment) throw new Error("Not connected to the chain.");
+      if (!client) throw new Error("Not connected to the chain.");
       const ballot = await prove();
       setStep({ kind: "relaying" });
-      const { id, receipt } = await relayBallot({
-        client,
-        forwarder: deployment.voteForwarder,
-        election: election.address,
-        ballot,
-      });
+      const { id, receipt } = await relayBallot({ election: election.address, ballot });
       record(ballot, { relayId: id, relayReceipt: receipt });
       setStep({ kind: "queued", id });
       const txHash = await waitUntilCounted({

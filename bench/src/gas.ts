@@ -114,3 +114,6 @@ for (const size of sizes) {
 await mkdir(RESULTS, { recursive: true });
 await writeFile(`${RESULTS}gas.csv`, csv(rows));
 console.log(`Wrote ${RESULTS}gas.csv`);
+
+// snarkjs leaves worker threads running, which would keep the process alive.
+process.exit(0);

@@ -45,6 +45,8 @@ export async function buildApp(options: { logger?: boolean } = {}): Promise<Fast
     electionFactory: deployment.electionFactory,
     semaphoreFactory: deployment.semaphoreFactory,
     emailDomain: env.EMAIL_DOMAIN,
+    googleClientId: env.GOOGLE_CLIENT_ID ?? null,
+    emailCodes: env.SMTP_URL !== undefined || env.CHAIN_ID === 31337,
   }));
 
   // Registrar

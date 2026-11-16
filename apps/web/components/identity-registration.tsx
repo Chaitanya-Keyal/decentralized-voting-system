@@ -13,7 +13,7 @@ import { usePublicClient } from "wagmi";
 
 import { api } from "@/lib/api";
 import type { OnchainElection } from "@/lib/election";
-import { chain, isLocalChain } from "@/lib/env";
+import { chain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 import {
   createIdentity,
@@ -25,7 +25,8 @@ import {
 } from "@/lib/identity";
 import { formatTime } from "@/lib/time";
 
-import { Button, Card, Field, Input, Mono, Notice, Spinner } from "./ui";
+import { EmailProof, type EmailProofValue } from "./email-proof";
+import { Button, Card, Mono, Notice } from "./ui";
 
 /**
  * Tier 3's voting key: a secret this browser creates and keeps. It is what proves, later, that the
@@ -107,44 +108,17 @@ export function VotingKeyCard({ election }: { election: OnchainElection }) {
 /** Registers this browser's voting key once the voter proves their institute email address. */
 export function IdentityRegistrationForm({ election }: { election: OnchainElection }) {
   const identity = useStoredIdentity(chain.id, election.address);
-  const apiConfig = useQuery({ queryKey: ["api-config"], queryFn: api.config });
-  const [email, setEmail] = useState("");
-  const [sentTo, setSentTo] = useState<string>();
-  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string>();
 
   if (!identity) return null;
 
-  async function run(task: () => Promise<void>) {
+  const register = async (proof: EmailProofValue) => {
     setProblem(undefined);
     setBusy(true);
     try {
-      await task();
-    } catch (error) {
-      setProblem(describeError(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const sendCode = () =>
-    run(async () => {
-      const address = email.trim().toLowerCase();
-      await api.requestCode(election.address, address);
-      setSentTo(address);
-      setCode("");
-    });
-
-  const register = () =>
-    run(async () => {
-      if (!sentTo) return;
       const commitment = identity.commitment.toString();
-      const receipt = await api.registerIdentity(election.address, {
-        email: sentTo,
-        code: code.trim(),
-        commitment,
-      });
+      const receipt = await api.registerIdentity(election.address, { ...proof, commitment });
       const matches =
         receipt.chainId === chain.id &&
         isAddressEqual(receipt.election, election.address) &&
@@ -153,7 +127,12 @@ export function IdentityRegistrationForm({ election }: { election: OnchainElecti
         throw new Error("The registrar's receipt is for a different key or election.");
       }
       saveIdentityReceipt(receipt);
-    });
+    } catch (error) {
+      setProblem(describeError(error));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Card
@@ -161,83 +140,12 @@ export function IdentityRegistrationForm({ election }: { election: OnchainElecti
       description={`Registration closes ${formatTime(election.schedule.registrationEnd)}. Your email address stays with the registrar and is never put on-chain. No wallet is needed.`}
     >
       <div className="flex flex-col gap-4">
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void sendCode();
-          }}
-        >
-          <Field
-            label="Institute email address"
-            hint={
-              apiConfig.data
-                ? `Only @${apiConfig.data.emailDomain} addresses can register.`
-                : undefined
-            }
-          >
-            <Input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder={`f20230001@${apiConfig.data?.emailDomain ?? "hyderabad.bits-pilani.ac.in"}`}
-              autoComplete="email"
-              required
-            />
-          </Field>
-          <div>
-            <Button type="submit" variant={sentTo ? "secondary" : "primary"} disabled={busy}>
-              {sentTo ? "Send a new code" : "Send me a code"}
-            </Button>
-          </div>
-        </form>
-
-        {sentTo && (
-          <form
-            className="flex flex-col gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void register();
-            }}
-          >
-            <p className="text-sm">
-              We sent a six-digit code to <strong>{sentTo}</strong>. It works for ten minutes.
-              {isLocalChain && (
-                <>
-                  {" "}
-                  Locally, the email lands in{" "}
-                  <a
-                    href="http://127.0.0.1:8025"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline"
-                  >
-                    Mailpit
-                  </a>
-                  .
-                </>
-              )}
-            </p>
-            <Field label="Code">
-              <Input
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                placeholder="123456"
-                autoComplete="one-time-code"
-                required
-              />
-            </Field>
-            <div>
-              <Button type="submit" disabled={busy}>
-                {busy && <Spinner />} Register my voting key
-              </Button>
-            </div>
-          </form>
-        )}
-
+        <EmailProof
+          election={election}
+          submitLabel="Register my voting key"
+          busy={busy}
+          onSubmit={(proof) => void register(proof)}
+        />
         {problem && <Notice tone="error">{problem}</Notice>}
       </div>
     </Card>

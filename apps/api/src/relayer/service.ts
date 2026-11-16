@@ -1,6 +1,13 @@
 // What the relayer does with a ballot: check it completely before paying anything, queue it, and
-// submit it through the `VoteForwarder`. Ballots are sent one at a time, so the relayer's nonce
+// submit it to the election, paying the gas. Ballots are sent one at a time, so the relayer's nonce
 // never races with itself.
+//
+// The relayer calls `castVote` itself. The ballot's proof binds the choice and the election, and
+// `castVote` never reads the sender, so nothing is gained by having the voter sign the call: the
+// relayer can neither change a ballot nor cast one it was not given. Going through the ERC-2771
+// `VoteForwarder` instead, as the contracts also allow, costs a signature check and, for the fresh
+// key each ballot is signed with, a new nonce slot; under Glamsterdam's state pricing (EIP-8037)
+// that was about 127,000 gas more per ballot on Sepolia.
 import { createHash } from "node:crypto";
 
 import {
@@ -9,42 +16,28 @@ import {
   relayReceiptTypedData,
   semaphoreElectionAbi,
   verifyBallot,
-  voteForwarderAbi,
+  type AnonymousBallot,
   type RelayReceipt,
   type RelayStatus,
 } from "@dvote/shared";
 import { Queue, Worker, type Job } from "bullmq";
 import { Redis } from "ioredis";
-import {
-  BaseError,
-  ContractFunctionRevertedError,
-  decodeFunctionData,
-  pad,
-  toHex,
-  type Address,
-  type Hex,
-} from "viem";
+import { BaseError, ContractFunctionRevertedError, pad, toHex, type Address, type Hex } from "viem";
 
 import { HttpError } from "../http";
 import { loggable } from "../redact";
 import { chain, config, deployment, publicClient, relayer, simulateAt } from "./config";
 
-/** Enough for a ballot through the forwarder (about 340,000 gas), with room to spare. */
-const MAX_GAS = 600_000n;
-
-/** A forwarded ballot, as the relayer receives it. */
-export interface ForwardRequest {
-  from: Address;
-  to: Address;
-  value: string;
-  gas: string;
-  deadline: number;
-  data: Hex;
-  signature: Hex;
+/** A ballot as the relayer receives it, every number in decimal. */
+export interface BallotRequest {
+  election: Address;
+  choice: string;
+  nullifier: string;
+  points: string[];
 }
 
 interface BallotJob {
-  request: ForwardRequest;
+  ballot: BallotRequest;
 }
 
 export function connect() {
@@ -60,34 +53,40 @@ export type Relayer = ReturnType<typeof connect>;
 
 const key = (...parts: string[]) => [config.RELAYER_PREFIX, ...parts].join(":");
 
+function toBallot(request: BallotRequest): AnonymousBallot {
+  return {
+    choice: BigInt(request.choice),
+    nullifier: BigInt(request.nullifier),
+    points: request.points.map((point) => BigInt(point)) as unknown as AnonymousBallot["points"],
+  };
+}
+
+function castVoteCall(election: Address, ballot: AnonymousBallot) {
+  return {
+    address: election,
+    abi: semaphoreElectionAbi,
+    functionName: "castVote",
+    args: [ballot.choice, ballot.nullifier, ballot.points],
+  } as const;
+}
+
 /**
  * Accepts a ballot after checking everything that would make it fail on-chain: the target is an
  * anonymous election of this deployment, voting is open, the proof verifies against the published
- * root, the nullifier is unused and not already queued, and the forwarder will accept the
- * signature. Only then does the relayer promise, with a signed receipt, to submit it.
+ * root, the nullifier is unused and not already queued, and the call succeeds when simulated. Only
+ * then does the relayer promise, with a signed receipt, to submit it.
  *
  * `client` identifies the requester for rate limiting only. It is hashed and kept for two minutes;
  * nothing ties it to the ballot.
  */
 export async function acceptBallot(
   relay: Relayer,
-  request: ForwardRequest,
+  request: BallotRequest,
   client: string,
 ): Promise<{ id: string; receipt: RelayReceipt }> {
   await rateLimit(relay, client);
-
-  const election = request.to;
-  if (BigInt(request.value) !== 0n) throw new HttpError(400, "A ballot carries no ETH.");
-  if (BigInt(request.gas) > MAX_GAS) throw new HttpError(400, "That ballot asks for too much gas.");
-
-  let decoded;
-  try {
-    decoded = decodeFunctionData({ abi: semaphoreElectionAbi, data: request.data });
-  } catch {
-    throw new HttpError(400, "That is not a ballot.");
-  }
-  if (decoded.functionName !== "castVote") throw new HttpError(400, "That is not a ballot.");
-  const [choice, nullifier, points] = decoded.args;
+  const { election } = request;
+  const ballot = toBallot(request);
 
   const created = await publicClient.readContract({
     address: deployment.semaphoreFactory,
@@ -95,8 +94,9 @@ export async function acceptBallot(
     functionName: "isElection",
     args: [election],
   });
-  if (!created)
+  if (!created) {
     throw new HttpError(400, "The relayer only submits ballots for anonymous elections.");
+  }
 
   const contract = { address: election, abi: semaphoreElectionAbi } as const;
   const [phase, schedule, used, root, voterCount, block] = await Promise.all([
@@ -105,7 +105,7 @@ export async function acceptBallot(
     publicClient.readContract({
       ...contract,
       functionName: "ballotKeyUsed",
-      args: [pad(toHex(nullifier))],
+      args: [pad(toHex(ballot.nullifier))],
     }),
     publicClient.readContract({ ...contract, functionName: "voterRoot" }),
     publicClient.readContract({ ...contract, functionName: "voterCount" }),
@@ -117,55 +117,31 @@ export async function acceptBallot(
   }
   if (used) throw new HttpError(409, "This voter has already voted.");
 
-  const valid = await verifyBallot({
-    ballot: { choice, nullifier, points: points as unknown as readonly bigint[] as never },
-    election,
-    root,
-    voterCount,
-  });
+  const valid = await verifyBallot({ ballot, election, root, voterCount });
   if (!valid) throw new HttpError(400, "The ballot's proof does not check out.");
 
-  // The whole call, as the relayer would send it: the forwarder's signature, nonce, deadline and gas
-  // checks, then the election's own (the choice, the ballot cap). Nothing is promised for a ballot
-  // that would revert.
+  // The call exactly as the relayer will send it, so nothing is promised for a ballot that would
+  // revert, for example one whose choice the election does not accept.
   try {
     await publicClient.simulateContract({
       ...simulateAt,
       account: relayer.account,
-      address: deployment.voteForwarder,
-      abi: voteForwarderAbi,
-      functionName: "execute",
-      args: [toForwardData(request)],
+      ...castVoteCall(election, ballot),
     });
-  } catch {
-    // The forwarder reports only that the call failed, so the election is asked directly why.
-    // castVote does not use the sender, so calling it from the forwarder's address is the same.
-    const reason = await publicClient
-      .simulateContract({
-        ...simulateAt,
-        account: deployment.voteForwarder,
-        address: election,
-        abi: semaphoreElectionAbi,
-        functionName: "castVote",
-        args: [choice, nullifier, points],
-      })
-      .then(
-        () => "the forwarder refuses it; check its signature, deadline and gas",
-        (error: unknown) => revertReason(error),
-      );
-    throw new HttpError(400, `The ballot would be refused on-chain: ${reason}`);
+  } catch (error) {
+    throw new HttpError(400, `The ballot would be refused on-chain: ${revertReason(error)}`);
   }
 
   // One queued ballot per nullifier: a second copy would only revert, at the relayer's cost.
-  const id = createHash("sha256").update(`${election}:${nullifier}`).digest("hex");
+  const id = createHash("sha256").update(`${election}:${ballot.nullifier}`).digest("hex");
   const claimed = await relay.redis.set(key("nullifier", id), "queued", "EX", 24 * 3600, "NX");
   if (claimed !== "OK") throw new HttpError(409, "This ballot has already been submitted.");
   await relay.redis.del(key("failed", id));
-  // Jobs are deleted when they finish, so the queue holds a request only while it is pending; what
+  // Jobs are deleted when they finish, so the queue holds a ballot only while it is pending; what
   // is kept afterwards is the outcome alone.
   await relay.queue.add(
     "ballot",
-    { request },
+    { ballot: request },
     {
       jobId: id,
       attempts: 3,
@@ -179,13 +155,19 @@ export async function acceptBallot(
   const receipt: RelayReceipt = {
     chainId: chain.id,
     election,
-    nullifier: nullifier.toString(),
-    choice: choice.toString(),
+    nullifier: ballot.nullifier.toString(),
+    choice: ballot.choice.toString(),
     acceptedAt,
     relayer: relayer.account.address,
     signature: await relayer.signTypedData({
       account: relayer.account,
-      ...relayReceiptTypedData({ chainId: chain.id, election, nullifier, choice, acceptedAt }),
+      ...relayReceiptTypedData({
+        chainId: chain.id,
+        election,
+        nullifier: ballot.nullifier,
+        choice: ballot.choice,
+        acceptedAt,
+      }),
     }),
   };
   return { id, receipt };
@@ -211,22 +193,20 @@ export function startWorker(relay: Relayer) {
   return new Worker<BallotJob>(
     "ballots",
     async (job: Job<BallotJob>) => {
-      const request = toForwardData(job.data.request);
+      const { election } = job.data.ballot;
+      const ballot = toBallot(job.data.ballot);
       // A retry after a crash may find the ballot already counted, by an earlier attempt or by a
       // direct submission. Either way the voter's ballot is in, which is what they need to know.
-      if (await isCounted(request)) {
+      if (await isCounted(election, ballot.nullifier)) {
         await relay.redis.set(key("mined", job.id ?? ""), "", "EX", 7 * 24 * 3600);
         return;
       }
-      const { request: call } = await publicClient.simulateContract({
+      const { request } = await publicClient.simulateContract({
         ...simulateAt,
         account: relayer.account,
-        address: deployment.voteForwarder,
-        abi: voteForwarderAbi,
-        functionName: "execute",
-        args: [request],
+        ...castVoteCall(election, ballot),
       });
-      const txHash = await relayer.writeContract(call);
+      const txHash = await relayer.writeContract(request);
       const receipt = await publicClient.waitForTransactionReceipt({
         hash: txHash,
         timeout: 180_000,
@@ -263,23 +243,9 @@ async function rateLimit(relay: Relayer, client: string) {
   }
 }
 
-function toForwardData(request: ForwardRequest) {
-  return {
-    from: request.from,
-    to: request.to,
-    value: BigInt(request.value),
-    gas: BigInt(request.gas),
-    deadline: request.deadline,
-    data: request.data,
-    signature: request.signature,
-  };
-}
-
-async function isCounted(request: ReturnType<typeof toForwardData>): Promise<boolean> {
-  const { args } = decodeFunctionData({ abi: semaphoreElectionAbi, data: request.data });
-  const nullifier = args[1] as bigint;
+function isCounted(election: Address, nullifier: bigint): Promise<boolean> {
   return publicClient.readContract({
-    address: request.to,
+    address: election,
     abi: semaphoreElectionAbi,
     functionName: "ballotKeyUsed",
     args: [pad(toHex(nullifier))],

@@ -85,6 +85,12 @@ test("an election runs end to end in the browser", async ({ page }) => {
     await screenshot(page, "22-wallet-election-final");
   });
 
+  await test.step("an observer audits the election from the chain and IPFS alone", async () => {
+    await page.getByRole("button", { name: "Run the audit" }).click();
+    await expect(page.getByText("Every check passed")).toBeVisible({ timeout: 60_000 });
+    await screenshot(page, "23-wallet-election-audited");
+  });
+
   await test.step("the indexer lists every ballot", async () => {
     await expect(page.locator("tbody tr")).toHaveCount(5);
   });

@@ -154,4 +154,8 @@ contract MerkleElectionTest is Test {
             ? Hashes.commutativeKeccak256(leaves[2], leaves[3])
             : Hashes.commutativeKeccak256(leaves[0], leaves[1]);
     }
+
+    function test_tier_isTwo() public view {
+        assertEq(election.tier(), 2);
+    }
 }

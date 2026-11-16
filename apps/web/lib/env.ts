@@ -3,7 +3,12 @@
 import type { Chain } from "viem";
 import { anvil, sepolia } from "viem/chains";
 
-const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? anvil.id);
+/** A build setting, where an empty one (as an unset build argument gives) counts as unset. */
+function setting(value: string | undefined): string | undefined {
+  return value === "" ? undefined : value;
+}
+
+const chainId = Number(setting(process.env.NEXT_PUBLIC_CHAIN_ID) ?? anvil.id);
 
 const supported = [anvil, sepolia] as const;
 const found = supported.find((candidate) => candidate.id === chainId);
@@ -22,14 +27,16 @@ export const simulateAt = isLocalChain ? ({ blockTag: "pending" } as const) : {}
 
 /** The node the browser reads from, which Anvil's development wallets also send through. */
 export const rpcUrl: string =
-  process.env.NEXT_PUBLIC_RPC_URL ?? chain.rpcUrls.default.http[0] ?? "http://127.0.0.1:8545";
+  setting(process.env.NEXT_PUBLIC_RPC_URL) ??
+  chain.rpcUrls.default.http[0] ??
+  "http://127.0.0.1:8545";
 
-export const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000";
+export const apiUrl = setting(process.env.NEXT_PUBLIC_API_URL) ?? "http://127.0.0.1:4000";
 
 /** The relayer, which submits anonymous ballots and pays their gas. */
-export const relayerUrl = process.env.NEXT_PUBLIC_RELAYER_URL ?? "http://127.0.0.1:4100";
+export const relayerUrl = setting(process.env.NEXT_PUBLIC_RELAYER_URL) ?? "http://127.0.0.1:4100";
 
-export const ipfsGateway = process.env.NEXT_PUBLIC_IPFS_GATEWAY ?? "http://127.0.0.1:8080";
+export const ipfsGateway = setting(process.env.NEXT_PUBLIC_IPFS_GATEWAY) ?? "http://127.0.0.1:8080";
 
 /** A block explorer link for a transaction, where the chain has an explorer. */
 export function explorerTx(hash: string): string | undefined {

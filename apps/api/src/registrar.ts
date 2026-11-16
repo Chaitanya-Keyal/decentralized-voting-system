@@ -44,6 +44,7 @@ import {
 import { db } from "./db";
 import { env } from "./env";
 import type { Prisma } from "./generated/prisma/client";
+import { verifyGoogleIdToken } from "./google";
 import { HttpError, parse } from "./http";
 import { loggable } from "./redact";
 import { pinJson } from "./ipfs";
@@ -118,6 +119,9 @@ export async function sendCode(
   log: FastifyBaseLogger,
 ): Promise<{ expiresAt: number }> {
   requireInstituteEmail(email);
+  if (env.SMTP_URL === undefined && env.CHAIN_ID !== 31337) {
+    throw new HttpError(400, "Email codes are not available here. Sign in with Google instead.");
+  }
   const state = await readElection(election);
   await requireRegistrationOpen(state);
 
@@ -163,6 +167,26 @@ export async function sendCode(
   return { expiresAt: Math.floor(expiresAt.getTime() / 1000) };
 }
 
+/**
+ * Checks the voter's proof of their institute address: the code emailed to it, or Google's
+ * sign-in for that same address.
+ */
+async function proveEmail(
+  election: Address,
+  email: string,
+  proof: { code?: string; googleIdToken?: string },
+) {
+  if (proof.googleIdToken !== undefined) {
+    const signedIn = await verifyGoogleIdToken(proof.googleIdToken);
+    if (signedIn !== email) {
+      throw new HttpError(400, `Google signed you in as ${signedIn}, not ${email}.`);
+    }
+    return;
+  }
+  if (proof.code === undefined) throw new HttpError(400, "Give the code we emailed you.");
+  await checkCode(election, email, proof.code);
+}
+
 async function checkCode(election: Address, email: string, code: string) {
   const latest = await db.emailCode.findFirst({
     where: { election, email, expiresAt: { gt: new Date() } },
@@ -191,7 +215,13 @@ async function checkCode(election: Address, email: string, code: string) {
  */
 export async function register(
   election: Address,
-  request: { email: string; code: string; voter: Address; signature: Hex },
+  request: {
+    email: string;
+    code?: string;
+    googleIdToken?: string;
+    voter: Address;
+    signature: Hex;
+  },
   known?: ElectionState,
 ): Promise<Receipt> {
   const { email, voter } = request;
@@ -203,7 +233,7 @@ export async function register(
     throw new HttpError(400, "This election registers identities, not wallets.");
   }
   await requireRegistrationOpen(state);
-  await checkCode(election, email, request.code);
+  await proveEmail(election, email, request);
 
   const signedByVoter = await publicClient.verifyTypedData({
     address: voter,
@@ -272,7 +302,7 @@ export async function register(
  */
 export async function registerIdentity(
   election: Address,
-  request: { email: string; code: string; commitment: string },
+  request: { email: string; code?: string; googleIdToken?: string; commitment: string },
   known?: ElectionState,
 ): Promise<IdentityReceipt> {
   const { email, commitment } = request;
@@ -282,7 +312,7 @@ export async function registerIdentity(
     throw new HttpError(400, "This election registers wallets, not identities.");
   }
   await requireRegistrationOpen(state);
-  await checkCode(election, email, request.code);
+  await proveEmail(election, email, request);
 
   const issuedAt = Number(await chainNow());
   const receipt: IdentityReceipt = {

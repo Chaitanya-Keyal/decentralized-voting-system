@@ -2,7 +2,6 @@
 
 import { Phase, registrationTypedData, type Receipt } from "@dvote/shared";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { getAddress, isAddress, isAddressEqual } from "viem";
 import { useAccount, useConfig } from "wagmi";
@@ -10,13 +9,14 @@ import { signTypedData } from "wagmi/actions";
 
 import { api } from "@/lib/api";
 import { useElection, type OnchainElection } from "@/lib/election";
-import { chain, isLocalChain } from "@/lib/env";
+import { chain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 import { useStoredIdentity, useStoredIdentityReceipt } from "@/lib/identity";
 import { saveReceipt, useStoredReceipt } from "@/lib/receipts";
 import { formatRelative, formatTime, useChainNow } from "@/lib/time";
 import { useWallet } from "@/lib/wallet";
 
+import { EmailProof, type EmailProofValue } from "./email-proof";
 import { ElectionHeader } from "./election-header";
 import {
   IdentityReceiptCard,
@@ -25,7 +25,7 @@ import {
 } from "./identity-registration";
 import { IdentityListCheck, ListCheck } from "./list-check";
 import { ReceiptCard } from "./receipt-card";
-import { Button, Card, Field, Input, Notice, Spinner } from "./ui";
+import { Card, Notice, Spinner } from "./ui";
 
 function registrationOpen(election: OnchainElection, now: number): boolean {
   return (
@@ -45,36 +45,14 @@ function RegistrationForm({
 }) {
   const config = useConfig();
   const { account, ready, blocker } = useWallet();
-  const apiConfig = useQuery({ queryKey: ["api-config"], queryFn: api.config });
-  const [email, setEmail] = useState("");
-  const [sentTo, setSentTo] = useState<string>();
-  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string>();
 
-  async function run(task: () => Promise<void>) {
+  const register = async (proof: EmailProofValue) => {
+    if (!account) return;
     setProblem(undefined);
     setBusy(true);
     try {
-      await task();
-    } catch (error) {
-      setProblem(describeError(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const sendCode = () =>
-    run(async () => {
-      const address = email.trim().toLowerCase();
-      await api.requestCode(election.address, address);
-      setSentTo(address);
-      setCode("");
-    });
-
-  const register = () =>
-    run(async () => {
-      if (!account || !sentTo) return;
       // The wallet signs the email address it is being registered with; this costs nothing.
       const signature = await signTypedData(config, {
         account,
@@ -82,12 +60,11 @@ function RegistrationForm({
           chainId: chain.id,
           election: election.address,
           voter: account,
-          email: sentTo,
+          email: proof.email,
         }),
       });
       const receipt = await api.register(election.address, {
-        email: sentTo,
-        code: code.trim(),
+        ...proof,
         voter: account,
         signature,
       });
@@ -101,7 +78,12 @@ function RegistrationForm({
       // Shown from here, so a browser that cannot store it still shows it and offers it as a file.
       onRegistered(receipt);
       saveReceipt(receipt);
-    });
+    } catch (error) {
+      setProblem(describeError(error));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (!account) {
     return (
@@ -120,84 +102,13 @@ function RegistrationForm({
       description={`Registration closes ${formatTime(election.schedule.registrationEnd)}. Your email address stays with the registrar and is never put on-chain.`}
     >
       <div className="flex flex-col gap-4">
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void sendCode();
-          }}
-        >
-          <Field
-            label="Institute email address"
-            hint={
-              apiConfig.data
-                ? `Only @${apiConfig.data.emailDomain} addresses can register.`
-                : undefined
-            }
-          >
-            <Input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder={`f20230001@${apiConfig.data?.emailDomain ?? "hyderabad.bits-pilani.ac.in"}`}
-              autoComplete="email"
-              required
-            />
-          </Field>
-          <div>
-            <Button type="submit" variant={sentTo ? "secondary" : "primary"} disabled={busy}>
-              {sentTo ? "Send a new code" : "Send me a code"}
-            </Button>
-          </div>
-        </form>
-
-        {sentTo && (
-          <form
-            className="flex flex-col gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void register();
-            }}
-          >
-            <p className="text-sm">
-              We sent a six-digit code to <strong>{sentTo}</strong>. It works for ten minutes.
-              {isLocalChain && (
-                <>
-                  {" "}
-                  Locally, the email lands in{" "}
-                  <a
-                    href="http://127.0.0.1:8025"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline"
-                  >
-                    Mailpit
-                  </a>
-                  .
-                </>
-              )}
-            </p>
-            <Field label="Code">
-              <Input
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                placeholder="123456"
-                autoComplete="one-time-code"
-                required
-              />
-            </Field>
-            <div>
-              <Button type="submit" disabled={busy || !ready} title={blocker}>
-                {busy && <Spinner />} Sign with my wallet and register
-              </Button>
-            </div>
-            {blocker && <p className="text-sm text-zinc-500">{blocker} to register.</p>}
-          </form>
-        )}
-
+        <EmailProof
+          election={election}
+          submitLabel="Sign with my wallet and register"
+          busy={busy}
+          disabled={ready ? undefined : `${blocker ?? "Connect your wallet"} to register`}
+          onSubmit={(proof) => void register(proof)}
+        />
         {problem && <Notice tone="error">{problem}</Notice>}
       </div>
     </Card>

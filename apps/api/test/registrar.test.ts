@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { createServer, type Server } from "node:http";
 
 import {
   Identity,
@@ -18,6 +19,7 @@ import {
   voterProof,
 } from "@dvote/shared";
 import type { FastifyInstance } from "fastify";
+import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { recoverTypedDataAddress, type Address } from "viem";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -652,5 +654,137 @@ describe("POST /metadata", () => {
     expect(response.json<{ message: string }>().message).toMatch(/Try again/);
     expect(response.body).not.toContain("secret");
     expect(response.body).not.toContain("192.0.2.7");
+  });
+});
+
+describe("Google sign-in", () => {
+  const CLIENT_ID = "dvote-test.apps.googleusercontent.com";
+  let server: Server;
+  let signingKey: Awaited<ReturnType<typeof generateKeyPair>>["privateKey"];
+
+  beforeAll(async () => {
+    const { publicKey, privateKey } = await generateKeyPair("RS256");
+    signingKey = privateKey;
+    const jwk = { ...(await exportJWK(publicKey)), kid: "test-key", alg: "RS256", use: "sig" };
+    server = createServer((_, response) => {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify({ keys: [jwk] }));
+    });
+    await new Promise<void>((resolve) => server.listen(8566, "127.0.0.1", resolve));
+  });
+
+  afterAll(async () => {
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  /** An ID token as Google would issue it, with any claim overridden. */
+  function idToken(
+    email: string,
+    claims: Record<string, unknown> = {},
+    audience = CLIENT_ID,
+    expiresAt: number | string = "1h",
+  ) {
+    return new SignJWT({
+      email,
+      email_verified: true,
+      hd: "hyderabad.bits-pilani.ac.in",
+      ...claims,
+    })
+      .setProtectedHeader({ alg: "RS256", kid: "test-key" })
+      .setIssuer("https://accounts.google.com")
+      .setAudience(audience)
+      .setSubject("1234567890")
+      .setIssuedAt()
+      .setExpirationTime(expiresAt)
+      .sign(signingKey);
+  }
+
+  let test: TestElection;
+  beforeEach(async () => {
+    test = await createElection("Google sign-in", { tier: 3 });
+    await warpTo(test.schedule.registrationStart);
+  });
+
+  const registerWith = async (email: string, googleIdToken: string) =>
+    post(`/elections/${test.election}/registrations`, {
+      email,
+      googleIdToken,
+      commitment: new Identity().commitment.toString(),
+    });
+
+  it("registers a voter signed in with an institute Google account, without a code", async () => {
+    const email = newEmail();
+    const response = await registerWith(email, await idToken(email));
+    expect(response.statusCode, response.body).toBe(200);
+    expect(identityReceiptSchema.parse(response.json()).registrar).toBe(REGISTRAR);
+  });
+
+  it("registers a wallet the same way", async () => {
+    const wallets = await createElection("Google sign-in, wallets");
+    await warpTo(wallets.schedule.registrationStart);
+    const email = newEmail();
+    const voter = newVoter();
+    const response = await post(`/elections/${wallets.election}/registrations`, {
+      email,
+      googleIdToken: await idToken(email),
+      voter: voter.address,
+      signature: await signRegistration(voter, wallets.election, email),
+    });
+    expect(response.statusCode, response.body).toBe(200);
+  });
+
+  it("refuses an account outside the institute's Google domain, whatever its address", async () => {
+    const email = newEmail();
+    const response = await registerWith(email, await idToken(email, { hd: undefined }));
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("refuses a sign-in for another address, another app, or one that has expired", async () => {
+    const email = newEmail();
+    expect((await registerWith(email, await idToken(newEmail()))).statusCode).toBe(400);
+    expect(
+      (
+        await registerWith(
+          email,
+          await idToken(email, {}, "someone-else.apps.googleusercontent.com"),
+        )
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await registerWith(
+          email,
+          await idToken(email, {}, CLIENT_ID, Math.floor(Date.now() / 1000) - 600),
+        )
+      ).statusCode,
+    ).toBe(400);
+  });
+
+  it("refuses a token signed by anyone but Google", async () => {
+    const email = newEmail();
+    const { privateKey } = await generateKeyPair("RS256");
+    const forged = await new SignJWT({
+      email,
+      email_verified: true,
+      hd: "hyderabad.bits-pilani.ac.in",
+    })
+      .setProtectedHeader({ alg: "RS256", kid: "test-key" })
+      .setIssuer("https://accounts.google.com")
+      .setAudience(CLIENT_ID)
+      .setExpirationTime("1h")
+      .sign(privateKey);
+    expect((await registerWith(email, forged)).statusCode).toBe(400);
+  });
+
+  it("takes either a code or a Google sign-in, not both", async () => {
+    const email = newEmail();
+    const code = await requestCode(test.election, email);
+    const response = await post(`/elections/${test.election}/registrations`, {
+      email,
+      code,
+      googleIdToken: await idToken(email),
+      commitment: new Identity().commitment.toString(),
+    });
+    expect(response.statusCode).toBe(400);
   });
 });

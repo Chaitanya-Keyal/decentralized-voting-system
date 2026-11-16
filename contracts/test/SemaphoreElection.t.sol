@@ -215,6 +215,15 @@ contract SemaphoreElectionTest is Test {
         }
     }
 
+    function testFuzz_merkleTreeDepth_isTheSmallestDepthThatFitsTheList(uint32 count) public {
+        count = uint32(bound(count, 1, type(uint32).max));
+        _openVoting(TallyLib.CountingRule.Plurality, bytes32(uint256(1)), count);
+        uint256 depth = election.merkleTreeDepth();
+        assertGe(depth, 1);
+        assertGe(uint256(1) << depth, count);
+        if (depth > 1) assertLt(uint256(1) << (depth - 1), count);
+    }
+
     function test_tierAndScope() public {
         _openVoting(TallyLib.CountingRule.Plurality, _root(), _count());
         assertEq(election.tier(), 3);

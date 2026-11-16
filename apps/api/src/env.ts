@@ -3,9 +3,12 @@ import { existsSync } from "node:fs";
 import { addressSchema } from "@dvote/shared";
 import { z } from "zod";
 
+import { loadFileSettings } from "./file-settings";
+
 // The repository keeps one .env at its root. Variables that are already set take precedence.
 const envFile = new URL("../../../.env", import.meta.url);
 if (existsSync(envFile)) process.loadEnvFile(envFile);
+loadFileSettings();
 
 /** Treats an empty variable, such as `KEY=` in .env, as unset. */
 function optional<T extends z.ZodType>(schema: T) {
@@ -43,17 +46,15 @@ const schema = z
 
     /** Only addresses at this domain can register. */
     EMAIL_DOMAIN: z.string().default("hyderabad.bits-pilani.ac.in"),
-    /** Required except on Anvil, where without it codes are written to the log instead. */
+    /** For email codes. Without it, on Anvil only, codes are written to the log instead. */
     SMTP_URL: optional(z.string()),
+    /** Google sign-in: the OAuth client ID of the web app. Unset turns Google sign-in off. */
+    GOOGLE_CLIENT_ID: optional(z.string()),
+    GOOGLE_JWKS_URL: z.url().default("https://www.googleapis.com/oauth2/v3/certs"),
     MAIL_FROM: optional(z.string()).default("DVote <no-reply@dvote.local>"),
   })
   .refine((env) => env.REGISTRAR_PRIVATE_KEY ?? env.REGISTRAR_ADDRESS, {
     message: "Set REGISTRAR_PRIVATE_KEY, or REGISTRAR_ADDRESS for an account Anvil has unlocked",
-  })
-  // A code in a log can be read by whoever reads the log, so only a local chain may do without.
-  .refine((env) => env.SMTP_URL !== undefined || env.CHAIN_ID === 31337, {
-    message: "Set SMTP_URL; only on Anvil (CHAIN_ID 31337) can codes go to the log instead",
-    path: ["SMTP_URL"],
   });
 
 const parsed = schema.safeParse(process.env);
@@ -63,3 +64,18 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+/**
+ * Why voters would have no way to prove their address, if they would not. A code in a log can be
+ * read by whoever reads the log, so a public chain needs real email, or Google sign-in alone. The
+ * registrar refuses to start without one; the indexer sends no mail and does not ask.
+ */
+export function emailProofProblem(settings: {
+  SMTP_URL?: string;
+  GOOGLE_CLIENT_ID?: string;
+  CHAIN_ID: number;
+}): string | undefined {
+  if (settings.SMTP_URL !== undefined || settings.GOOGLE_CLIENT_ID !== undefined) return undefined;
+  if (settings.CHAIN_ID === 31337) return undefined;
+  return "Set SMTP_URL or GOOGLE_CLIENT_ID; only on Anvil (CHAIN_ID 31337) may codes be logged";
+}

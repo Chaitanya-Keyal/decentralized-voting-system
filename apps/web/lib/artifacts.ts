@@ -6,7 +6,7 @@
 // file that does not match its pinned hash is refused, so a tampered proving key is never used.
 import { SEMAPHORE_ARTIFACTS_URL, semaphoreArtifact, semaphoreArtifactName } from "@dvote/shared";
 
-const SOURCES = [process.env.NEXT_PUBLIC_ARTIFACTS_URL ?? "/semaphore", SEMAPHORE_ARTIFACTS_URL];
+const SOURCES = ["/semaphore", SEMAPHORE_ARTIFACTS_URL];
 
 const cache = new Map<string, Promise<Uint8Array>>();
 

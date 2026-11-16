@@ -44,8 +44,7 @@ export async function buildRelayer(options: { logger?: boolean } = {}) {
   }));
 
   app.post("/ballots", async (request) => {
-    const { request: forward } = parse(relayRequestSchema, request.body);
-    return acceptBallot(relay, forward, request.ip);
+    return acceptBallot(relay, parse(relayRequestSchema, request.body), request.ip);
   });
 
   app.get("/ballots/:id", async (request) => {

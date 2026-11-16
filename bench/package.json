@@ -6,7 +6,8 @@
   "scripts": {
     "gas": "tsx src/gas.ts",
     "booth": "tsx src/booth.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sepolia": "tsx src/sepolia.ts"
   },
   "dependencies": {
     "@dvote/shared": "workspace:*",

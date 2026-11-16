@@ -782,7 +782,7 @@ export const semaphoreElectionAbi = [
     type: "function",
     inputs: [],
     name: "merkleTreeDepth",
-    outputs: [{ name: "depth", internalType: "uint256", type: "uint256" }],
+    outputs: [{ name: "", internalType: "uint256", type: "uint256" }],
     stateMutability: "view",
   },
   {

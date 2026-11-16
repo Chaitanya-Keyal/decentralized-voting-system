@@ -25,7 +25,7 @@ export const RPC_URL = process.env.RPC_URL ?? "http://127.0.0.1:8545";
 export const ACCOUNTS = {
   authority: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
   first: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-  second: "0x90F79bf6EB2c4f870365E96c044b4C3e8a9b2Ff3",
+  second: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
 } as const satisfies Record<string, Address>;
 
 export const node = createTestClient({ chain: anvil, mode: "anvil", transport: http(RPC_URL) })
@@ -49,8 +49,10 @@ export async function send(request: {
   return { hash, gasUsed: receipt.gasUsed };
 }
 
+/** Moves Anvil's clock forward to `timestamp`; if it is already past it, just mines a block. */
 export async function warpTo(timestamp: bigint) {
-  await node.setNextBlockTimestamp({ timestamp });
+  const { timestamp: latest } = await node.getBlock();
+  if (timestamp > latest) await node.setNextBlockTimestamp({ timestamp });
   await node.mine({ blocks: 1 });
 }
 

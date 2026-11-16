@@ -108,7 +108,7 @@ export async function listBallots(address: Address): Promise<{ ballots: Ballot[]
 export async function indexerStatus() {
   const [cursor, head] = await Promise.all([
     db.indexerCursor.findUnique({ where: { chainId: chain.id } }),
-    publicClient.getBlockNumber(),
+    publicClient.getBlockNumber({ cacheTime: 0 }),
   ]);
   return { chainId: chain.id, block: cursor ? Number(cursor.block) : null, head: Number(head) };
 }

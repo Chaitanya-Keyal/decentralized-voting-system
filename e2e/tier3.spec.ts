@@ -148,6 +148,12 @@ test("an anonymous approval election runs end to end without voter wallets", asy
     await expect(page.getByText("Winner")).toHaveCount(1);
   });
 
+  await test.step("an observer audits the election from the chain and IPFS alone", async () => {
+    await page.getByRole("button", { name: "Run the audit" }).click();
+    await expect(page.getByText("Every check passed")).toBeVisible({ timeout: 60_000 });
+    await screenshot(page, "16-election-audited");
+  });
+
   await test.step("the indexer lists every ballot, by nullifier only", async () => {
     await expect(page.locator("tbody tr")).toHaveCount(3);
     await screenshot(page, "15-election-final");

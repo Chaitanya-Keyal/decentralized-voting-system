@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ISemaphoreVerifier} from "@semaphore-protocol/contracts/interfaces/ISemaphoreVerifier.sol";
 
 import {Election} from "./Election.sol";
@@ -59,9 +60,11 @@ contract SemaphoreElection is Election, ERC2771Context {
 
     /// @notice The depth of the published voter tree, ceil(log2(voterCount)) and at least 1,
     /// which is the depth of a LeanIMT with that many leaves. It picks the verification key.
-    function merkleTreeDepth() public view returns (uint256 depth) {
-        depth = 1;
-        while ((uint256(1) << depth) < voterCount) ++depth;
+    /// @dev ceil(log2(n)) is floor(log2(n - 1)) + 1 for n >= 2. Computed in constant time from one
+    /// storage read: a loop over the depth made each ballot cost about 210 gas more per tree level.
+    function merkleTreeDepth() public view returns (uint256) {
+        uint256 count = voterCount;
+        return count <= 2 ? 1 : Math.log2(count - 1) + 1;
     }
 
     /// @dev Semaphore's hash of a signal or scope: keccak256, shifted into the SNARK field.
@@ -73,6 +76,8 @@ contract SemaphoreElection is Election, ERC2771Context {
         return ERC2771Context._msgSender();
     }
 
+    /// @dev Required by the compiler, since both bases define it; nothing here reads it.
+    // slither-disable-next-line dead-code
     function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
         return ERC2771Context._msgData();
     }

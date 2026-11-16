@@ -2,6 +2,7 @@ import type { FastifyBaseLogger } from "fastify";
 import { createTransport } from "nodemailer";
 
 import { env } from "./env";
+import { HttpError } from "./http";
 
 const transport = env.SMTP_URL ? createTransport(env.SMTP_URL) : undefined;
 
@@ -17,6 +18,9 @@ export async function sendCode(
   log: FastifyBaseLogger,
 ): Promise<void> {
   if (!transport) {
+    if (env.CHAIN_ID !== 31337) {
+      throw new HttpError(400, "Email codes are not available here. Sign in with Google instead.");
+    }
     log.info({ to: message.to, code: message.code }, "SMTP_URL is not set; logging the code");
     return;
   }

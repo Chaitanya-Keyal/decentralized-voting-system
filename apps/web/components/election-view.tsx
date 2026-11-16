@@ -6,6 +6,7 @@ import { useElection } from "@/lib/election";
 import { describeError } from "@/lib/errors";
 import { useChainNow } from "@/lib/time";
 
+import { Audit } from "./election/audit";
 import { AuthorityPanel } from "./election/authority-panel";
 import { Ballots } from "./election/ballots";
 import { Description } from "./election/description";
@@ -72,6 +73,15 @@ export function ElectionView({ address }: { address: string }) {
       </Card>
 
       <AuthorityPanel election={election} now={now} />
+
+      {election.voterListCid !== "" && (
+        <Card
+          title="Audit this election"
+          description="Check the election yourself, in this browser. The audit reads only the chain and IPFS, so it does not depend on DVote's servers, or trust them."
+        >
+          <Audit election={election} />
+        </Card>
+      )}
 
       <Card
         title="Ballots"

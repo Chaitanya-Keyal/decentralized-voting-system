@@ -68,3 +68,6 @@ await mkdir(RESULTS, { recursive: true });
 const file = `${RESULTS}timings-${device}.csv`;
 await writeFile(file, csv(rows.map((row) => ({ ...row, ms: row.ms.toFixed(1) }))));
 console.log(`Wrote ${file}`);
+
+// snarkjs leaves worker threads running, which would keep the process alive.
+process.exit(0);
