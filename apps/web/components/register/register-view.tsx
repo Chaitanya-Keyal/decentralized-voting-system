@@ -7,6 +7,7 @@ import { useAccount, useConfig } from "wagmi";
 import { signTypedData } from "wagmi/actions";
 
 import { api } from "@/lib/api";
+import { useDocumentTitle } from "@/lib/document-title";
 import { useElection, type OnchainElection } from "@/lib/election";
 import { chain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
@@ -161,6 +162,7 @@ export function RegisterView({ address }: { address: string }) {
   const { data: election, error } = useElection(electionAddress);
   const { address: account } = useAccount();
   const now = useChainNow();
+  useDocumentTitle(election ? `Register: ${election.title}` : undefined);
   const stored = useStoredReceipt(chain.id, electionAddress, account);
   const [fresh, setFresh] = useState<Receipt>();
   const receipt = fresh && account && isAddressEqual(fresh.voter, account) ? fresh : stored;

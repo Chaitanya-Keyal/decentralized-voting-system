@@ -17,7 +17,7 @@ export function Results({ election }: { election: OnchainElection }) {
   const counting = election.tally.length > 0;
 
   return (
-    <ul className="flex flex-col gap-4">
+    <ul role="list" className="flex flex-col gap-4">
       {election.candidates.map((candidate, index) => {
         const votes = election.tally[index] ?? 0;
         const share = total > 0 ? Math.round((votes / total) * 100) : 0;

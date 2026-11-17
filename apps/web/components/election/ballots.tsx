@@ -49,12 +49,21 @@ export function Ballots({
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
+        <caption className="sr-only">Every ballot cast in this election</caption>
         <thead className={`text-xs ${muted}`}>
           <tr>
-            <th className="py-2 pr-4 font-medium">{tier === 3 ? "Ballot ID" : "Voter"}</th>
-            <th className="py-2 pr-4 font-medium">Choice</th>
-            <th className="hidden py-2 pr-4 font-medium sm:table-cell">Time</th>
-            <th className="hidden py-2 font-medium sm:table-cell">Transaction</th>
+            <th scope="col" className="py-2 pr-4 font-medium">
+              {tier === 3 ? "Ballot ID" : "Voter"}
+            </th>
+            <th scope="col" className="py-2 pr-4 font-medium">
+              Choice
+            </th>
+            <th scope="col" className="hidden py-2 pr-4 font-medium sm:table-cell">
+              Time
+            </th>
+            <th scope="col" className="hidden py-2 font-medium sm:table-cell">
+              Transaction
+            </th>
           </tr>
         </thead>
         <tbody>

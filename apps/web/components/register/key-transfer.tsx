@@ -106,11 +106,15 @@ export function KeyTransfer({ election }: { election: OnchainElection }) {
         </div>
         {shown && (
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-            <div
-              className="size-44 shrink-0 rounded-lg border border-zinc-200 bg-white p-1 dark:border-zinc-800"
-              // Generated here, from the link alone.
-              dangerouslySetInnerHTML={{ __html: qr ?? "" }}
-            />
+            {qr && (
+              // Generated here, from the link alone; as an image, nothing is parsed into the page.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(qr)}`}
+                alt="QR code that opens the ballot booth with your voting key"
+                className="size-44 shrink-0 rounded-lg border border-zinc-200 bg-white p-1 dark:border-zinc-800"
+              />
+            )}
             <p className="text-zinc-600 dark:text-zinc-400">
               Scan this with the phone you will vote on. It opens the ballot booth with your key;
               come back to it when voting opens.

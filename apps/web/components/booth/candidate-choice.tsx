@@ -45,7 +45,7 @@ export function CandidateChoice({
         <label key={index} className={`${choiceCard} items-center has-[:checked]:font-medium`}>
           <input
             type={approval ? "checkbox" : "radio"}
-            className="size-5 accent-zinc-900 dark:accent-zinc-100"
+            className="size-5"
             name="candidate"
             value={index}
             checked={marks.has(index)}

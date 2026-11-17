@@ -94,7 +94,7 @@ export function CandidatesEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <ol className="flex flex-col gap-4">
+      <ol role="list" className="flex flex-col gap-4">
         {value.map((candidate, index) => (
           <li
             key={index}

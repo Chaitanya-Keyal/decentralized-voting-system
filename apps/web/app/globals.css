@@ -3,7 +3,10 @@
 :root {
   --background: #ffffff;
   --foreground: #18181b;
+  --accent: #18181b;
   color-scheme: light dark;
+  /* Checkboxes and radio buttons in the site's colour. */
+  accent-color: var(--accent);
 }
 
 @theme inline {
@@ -17,10 +20,70 @@
   :root {
     --background: #09090b;
     --foreground: #f4f4f5;
+    --accent: #f4f4f5;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/* One focus indicator for every control, shown for keyboard use. CanvasText contrasts with the
+   page in light mode, dark mode and forced colours. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid CanvasText;
+  outline-offset: 3px;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p,
+li {
+  text-wrap: pretty;
+}
+
+/* Lines of running text stay short enough to read. */
+p {
+  max-inline-size: 80ch;
+}
+
+/* The spinner: an indeterminate <progress>, drawn as a turning ring in the text colour. */
+progress.spinner {
+  appearance: none;
+  display: inline-block;
+  flex: none;
+  inline-size: 1rem;
+  block-size: 1rem;
+  border: 2px solid currentColor;
+  border-block-start-color: transparent;
+  border-radius: 50%;
+  background: none;
+  animation: spinner-turn 0.8s linear infinite;
+
+  /* Slower rather than still, so that it still shows something is happening. */
+  @media (prefers-reduced-motion: reduce) {
+    animation-duration: 6s;
+  }
+}
+
+/* Separate rules: a browser drops a whole selector list that names another engine's element. */
+progress.spinner::-webkit-progress-bar {
+  background: none;
+}
+progress.spinner::-webkit-progress-value {
+  background: none;
+}
+progress.spinner::-moz-progress-bar {
+  background: none;
+}
+
+@keyframes spinner-turn {
+  to {
+    rotate: 1turn;
+  }
 }

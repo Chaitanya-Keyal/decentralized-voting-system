@@ -40,9 +40,19 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
         <ServiceWorker />
+        <a
+          href="#main"
+          className="sr-only rounded-lg bg-white px-3 py-2 text-sm font-medium shadow focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 dark:bg-zinc-900"
+        >
+          Skip to the main content
+        </a>
         <Providers>
           <Header />
-          <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8">
+          <main
+            id="main"
+            tabIndex={-1}
+            className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8 focus:outline-none"
+          >
             {children}
           </main>
           <footer className="mx-auto w-full max-w-4xl px-4 pb-6 text-sm text-zinc-500 dark:text-zinc-400">

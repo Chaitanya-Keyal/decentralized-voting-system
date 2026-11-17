@@ -97,7 +97,7 @@ export function VotingKeyCard({
       <div className="flex flex-col gap-3 text-sm">
         {!restoreOnly && !identity && (
           <>
-            <ol className="flex list-decimal flex-col gap-1 pl-5">
+            <ol role="list" className="flex list-decimal flex-col gap-1 pl-5">
               <li>Create your voting key. It stays in this browser.</li>
               <li>Confirm your institute email address.</li>
               <li>Come back when voting opens, and vote.</li>

@@ -118,7 +118,6 @@ export function BenchView() {
                 <label key={size} className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    className="accent-zinc-900 dark:accent-zinc-100"
                     checked={sizes.has(size)}
                     onChange={() => {
                       const next = new Set(sizes);
@@ -159,12 +158,21 @@ export function BenchView() {
         <Card title="Results" description="Medians of the runs so far, in milliseconds.">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
+              <caption className="sr-only">Median times on this device, in milliseconds</caption>
               <thead className="text-xs text-zinc-500 dark:text-zinc-400">
                 <tr>
-                  <th className="py-2 pr-4 font-medium">Voters</th>
-                  <th className="py-2 pr-4 font-medium">Tree depth</th>
-                  <th className="py-2 pr-4 font-medium">Rebuild the tree</th>
-                  <th className="py-2 font-medium">Prove</th>
+                  <th scope="col" className="py-2 pr-4 font-medium">
+                    Voters
+                  </th>
+                  <th scope="col" className="py-2 pr-4 font-medium">
+                    Tree depth
+                  </th>
+                  <th scope="col" className="py-2 pr-4 font-medium">
+                    Rebuild the tree
+                  </th>
+                  <th scope="col" className="py-2 font-medium">
+                    Prove
+                  </th>
                 </tr>
               </thead>
               <tbody>

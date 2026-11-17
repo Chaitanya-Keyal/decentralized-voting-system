@@ -56,7 +56,7 @@ function Choice(props: {
         name={props.name}
         checked={props.checked}
         onChange={props.onChange}
-        className="mt-0.5 size-4 shrink-0 accent-zinc-900 dark:accent-zinc-100"
+        className="mt-0.5 size-4 shrink-0"
       />
       <span className="flex flex-col gap-1">
         <span className="font-medium">{props.label}</span>
@@ -258,6 +258,9 @@ export function CreateElectionForm() {
             value={registrar}
             onChange={(event) => setRegistrar(event.target.value)}
             placeholder={apiConfig.data?.registrar ?? "0x…"}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
           />
         </Field>
       </Disclosure>

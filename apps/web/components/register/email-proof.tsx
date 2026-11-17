@@ -165,6 +165,10 @@ export function EmailProof({
             onChange={(event) => setEmail(event.target.value)}
             placeholder={`f20230001@${emailDomain}`}
             autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="send"
             required
           />
         </Field>
@@ -207,6 +211,7 @@ export function EmailProof({
               maxLength={6}
               placeholder="123456"
               autoComplete="one-time-code"
+              enterKeyHint="done"
               required
             />
           </Field>

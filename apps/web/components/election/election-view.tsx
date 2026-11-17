@@ -2,6 +2,7 @@
 
 import { getAddress, isAddress } from "viem";
 
+import { useDocumentTitle } from "@/lib/document-title";
 import { useElection } from "@/lib/election";
 import { useMarkWalletForOrganisers } from "@/lib/header-wallet";
 import { useChainNow } from "@/lib/time";
@@ -21,6 +22,7 @@ export function ElectionView({ address }: { address: string }) {
   const valid = isAddress(address);
   const { data: election, error } = useElection(valid ? getAddress(address) : undefined);
   const now = useChainNow();
+  useDocumentTitle(election?.title);
   useMarkWalletForOrganisers(election?.tier === 3);
 
   if (!valid || error || !election) {

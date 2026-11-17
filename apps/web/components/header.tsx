@@ -86,7 +86,7 @@ export function Header() {
   return (
     <header className="border-b border-zinc-200 dark:border-zinc-800">
       <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-4 py-3">
-        <nav className="flex items-center gap-4 text-sm sm:gap-5">
+        <nav aria-label="Main" className="flex items-center gap-4 text-sm sm:gap-5">
           <Link href="/" className="text-base font-semibold tracking-tight">
             DVote
           </Link>

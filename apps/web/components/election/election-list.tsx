@@ -35,7 +35,7 @@ export function ElectionList() {
   }
 
   return (
-    <ul className="flex flex-col gap-3">
+    <ul role="list" className="flex flex-col gap-3">
       {data.elections.map((election) => (
         <li key={election.address}>
           <Link href={`/elections/${election.address}`} className="block">

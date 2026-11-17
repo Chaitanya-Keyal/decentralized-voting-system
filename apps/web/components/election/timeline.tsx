@@ -16,7 +16,7 @@ export function Timeline({ schedule, now }: { schedule: Schedule; now: number })
   // The first step still to come is the one to watch.
   const next = STEPS.findIndex(([key]) => schedule[key] > now);
   return (
-    <ol className="flex flex-col gap-3">
+    <ol role="list" className="flex flex-col gap-3">
       {STEPS.map(([key, label], index) => {
         const passed = schedule[key] <= now;
         const current = index === next;
@@ -30,7 +30,7 @@ export function Timeline({ schedule, now }: { schedule: Schedule; now: number })
               aria-hidden
               className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full ${
                 passed
-                  ? "bg-emerald-500 text-white"
+                  ? "bg-emerald-600 text-white"
                   : current
                     ? "border-2 border-zinc-900 dark:border-zinc-100"
                     : "border border-zinc-300 dark:border-zinc-700"

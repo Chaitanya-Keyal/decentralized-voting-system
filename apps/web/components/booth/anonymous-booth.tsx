@@ -380,7 +380,10 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
         </Notice>
         <div className="flex flex-col gap-2 text-sm">
           <p className="font-medium">To bring your key here, do one of these:</p>
-          <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-zinc-700 dark:text-zinc-300">
+          <ol
+            role="list"
+            className="flex list-decimal flex-col gap-1.5 pl-5 text-zinc-700 dark:text-zinc-300"
+          >
             <li>
               Registered on this phone or computer, but this page opened inside WhatsApp or another
               app? Open it in the browser you registered in instead:{" "}

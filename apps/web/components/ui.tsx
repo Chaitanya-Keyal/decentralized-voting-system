@@ -9,11 +9,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import type {
-  ButtonHTMLAttributes,
-  InputHTMLAttributes,
-  ReactNode,
-  TextareaHTMLAttributes,
+import {
+  cloneElement,
+  useId,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactElement,
+  type ReactNode,
+  type TextareaHTMLAttributes,
 } from "react";
 
 function cx(...classes: (string | false | undefined)[]): string {
@@ -31,7 +34,11 @@ const buttonStyles = {
   danger: "bg-red-600 text-white hover:bg-red-500",
 } as const;
 
-const buttonSizes = { md: "px-4 py-2", sm: "px-3 py-1.5" } as const;
+// Taller on touch screens, so that a finger finds the target.
+const buttonSizes = {
+  md: "px-4 py-2 pointer-coarse:min-h-11",
+  sm: "px-3 py-1.5 pointer-coarse:min-h-10",
+} as const;
 
 interface ButtonLook {
   variant?: keyof typeof buttonStyles;
@@ -41,7 +48,7 @@ interface ButtonLook {
 /** A button's classes, for elements that must look like one, such as a file input's label. */
 export function buttonClass({ variant = "primary", size = "md" }: ButtonLook = {}): string {
   return cx(
-    "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+    "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 motion-safe:active:scale-[0.98]",
     buttonSizes[size],
     buttonStyles[variant],
   );
@@ -82,7 +89,7 @@ export function TextButton({
     <button
       type="button"
       className={cx(
-        "cursor-pointer underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "cursor-pointer underline underline-offset-2 hover:decoration-2 disabled:cursor-not-allowed disabled:opacity-50",
         tone === "danger"
           ? "text-red-700 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
           : "hover:text-zinc-900 dark:hover:text-zinc-100",
@@ -100,7 +107,7 @@ export function ExternalLink({ href, children }: { href: string; children: React
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-100"
+      className="underline underline-offset-2 hover:text-zinc-900 hover:decoration-2 dark:hover:text-zinc-100"
     >
       {children}
       <ArrowUpRight aria-hidden className="ml-0.5 inline size-3.5 align-[-0.125em]" />
@@ -149,7 +156,7 @@ export function Disclosure({
       <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 font-medium text-zinc-800 hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white [&::-webkit-details-marker]:hidden">
         <ChevronRight
           aria-hidden
-          className="size-4 shrink-0 transition-transform group-open/disclosure:rotate-90 motion-reduce:transition-none"
+          className="size-4 shrink-0 transition-transform group-open/disclosure:rotate-90 motion-reduce:transition-none rtl:-scale-x-100"
         />
         {summary}
       </summary>
@@ -162,8 +169,10 @@ export function Disclosure({
 export const choiceCard =
   "flex cursor-pointer gap-3 rounded-lg border border-zinc-300 px-4 py-3 text-sm transition-colors hover:bg-zinc-50 has-[:checked]:border-zinc-900 has-[:checked]:bg-zinc-100 has-[:checked]:ring-1 has-[:checked]:ring-zinc-900 dark:border-zinc-700 dark:hover:bg-zinc-900 dark:has-[:checked]:border-zinc-100 dark:has-[:checked]:bg-zinc-800 dark:has-[:checked]:ring-zinc-100";
 
+// The border keeps 3:1 contrast with the page so the field can be found, and the text is 16px on
+// phones, below which iOS zooms into a field when it is tapped. Focus shows the shared outline.
 const fieldStyles =
-  "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-400 dark:focus:ring-zinc-700";
+  "w-full rounded-lg border border-zinc-500 bg-white px-3 py-2 text-base sm:text-sm pointer-coarse:min-h-12 dark:bg-zinc-900";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cx(fieldStyles, className)} {...props} />;
@@ -174,6 +183,10 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return <textarea className={cx(fieldStyles, className ?? "min-h-24")} {...props} />;
 }
 
+/**
+ * A labelled form control. The label names the control through `for`, and the hint, above the
+ * control where autofill suggestions cannot cover it, describes it.
+ */
 export function Field({
   label,
   hint,
@@ -181,14 +194,22 @@ export function Field({
 }: {
   label: string;
   hint?: ReactNode;
-  children: ReactNode;
+  children: ReactElement<{ id?: string; "aria-describedby"?: string }>;
 }) {
+  const id = useId();
+  const hintId = `${id}-hint`;
   return (
-    <label className="flex flex-col gap-1.5 text-sm">
-      <span className="font-medium">{label}</span>
-      {children}
-      {hint && <span className="text-sm text-zinc-600 dark:text-zinc-400">{hint}</span>}
-    </label>
+    <div className="flex flex-col gap-1.5 text-sm">
+      <label htmlFor={id} className="font-medium">
+        {label}
+      </label>
+      {hint && (
+        <p id={hintId} className="text-zinc-600 dark:text-zinc-400">
+          {hint}
+        </p>
+      )}
+      {cloneElement(children, { id, "aria-describedby": hint ? hintId : undefined })}
+    </div>
   );
 }
 
@@ -239,12 +260,15 @@ export function Notice({
   );
 }
 
-/** A line saying what is loading, with a spinner. */
-export function Loading({ children }: { children: ReactNode }) {
+/**
+ * A line saying what is loading. The spinner is a native progress bar without a value, which
+ * assistive technology announces as busy, so the line needs no live region.
+ */
+export function Loading({ children }: { children: string }) {
   return (
-    <p role="status" className={cx("flex items-center gap-2 text-sm", muted)}>
-      <Spinner />
-      {children}
+    <p className={cx("flex items-center gap-2 text-sm", muted)}>
+      <Spinner label={children} />
+      <span aria-hidden>{children}</span>
     </p>
   );
 }
@@ -260,7 +284,7 @@ export function Badge({
     neutral: "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200",
     live: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100",
     done: "bg-sky-100 text-sky-900 dark:bg-sky-900 dark:text-sky-100",
-    muted: "bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400",
+    muted: "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400",
   };
   return (
     <span className={cx("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", tones[tone])}>
@@ -269,12 +293,15 @@ export function Badge({
   );
 }
 
-export function Spinner() {
-  return (
-    <span
-      aria-hidden
-      className="inline-block size-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
-    />
+/**
+ * An indeterminate native progress bar drawn as a spinner (`.spinner` in globals.css). With a
+ * label it stands on its own; without one it accompanies text that says what is happening.
+ */
+export function Spinner({ label }: { label?: string }) {
+  return label ? (
+    <progress className="spinner" aria-label={label} />
+  ) : (
+    <progress className="spinner" aria-hidden />
   );
 }
 

@@ -6,6 +6,7 @@ import { getAddress, isAddress, pad, type Address, type Hex } from "viem";
 import { useAccount, useBlockNumber, useConfig, useReadContract } from "wagmi";
 import { simulateContract, writeContract } from "wagmi/actions";
 
+import { useDocumentTitle } from "@/lib/document-title";
 import { useElection, type OnchainElection } from "@/lib/election";
 import { chain, simulateAt } from "@/lib/env";
 import { describeError } from "@/lib/errors";
@@ -208,6 +209,7 @@ export function BoothView({ address }: { address: string }) {
   const { data: election, error } = useElection(electionAddress);
   const { address: account } = useAccount();
   const now = useChainNow();
+  useDocumentTitle(election ? `Vote: ${election.title}` : undefined);
 
   if (!valid || error || !election) {
     return <ElectionPending valid={valid} error={error} election={election} />;

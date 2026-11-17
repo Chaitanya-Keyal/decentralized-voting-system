@@ -13,8 +13,8 @@ function Mark({ status }: { status: AuditStep["status"] }) {
   if (status === "running") return <Spinner />;
   const styles = {
     waiting: "border border-zinc-300 dark:border-zinc-700",
-    pass: "bg-emerald-500 text-white",
-    fail: "bg-red-500 text-white",
+    pass: "bg-emerald-600 text-white",
+    fail: "bg-red-600 text-white",
   } as const;
   return (
     <>
@@ -57,7 +57,7 @@ export function Audit({ election }: { election: OnchainElection }) {
   return (
     <div className="flex flex-col gap-4 text-sm">
       {steps && (
-        <ol className="flex flex-col gap-3">
+        <ol role="list" className="flex flex-col gap-3">
           {steps.map((step) => (
             <li key={step.id} className="flex gap-3">
               <span className="mt-0.5 flex">

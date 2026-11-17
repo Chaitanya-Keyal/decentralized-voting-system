@@ -85,6 +85,8 @@ export function GoogleSignInButton({
 
   useEffect(() => {
     let cancelled = false;
+    const dark = window.matchMedia("(prefers-color-scheme: dark)");
+    let render: (() => void) | undefined;
     loadGoogle()
       .then((google) => {
         if (cancelled || !container.current) return;
@@ -99,22 +101,28 @@ export function GoogleSignInButton({
             else setProblem("Google did not share an email address.");
           },
         });
-        google.accounts.id.renderButton(container.current, {
-          // Google's dark button on a dark page, its light one otherwise.
-          theme: window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "filled_black"
-            : "outline",
-          size: "large",
-          text: "signin_with",
-          shape: "rectangular",
-          width: 280,
-        });
+        const parent = container.current;
+        // Google's dark button on a dark page, its light one otherwise, redrawn if the system
+        // switches between them while the page is open.
+        render = () => {
+          parent.replaceChildren();
+          google.accounts.id.renderButton(parent, {
+            theme: dark.matches ? "filled_black" : "outline",
+            size: "large",
+            text: "signin_with",
+            shape: "rectangular",
+            width: 280,
+          });
+        };
+        render();
+        dark.addEventListener("change", render);
       })
       .catch((error: unknown) => {
         if (!cancelled) setProblem(error instanceof Error ? error.message : String(error));
       });
     return () => {
       cancelled = true;
+      if (render) dark.removeEventListener("change", render);
     };
   }, [clientId, nonce]);
 
