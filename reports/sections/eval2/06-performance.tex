@@ -384,7 +384,10 @@ events and the list on IPFS, re-verifies every tier~3 proof, and compares
 totals and winners with the contract's. In the local browser test it runs
 with every request to our API, which also serves the indexer's data, and to
 the relayer blocked, and still passes; the list must still be reachable on
-IPFS. Both local browser tests and the Sepolia test run it to completion. A
+IPFS. Each published list is also copied to Pinata, and on the live demo an
+election whose list our own node never held passes its audit with the list
+read from Pinata's gateway. Both local browser tests and the Sepolia test run
+it to completion. A
 voter confirms their own ballot through the booth, which checks on-chain that
 the ballot's nullifier is recorded. The election page's table of ballots,
 which comes from the indexer, also lists each ballot by its ballot ID, which is

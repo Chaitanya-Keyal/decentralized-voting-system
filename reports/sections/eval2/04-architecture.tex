@@ -111,7 +111,7 @@ the served copy just as they would trust a web wallet.
     \addlinespace[3pt]
     Indexer & A copy of the chain's events & The list of elections and each election's table of ballots stop loading; an election's own page still shows its state, tally and audit from the chain & It could show wrong lists of elections or ballots. The audit panel and the contracts never read it \\
     \addlinespace[3pt]
-    IPFS node & Voter lists and descriptions, pinned by content address & Any other IPFS node with a copy can serve the list & It cannot serve a different list under the same address, and a wrong list fails the root check \\
+    IPFS node & Voter lists and descriptions, pinned by content address & Pinata keeps a copy of each published list and its election's documents, which any IPFS gateway can serve, and the site falls back to it & It cannot serve a different list under the same address, and a wrong list fails the root check \\
     \addlinespace[3pt]
     Web pages & The voting key, in the browser that made it & Nobody can use our copy; the source is public and can be run elsewhere & A malicious copy could leak the key. This is trust in the served code, as with any web wallet \\
     \bottomrule
@@ -199,6 +199,8 @@ Table~\ref{tab:divergences} lists the changes to the architecture itself.
   Relayer checks & Check the proof, pay the gas & Also checks the election, the phase and the nullifier, simulates the call, and allows one queued ballot per nullifier before signing a receipt & A ballot the contract would refuse at that moment never earns a receipt. One can still fail later, if voting closes or the same ballot is submitted directly first, and then it costs the relayer gas \\
   \addlinespace[3pt]
   Proof of email & An emailed one-time code & An emailed code, or Google sign-in limited to the institute's domain & Sending codes needs a mail service that a deployment may not have. Google sign-in needs none, and both lead to the same receipt \\
+  \addlinespace[3pt]
+  Document storage & IPFS through Pinata~\cite{pinata} & An IPFS node of our own, which the site reads first, and a copy of each published list, with its election's description and manifestos, on Pinata & Our node keeps the site fast and free of a pinning service's limits, but it is not connected to the public network, so on its own nobody could fetch a list without our server. The registrar sends Pinata the node's own bytes and checks that it arrives at the same address; the site falls back to Pinata's gateway and takes a document only if it hashes to its address \\
   \addlinespace[3pt]
   Which elections are served & Not specified & The registrar serves only elections from our factories where it holds the registrar role and, if configured, whose authority it recognises; the indexer's list is filtered the same way & The factories are open to anyone, so anyone could create an election naming our registrar. Without the check it would send codes under any title and pay gas to publish any list \\
   \addlinespace[3pt]
