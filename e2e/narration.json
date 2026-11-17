@@ -1,0 +1,62 @@
+[
+  {
+    "id": "intro",
+    "text": "This is DVote: secret-ballot elections whose count anyone can check. Here is one anonymous election, from start to finish, on a local test chain."
+  },
+  {
+    "id": "create",
+    "text": "The organiser connects a wallet and creates the election. Its title, candidates and schedule are fixed in a smart contract."
+  },
+  {
+    "id": "clock",
+    "text": "Every step follows the contract's schedule. On this local chain, we move the clock forward instead of waiting."
+  },
+  {
+    "id": "register",
+    "text": "A student registers. Their browser makes a voting key, and they confirm their institute email. No wallet, no cryptocurrency."
+  },
+  {
+    "id": "key",
+    "text": "Only a public code made from the key goes to the registrar. The key itself never leaves this browser."
+  },
+  {
+    "id": "list",
+    "text": "When registration closes, the registrar publishes the voter list by itself. The list goes on IPFS, and its fingerprint is fixed in the contract."
+  },
+  {
+    "id": "open",
+    "text": "Once its time has come, anyone can open voting."
+  },
+  {
+    "id": "vote",
+    "text": "The student picks a candidate. Their browser proves they are on the list, without revealing which voter they are."
+  },
+  {
+    "id": "relayed",
+    "text": "A relayer checks the proof and pays the fee. The ballot is on the blockchain, and counted."
+  },
+  {
+    "id": "again",
+    "text": "Opening the booth again shows they have voted. The same key cannot vote twice."
+  },
+  {
+    "id": "close",
+    "text": "When voting ends, anyone can close it and finalize the result."
+  },
+  {
+    "id": "result",
+    "text": "The result is final. Each ballot is listed by its ballot ID alone, never by who cast it."
+  },
+  {
+    "id": "audit",
+    "text": "Finally, anyone can audit the election. The browser recounts every ballot from the blockchain and IPFS alone."
+  },
+  {
+    "id": "passed",
+    "text": "Every check passed: the voter list, every proof, the count and the winner."
+  },
+  {
+    "id": "outro",
+    "text": "DVote. Anonymous ballots, and a count anyone can check."
+  }
+]

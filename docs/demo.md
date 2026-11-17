@@ -51,9 +51,10 @@ voters. Its result page and audit can then be shown at once if the live election
 finished wallet election makes a useful comparison: its ballots table shows who voted for whom.
 
 **Rehearsals.** Rehearse three times on the presentation laptop and the room's network, timing
-each step. A backup video, [demo-backup.mp4](demo-backup.mp4), shows the whole story in under
-a minute and a half, recorded from a scripted run on a local chain with a caption for each step;
-`E2E_VIDEO=1 E2E_VIDEO_OUT=<file> pnpm e2e --grep "backup video"` records it again after a change.
+each step. A backup video, [demo-backup.mp4](demo-backup.mp4), tells the whole story in under
+two minutes: a scripted run on a local chain, in dark mode, narrated, with a caption for each step.
+`E2E_VIDEO=1 E2E_VIDEO_OUT=<file> pnpm e2e --grep "backup video"` records it again after a change;
+the comment at the top of `e2e/video.spec.ts` says how the narration is laid over it.
 A recording of a live rehearsal on Sepolia is a better backup still, if there is time.
 
 ## Setting up the live election
