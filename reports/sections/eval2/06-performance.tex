@@ -155,7 +155,8 @@ The demo's \texttt{/bench} page runs the booth's own code, the same Web Worker
 and proving files, at each size of voter list and saves the times. Table~\ref{tab:b2}
 gives the medians of five runs on a laptop with an Intel Core Ultra~7 256V,
 in Chromium~158, beside the ARM64 baseline in Node.js from C2.
-\note{pending: an Android phone from the same page.}
+The same page runs on a phone, but no phone was measured for this report, so
+B2 covers a laptop only.
 
 \begin{table}[htbp]
   \centering
@@ -492,5 +493,6 @@ secrecy against the operator resting on running the relayer apart from the
 registrar. In the simulated usability test, every participant registered
 unaided and was sure their ballot counted in the last round, and two of the ten
 still needed help to vote from a browser other than the one they registered
-in; whether real students do as well is untested. \note{B2: how a phone
-compares with the laptop and the ARM64 baseline.}
+in; whether real students do as well is untested. Proving on a phone was not
+measured; a phone may well be slower than the laptop, and the booth shows its
+progress while it proves.

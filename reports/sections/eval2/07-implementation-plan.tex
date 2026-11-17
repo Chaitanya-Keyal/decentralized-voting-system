@@ -21,8 +21,8 @@ contingencies were used. Table~\ref{tab:plan-executed} summarises it.
     1 (M1)         & Tier 2 end to end on a local node; first gas snapshot          & Done on 25 October: the lifecycle, factory, registrar, indexer, admin console and booth, with a browser test and the tier 2 snapshot. Merged into \texttt{main} on 17 November \\
     2 (M2)         & Tier 3 anonymous and gasless voting on Sepolia                 & Done, late: built and deployed on 17 November, three weeks after M1. A complete anonymous election has since passed end to end on Sepolia in real time \\
     3 (freeze)     & Approval voting if time allowed, Slither, reorgs, audit with the backend off, usability test & Approval voting, Slither, coverage, reorg handling and the audit panel are done. The usability test was run as a simulation, in three rounds of ten participants played by language models, with the interface improved after each \\
-    4 (measure)    & Every parameter measured                                       & A1, B1, C1, C2, C3 and the D3 linking attempt measured; C3 found the relayer's one-ballot-per-block limit, now fixed. E3 run as a simulation (Section~6). \note{B2 on a phone outstanding} \\
-    5 (rehearse)   & Three rehearsals on Sepolia, a backup video                   & The demo script is written (\texttt{docs/demo.md}), and a backup video is recorded from a scripted run on a local chain. \note{The rehearsals are still to do, in the days before the evaluation} \\
+    4 (measure)    & Every parameter measured                                       & A1, B1, C1, C2, C3 and the D3 linking attempt measured; C3 found the relayer's one-ballot-per-block limit, now fixed. E3 run as a simulation (Section~6). B2 was measured on a laptop, not a phone \\
+    5 (rehearse)   & Three rehearsals on Sepolia, a backup video                   & The demo script is written (\texttt{docs/demo.md}), and a backup video is recorded from a scripted run on a local chain. The rehearsals by the presenters are left to the days before the evaluation \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -37,9 +37,9 @@ after M1, was not taken on that date. It was settled provisionally, by
 measurement on a computer's CPU rather than a phone: proving a ballot takes
 0.57\,s at two voters and 1.52\,s at 65,536 on one ARM64 CPU core in Node.js,
 fast enough that the server-side fallback was not built. In a laptop's
-browser it takes under a second up to 4,096 voters (B2). \note{A phone has
-still to be measured, so for now the decision rests on a laptop and an ARM64
-CPU core, not a phone.}
+browser it takes under a second up to 4,096 voters (B2). No phone was
+measured, so the decision rests on a laptop and an ARM64 CPU core, not a
+phone.
 
 Some items were built differently from the plan:
 
@@ -101,7 +101,10 @@ planned, and the two fallbacks were never needed:
 
 \subsection{What remains}
 
-\note{Before the evaluation: B2 on a named phone, and the rehearsals.}
+Two items remain before the evaluation: measuring proving on a named Android
+phone (B2), and rehearsing the demo on the presentation laptop and the room's
+network. The Sepolia end-to-end test has run the demo's whole flow
+automatically several times, but it is not a rehearsal by the presenters.
 
 Beyond this project, six pieces of work would matter most:
 
