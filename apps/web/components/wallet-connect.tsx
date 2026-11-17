@@ -1,7 +1,7 @@
 "use client";
 
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { isLocalChain } from "@/lib/env";
 
@@ -46,7 +46,7 @@ export function ConnectWallet() {
  * The header's "Connect wallet". Without a wallet in this browser it explains instead of opening
  * a wallet dialog with nothing in it that works.
  */
-export function HeaderConnectButton({ label, className }: { label: string; className: string }) {
+export function HeaderConnectButton({ label, className }: { label: ReactNode; className: string }) {
   const hasWallet = useHasWallet();
   const { openConnectModal } = useConnectModal();
   const dialog = useRef<HTMLDialogElement>(null);

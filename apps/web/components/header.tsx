@@ -65,8 +65,14 @@ function WalletButton() {
               </button>
             ) : (
               <HeaderConnectButton
-                label={forOrganisers ? "Connect wallet (organisers)" : "Connect wallet"}
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                label={
+                  <>
+                    Connect wallet
+                    {/* On a phone the dialog says who needs one; the hint would wrap the button. */}
+                    {forOrganisers && <span className="hidden sm:inline"> (organisers)</span>}
+                  </>
+                }
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-zinc-800 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
               />
             )}
           </div>
