@@ -1,7 +1,6 @@
 "use client";
 
 import { merkleElectionAbi, Phase } from "@dvote/shared";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect, useState } from "react";
 import { getAddress, isAddress, pad, type Address, type Hex } from "viem";
 import { useAccount, useBlockNumber, useConfig, useReadContract } from "wagmi";
@@ -15,6 +14,7 @@ import { useTransaction } from "@/lib/transaction";
 import { proofFor, useVoterList } from "@/lib/voter-list";
 import { useWallet } from "@/lib/wallet";
 
+import { ConnectWallet } from "./wallet-connect";
 import { AnonymousBooth } from "./anonymous-booth";
 import { CandidateChoice, choiceFor, type Marks } from "./candidate-choice";
 import { ElectionHeader } from "./election-header";
@@ -251,7 +251,7 @@ export function BoothView({ address }: { address: string }) {
         </Notice>
       ) : !account ? (
         <Card title="Connect your wallet" description="Connect the wallet you registered with.">
-          <ConnectButton />
+          <ConnectWallet />
         </Card>
       ) : (
         <Booth election={election} account={account} />

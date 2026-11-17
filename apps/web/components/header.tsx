@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useAccount, useSwitchChain } from "wagmi";
 
 import { useWalletForOrganisers, useWalletHidden } from "@/lib/chrome";
+
+import { HeaderConnectButton } from "./wallet-connect";
 import { chain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 
@@ -46,7 +48,7 @@ function WalletButton() {
   const forOrganisers = useWalletForOrganisers();
   return (
     <ConnectButton.Custom>
-      {({ account, chain: connected, mounted, openAccountModal, openConnectModal }) => {
+      {({ account, chain: connected, mounted, openAccountModal }) => {
         const ready = mounted;
         const shown = ready && account && connected;
         // Voters in anonymous elections need no wallet; an organiser who is connected still sees it.
@@ -63,13 +65,10 @@ function WalletButton() {
                 {account.displayName}
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={openConnectModal}
+              <HeaderConnectButton
+                label={forOrganisers ? "Connect wallet (organisers)" : "Connect wallet"}
                 className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
-              >
-                {forOrganisers ? "Connect wallet (organisers)" : "Connect wallet"}
-              </button>
+              />
             )}
           </div>
         );

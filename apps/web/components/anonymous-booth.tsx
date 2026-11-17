@@ -1,7 +1,6 @@
 "use client";
 
 import { ballotNullifier, Phase, semaphoreElectionAbi, type AnonymousBallot } from "@dvote/shared";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { pad, toHex } from "viem";
@@ -26,6 +25,7 @@ import { useTransaction } from "@/lib/transaction";
 import { useIdentityList } from "@/lib/voter-list";
 import { useWallet } from "@/lib/wallet";
 
+import { ConnectWallet } from "./wallet-connect";
 import { CandidateChoice, choiceFor, type Marks } from "./candidate-choice";
 import { VotingKeyCard } from "./identity-registration";
 import { TransactionStatus } from "./transaction-status";
@@ -249,7 +249,7 @@ function AnonymousBallotForm({
                 </Button>
               </div>
             ) : (
-              <ConnectButton />
+              <ConnectWallet />
             )}
             <TransactionStatus state={transaction.state} />
           </div>

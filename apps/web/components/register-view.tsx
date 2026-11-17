@@ -1,7 +1,6 @@
 "use client";
 
 import { Phase, registrationTypedData, type Receipt } from "@dvote/shared";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useState } from "react";
 import { getAddress, isAddress, isAddressEqual } from "viem";
 import { useAccount, useConfig } from "wagmi";
@@ -17,6 +16,7 @@ import { saveReceipt, useStoredReceipt } from "@/lib/receipts";
 import { formatRelative, formatTime, useChainNow } from "@/lib/time";
 import { useWallet } from "@/lib/wallet";
 
+import { ConnectWallet } from "./wallet-connect";
 import { EmailProof, type EmailProofValue } from "./email-proof";
 import { KeyTransfer } from "./key-transfer";
 import { ElectionHeader } from "./election-header";
@@ -93,7 +93,7 @@ function RegistrationForm({
         title="Connect your wallet"
         description="Connect the wallet you will vote with. Registering costs nothing."
       >
-        <ConnectButton />
+        <ConnectWallet />
       </Card>
     );
   }
