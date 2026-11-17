@@ -6,10 +6,11 @@ import {
   type ElectionDetail,
   type ElectionSummary,
 } from "@dvote/shared";
-import type { Address, Hex } from "viem";
+import { getAddress, type Address, type Hex } from "viem";
 
 import { chain, publicClient } from "../chain";
 import { db } from "../db";
+import { env } from "../env";
 import type { Election } from "../generated/prisma/client";
 import { HttpError } from "../http";
 
@@ -29,8 +30,14 @@ function summary(election: Election, ballotsCast: number): ElectionSummary {
   };
 }
 
+/**
+ * The elections to list. With AUTHORITIES set, only theirs: anyone can create an election on the
+ * factory, and a public deployment lists the ones its registrar serves.
+ */
 export async function listElections(): Promise<{ elections: ElectionSummary[] }> {
+  const authorities = env.AUTHORITIES.map((address) => getAddress(address));
   const elections = await db.election.findMany({
+    where: authorities.length > 0 ? { authority: { in: authorities } } : {},
     orderBy: { createdAtBlock: "desc" },
     include: { _count: { select: { ballots: true } } },
   });

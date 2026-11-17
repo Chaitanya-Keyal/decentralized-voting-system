@@ -302,7 +302,7 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
 /** Tier 3's booth: proves membership of the published list without saying which member. */
 export function AnonymousBooth({ election }: { election: OnchainElection }) {
   useHideWallet();
-  useKeyFromLink(chain.id, election.address);
+  const fromLink = useKeyFromLink(chain.id, election.address);
   const now = useChainNow();
   const identity = useStoredIdentity(chain.id, election.address);
   const cast = useCastBallot(chain.id, election.address);
@@ -326,6 +326,27 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
     void refetch();
   }, [block, refetch]);
 
+  if (fromLink.offered) {
+    return (
+      <Card
+        title="Use the voting key from this link?"
+        description="Only if you sent this link to yourself, from the device you registered on. A key from anyone else would cast their ballot, not yours."
+      >
+        <div className="flex flex-col gap-3 text-sm">
+          <p className="text-zinc-600 dark:text-zinc-400">
+            Its public code is <Mono value={fromLink.offered.commitment.toString()} />; your
+            registration receipt shows the same code.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={fromLink.accept}>Use this key</Button>
+            <Button variant="secondary" onClick={fromLink.dismiss}>
+              Don&apos;t use it
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
   if (election.phase === Phase.Cancelled) return <Notice>This election was cancelled.</Notice>;
   if (election.voterListCid === "") {
     return now >= election.schedule.votingStart ? (
@@ -340,6 +361,11 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
       </Notice>
     );
   }
+  const keptNotice = fromLink.refused && (
+    <Notice>
+      This browser already has a voting key for this election, so the key in the link was not used.
+    </Notice>
+  );
   if (cast?.counted) return <CastBallotCard election={election} ballot={cast} />;
   if (voted.data === true && nullifier !== undefined) {
     return (
@@ -400,6 +426,7 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
   if (election.phase === Phase.Registration || election.phase === Phase.Created) {
     return (
       <>
+        {keptNotice}
         {checked}
         {now < votingStart ? (
           <Notice>
@@ -427,6 +454,7 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
   if (election.phase === Phase.Voting && now < votingEnd) {
     return (
       <>
+        {keptNotice}
         {checked}
         <AnonymousBallotForm election={election} commitments={list.data.commitments} />
       </>

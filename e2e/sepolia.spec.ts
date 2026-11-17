@@ -28,6 +28,8 @@ import { emailedCode } from "./helpers";
 const RPC = process.env.SEPOLIA_RPC_URL ?? "https://ethereum-sepolia-rpc.publicnode.com";
 const API = process.env.E2E_API_URL ?? "http://127.0.0.1:4000";
 const RESULTS = new URL("../bench/results/", import.meta.url).pathname;
+/** Voters to register and vote; each ballot is one B1 sample. */
+const VOTERS = Number(process.env.E2E_SEPOLIA_VOTERS ?? 2);
 
 async function voterBrowser(browser: Browser, errors: string[]) {
   const context = await browser.newContext({ acceptDownloads: true });
@@ -92,9 +94,10 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
   const { timestamp: now } = await node.getBlock();
   const schedule = {
     registrationStart: now + 60n,
-    registrationEnd: now + 360n,
-    votingStart: now + 480n,
-    votingEnd: now + 960n,
+    // About 30 s per voter to register, and as long to vote, with room to spare.
+    registrationEnd: now + 120n + BigInt(VOTERS * 45),
+    votingStart: now + 240n + BigInt(VOTERS * 45),
+    votingEnd: now + 600n + BigInt(VOTERS * 90),
   };
 
   await test.step("the authority creates an anonymous election on Sepolia", async () => {
@@ -128,9 +131,9 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
   });
 
   const voters: Awaited<ReturnType<typeof voterBrowser>>[] = [];
-  await test.step("two voters with no wallets register", async () => {
+  await test.step(`${VOTERS} voters with no wallets register`, async () => {
     await waitForChain(schedule.registrationStart);
-    for (const index of [0, 1]) {
+    for (let index = 0; index < VOTERS; index++) {
       const voter = await voterBrowser(browser, errors);
       voters.push(voter);
       const email = `sepolia${index}.${run}@hyderabad.bits-pilani.ac.in`;
@@ -149,7 +152,7 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
   await test.step("registration closes and the registrar publishes the list on Sepolia", async () => {
     await waitForChain(schedule.registrationEnd);
     await page.goto(`/elections/${election}`);
-    await expect(page.getByText(/The voter list has 2 voters/)).toBeVisible({
+    await expect(page.getByText(`The voter list has ${VOTERS} voters`)).toBeVisible({
       timeout: 5 * 60_000,
     });
   });
@@ -165,7 +168,7 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
       await expect(voter.page.getByText("on the voter list, checked in this browser")).toBeVisible({
         timeout: 120_000,
       });
-      await voter.page.getByLabel(index === 0 ? "Asha" : "Ravi", { exact: true }).check();
+      await voter.page.getByLabel(index % 2 === 0 ? "Asha" : "Ravi", { exact: true }).check();
       const started = Date.now();
       await voter.page.getByRole("button", { name: /Cast my ballot, no wallet needed/ }).click();
       await expect(voter.page.getByText("You have voted")).toBeVisible({ timeout: 5 * 60_000 });

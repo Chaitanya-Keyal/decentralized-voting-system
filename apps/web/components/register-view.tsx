@@ -12,7 +12,7 @@ import { useElection, type OnchainElection } from "@/lib/election";
 import { chain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 import { useHideWallet } from "@/lib/chrome";
-import { useKeyFromLink, useStoredIdentity, useStoredIdentityReceipt } from "@/lib/identity";
+import { useStoredIdentity, useStoredIdentityReceipt } from "@/lib/identity";
 import { saveReceipt, useStoredReceipt } from "@/lib/receipts";
 import { formatRelative, formatTime, useChainNow } from "@/lib/time";
 import { useWallet } from "@/lib/wallet";
@@ -129,7 +129,6 @@ function registrationStatus(election: OnchainElection, now: number): string | un
 /** Tier 3: a voting key made on this device, registered by its public fingerprint. */
 function AnonymousRegistration({ election, now }: { election: OnchainElection; now: number }) {
   useHideWallet();
-  useKeyFromLink(chain.id, election.address);
   const receipt = useStoredIdentityReceipt(chain.id, election.address);
   const identity = useStoredIdentity(chain.id, election.address);
   const open = registrationOpen(election, now);

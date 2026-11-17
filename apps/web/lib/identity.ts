@@ -9,7 +9,7 @@ import {
   type IdentityReceipt,
   type RelayReceipt,
 } from "@dvote/shared";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { Address } from "viem";
 
 const CHANGE_EVENT = "dvote-identities";
@@ -183,19 +183,46 @@ export function transferLink(election: Address, identity: Identity): string {
   return `${window.location.origin}/elections/${election}/vote${LINK_PREFIX}${encodeURIComponent(identity.export())}`;
 }
 
+/** The key in this page's transfer link, if it has one. Read once, when the page opens. */
+function readLinkKey(): string | undefined {
+  if (typeof window === "undefined" || !window.location.hash.startsWith(LINK_PREFIX)) {
+    return undefined;
+  }
+  return decodeURIComponent(window.location.hash.slice(LINK_PREFIX.length));
+}
+
 /**
- * Takes a voting key from a transfer link, keeps it in this browser, and removes it from the
- * address bar so it is not left in the history or shared by accident.
+ * A voting key that arrived in a transfer link, waiting for the voter to accept it. It is taken
+ * out of the address bar at once, so it is not left in the history or shared by accident. It
+ * never replaces a key this browser already holds, and it is used only once the voter confirms:
+ * a link from someone else would otherwise slip that person's key into this browser.
  */
 export function useKeyFromLink(chainId: number, election: Address | undefined) {
+  const [linked] = useState(readLinkKey);
+  const [decided, setDecided] = useState(false);
+  const held = useStoredIdentity(chainId, election);
   useEffect(() => {
-    if (!election || !window.location.hash.startsWith(LINK_PREFIX)) return;
-    try {
-      const exported = decodeURIComponent(window.location.hash.slice(LINK_PREFIX.length));
-      saveIdentity(chainId, election, Identity.import(exported));
-    } catch {
-      // A damaged link: the booth then offers to restore the key another way.
+    if (linked !== undefined) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
-    window.history.replaceState(null, "", window.location.pathname + window.location.search);
-  }, [chainId, election]);
+  }, [linked]);
+  const fromLink = useMemo(() => {
+    if (linked === undefined) return undefined;
+    try {
+      return Identity.import(linked);
+    } catch {
+      return undefined;
+    }
+  }, [linked]);
+  return {
+    /** A key from the link, not yet accepted, for a browser that holds none. */
+    offered: fromLink && !held && !decided ? fromLink : undefined,
+    /** The link carried a different key from the one this browser holds, which was kept. */
+    refused: Boolean(fromLink && held && held.commitment !== fromLink.commitment),
+    accept: () => {
+      if (election && fromLink) saveIdentity(chainId, election, fromLink);
+      setDecided(true);
+    },
+    dismiss: () => setDecided(true),
+  };
 }

@@ -86,6 +86,16 @@ test("an anonymous approval election runs end to end without voter wallets", asy
     });
   }
 
+  await test.step("the registration page never takes a key from a link", async () => {
+    // A link carrying someone else's key must not get that key registered under a victim's email.
+    const visitor = await voterBrowser(browser, errors);
+    const planted = JSON.parse(voters[0]!.backup ?? "{}") as { privateKey: string };
+    await visitor.page.goto(`${election}/register#key=${encodeURIComponent(planted.privateKey)}`);
+    await expect(visitor.page.getByRole("button", { name: "Create my voting key" })).toBeVisible();
+    await expect(visitor.page.getByText("This browser holds your voting key")).toHaveCount(0);
+    await visitor.context.close();
+  });
+
   await test.step("registration closes and the registrar publishes the identity list", async () => {
     await page.goto(election);
     await skipAhead(page);
@@ -124,9 +134,18 @@ test("an anonymous approval election runs end to end without voter wallets", asy
     const moved = await voterBrowser(browser, errors);
     await voters[1]!.context.close();
     await moved.page.goto(link);
-    // The key is taken in and removed from the address bar.
+    // The key is taken out of the address bar at once, and used only once the voter confirms.
     await expect(moved.page).not.toHaveURL(/#key=/);
+    await moved.page.getByRole("button", { name: "Use this key" }).click();
     voters[1] = { ...moved, backup: voters[1]!.backup };
+  });
+
+  await test.step("a key in a link never replaces the key a browser holds", async () => {
+    const { page: holder } = voters[0]!;
+    const other = JSON.parse(voters[2]!.backup ?? "{}") as { privateKey: string };
+    await holder.goto(`${election}/vote#key=${encodeURIComponent(other.privateKey)}`);
+    await expect(holder.getByText("the key in the link was not used")).toBeVisible();
+    await expect(holder).not.toHaveURL(/#key=/);
   });
 
   for (const [index, marks] of ballots.entries()) {
