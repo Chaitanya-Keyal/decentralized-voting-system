@@ -48,8 +48,22 @@ export const relayerUrl = setting(process.env.NEXT_PUBLIC_RELAYER_URL) ?? "http:
 
 export const ipfsGateway = setting(process.env.NEXT_PUBLIC_IPFS_GATEWAY) ?? "http://127.0.0.1:8080";
 
+/**
+ * A public block explorer, run by others, where the chain has one. On Sepolia, Blockscout rather
+ * than the chain's default, Etherscan: it reads the contracts' verified source from Sourcify, so it
+ * shows their code and names every call and event, where Etherscan shows raw data.
+ */
+export const explorer =
+  chain.id === sepolia.id
+    ? { name: "Blockscout", url: "https://eth-sepolia.blockscout.com" }
+    : chain.blockExplorers?.default;
+
 /** A block explorer link for a transaction, where the chain has an explorer. */
 export function explorerTx(hash: string): string | undefined {
-  const explorer = chain.blockExplorers?.default.url;
-  return explorer ? `${explorer}/tx/${hash}` : undefined;
+  return explorer ? `${explorer.url}/tx/${hash}` : undefined;
+}
+
+/** A block explorer link for a contract or wallet, where the chain has an explorer. */
+export function explorerAddress(address: string): string | undefined {
+  return explorer ? `${explorer.url}/address/${address}` : undefined;
 }
