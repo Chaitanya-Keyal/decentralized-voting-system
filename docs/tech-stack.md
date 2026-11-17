@@ -8,8 +8,8 @@ carries its reasoning and the alternative it beat.
 | Choice | Alternative considered | Why this one |
 |---|---|---|
 | **Solidity `^0.8.28`** | Vyper, Rust/Solana | Largest ecosystem, matches the course, and one language for the local node and the public testbed alike |
-| **Foundry** (forge/cast/anvil) | Hardhat 3, Truffle | Tests are written *in Solidity*, so there is no context-switching, and the course is about Solidity. `forge snapshot` emits per-function gas numbers for free, which is literally one of our graded evaluation parameters. Built-in fuzzing gives us adversarial ballot tests cheaply. Single toolchain, one language. |
-| **OpenZeppelin Contracts 5.x** | Hand-rolled | Audited `AccessControl`, `ERC2771Forwarder`, `MerkleProof`, `Clones`. Writing our own access control in a security-focused project would be indefensible. |
+| **Foundry** (forge/cast/anvil) | Hardhat 3, Truffle | Tests are written *in Solidity*, so there is no context-switching, and the course is about Solidity. Foundry's gas snapshot cheatcodes record the gas of each step in a test (`contracts/snapshots/`), and gas is one of our graded evaluation parameters (A1). Built-in fuzzing gives us adversarial ballot tests cheaply. Single toolchain, one language. |
+| **OpenZeppelin Contracts 5.x** | Hand-rolled | Audited `AccessControl`, `ERC2771Forwarder`, `MerkleProof`, `Clones`. A security-focused project should not write its own access control. |
 | **EIP-1167 minimal proxies** | Deploy a fresh `Election` each time | Each election is a tiny clone that forwards to one shared implementation, so creating an election costs a small fraction of a full deployment; A1 measures the actual figure. The implementation cannot be upgraded, so the rules cannot change mid-vote. |
 | **Semaphore v4** | Custom circom circuits, MACI | Audited, maintained, has the exact primitive we need (anonymous group membership + nullifier). Writing our own circuits would consume the entire project budget. We use its verifier and nullifier scheme but **not** its on-chain group management; the tree is built off-chain so registration stays O(1) in gas. Groth16 needs a circuit-specific trusted setup, so the eligibility guarantee rests on one: we take the published phase-two ceremony artifacts for the Semaphore circuits rather than running a ceremony of our own, and pin their SHA-256 hashes, checked against the `@zk-kit/semaphore-artifacts` npm package and the published copies; the browser refuses a file that does not match. If every contributor to that ceremony colluded, forged membership proofs would verify, which is why the contract also caps accepted ballots at the declared roll size. MACI adds coercion resistance but needs a coordinator and far more infrastructure than the schedule allows. |
 
@@ -32,7 +32,7 @@ we report it beside the local figures rather than in place of them.
 
 **Local: a Foundry node (Anvil).** Development, and the gas parameters. Gas is
 deterministic given the same bytecode and calldata, so a local sweep over roll sizes from
-ten to a hundred thousand (C1) is exact, instant and free, where the same run on a testnet
+2 to 65,536 (C1) is exact, instant and free, where the same run on a testnet
 would drain faucets. The throughput and ceiling runs go here too, so network noise is not
 mistaken for a system property, and the reorg test needs a chain the harness can
 manipulate. Only end-to-end latency and the live demonstration need Sepolia itself.
@@ -47,11 +47,11 @@ quotes is a stated illustration rather than a target.
 
 | Choice | Why |
 |---|---|
-| **Next.js 16 (App Router) + TypeScript** | Server components for the public dashboard, static export possible for IPFS hosting, and a DApp served from IPFS is a genuinely decentralized front door |
+| **Next.js 16 (App Router) + TypeScript** | Server components for the public dashboard. The app could be adapted to a static export served from IPFS, but not as configured: `next.config.ts` sets response headers, which a static export cannot, and election pages are a dynamic route whose addresses are not known at build time |
 | **wagmi v2 + viem** | viem is typed, tree-shakeable, and far lighter than ethers v6; the wagmi CLI generates typed ABIs from our Foundry build, so contract changes surface as type errors. Stay on wagmi 2: RainbowKit 2 does not support wagmi 3 |
 | **RainbowKit** | Multi-wallet connect with almost no code; wallet UX is not where we should spend our budget |
 | **Tailwind CSS 4** | Three role-based UIs on a tight schedule; a handful of small components of our own (`components/ui.tsx`) cover them without a component library |
-| **@semaphore-protocol/proof + snarkjs in a Web Worker** | Proving blocks the thread it runs on, so it runs in a worker to keep the UI responsive. In Node.js on one thread it takes about 0.6 to 1.5 s depending on the tree's depth (`bench/results`); phones will be slower, and parameter B2 measures them with the app's `/bench` page. |
+| **@semaphore-protocol/proof + snarkjs in a Web Worker** | Proving blocks the thread it runs on, so it runs in a worker to keep the UI responsive. In Node.js on one ARM64 core it takes about 0.6 to 1.5 s depending on the tree's depth. In the browser, measured with the app's `/bench` page for B2, an Android phone took 0.9 s at 16 voters and 9.1 s at 65,536, about twice as long as a laptop (`bench/results`). |
 
 ## Backend
 
@@ -98,8 +98,8 @@ Recording these keeps the report honest and gives us a real "future work" sectio
 - **MACI-style coercion resistance**: needs a coordinator, key rotation, and a much
   larger circuit budget.
 - **Homomorphic encrypted tallying**: would hide intermediate results (currently the
-  running tally is public, which can influence late voters). Genuinely interesting, but a
-  project of its own.
+  running tally is public, which can influence late voters). It would be a project of
+  its own.
 - **Ranked-choice / quadratic voting**: `TallyLib` is structured so these can be added;
   we ship plurality and approval voting.
 - **Real government-grade identity**: we use the institute email address, proved by an emailed

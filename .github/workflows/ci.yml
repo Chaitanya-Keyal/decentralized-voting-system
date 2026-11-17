@@ -16,7 +16,7 @@ jobs:
   web-and-api:
     name: Format, lint, typecheck, build
     runs-on: ubuntu-latest
-    # The API tests need Postgres, and Foundry for a local chain.
+    # The API tests need Postgres and Redis, and Foundry for a local chain.
     services:
       redis:
         image: redis:7-alpine
@@ -96,8 +96,9 @@ jobs:
   e2e:
     name: End to end
     runs-on: ubuntu-latest
-    # The whole local stack: Postgres, IPFS and Mailpit as services, Anvil, the API, the indexer
-    # and a production build of the web app. Then a browser runs an election from start to finish.
+    # The whole local stack: Postgres, Redis, IPFS and Mailpit as services, Anvil, the API, the
+    # indexer, the relayer and a production build of the web app. Then a browser runs two elections
+    # from start to finish, one with wallet ballots and one with anonymous ballots.
     services:
       redis:
         image: redis:7-alpine

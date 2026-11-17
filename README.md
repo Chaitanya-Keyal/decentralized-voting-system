@@ -15,8 +15,7 @@ silently add voters, drop ballots, miscount, or rewrite history, and a voter has
 way to detect it. Paper ballots trade this for a different problem: slow, expensive,
 and unverifiable by the individual voter once the ballot enters the box.
 
-DVote splits those four responsibilities apart so that no single party can compromise
-an election on their own:
+DVote splits those four responsibilities apart, so that no single party holds all of them:
 
 | Trust assumption in a centralized system | How DVote removes it |
 |---|---|
@@ -25,6 +24,9 @@ an election on their own:
 | "My ballot was counted" | Every ballot is an on-chain transaction the voter can point to |
 | "The count is honest" | Tallies are incremented by contract code, not by an operator |
 | "The log wasn't edited" | The log *is* the chain |
+
+The registrar is still trusted with who is on the roll; [docs/architecture.md](docs/architecture.md),
+section 2, says what that leaves open.
 
 ## What it does
 
@@ -57,7 +59,7 @@ Ethereum Sepolia and verified on Sourcify; their addresses are in
 - [docs/architecture.md](docs/architecture.md): how it works, and what it does not guarantee
 - [docs/auditing.md](docs/auditing.md): how anyone can check an election, and keep their own copy
   of its voter list
-- [docs/roadmap.md](docs/roadmap.md): what gets built, milestone by milestone
+- [docs/roadmap.md](docs/roadmap.md): what was built, milestone by milestone
 - [reports/eval2.pdf](reports/eval2.pdf) and [reports/eval2-slides.pptx](reports/eval2-slides.pptx):
   the Evaluation 2 report and slides; [docs/demo.md](docs/demo.md): the demo walkthrough
 - [Issue #2](https://github.com/Chaitanya-Keyal/decentralized-voting-system/issues/2): the

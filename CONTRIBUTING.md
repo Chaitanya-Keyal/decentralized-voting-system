@@ -120,7 +120,7 @@ they never touch your development setup; the relayer's tests keep to Redis keys 
 
 ## Code style
 
-Spaces, never tabs: two for TypeScript, JSON, YAML and CSS, four for Solidity and Python.
+Spaces, never tabs: two for TypeScript, JSON, YAML and CSS, four for Solidity.
 `.editorconfig` sets this for any editor, and VS Code picks up the recommended extensions
 and format-on-save from `.vscode/`.
 
@@ -177,10 +177,13 @@ them on Sepolia itself.
 ```bash
 pnpm --filter @dvote/bench gas      # C1: gas against roll size, both tiers, on a fresh Anvil
 pnpm --filter @dvote/bench booth    # C2: tree rebuild and proving time against roll size
+pnpm --filter @dvote/bench load     # C3: a burst of ballots through the relayer, on Anvil
 pnpm --filter @dvote/bench sepolia  # A1 and B1 on Sepolia; needs throwaway testnet keys
+pnpm --filter @dvote/bench d3 <election address>  # D3: try to link ballots to voters
 ```
 
 `/bench` in the web app runs the C2 measurement in a browser, so it can be taken on a phone.
+[`bench/README.md`](bench/README.md) gives each script's options and the files it writes.
 
 ## Deploying
 
@@ -194,8 +197,10 @@ relayer and the database migration, each started with the command in the file's 
 the browser needs (`NEXT_PUBLIC_CHAIN_ID`, `NEXT_PUBLIC_RPC_URL`, `NEXT_PUBLIC_API_URL`,
 `NEXT_PUBLIC_RELAYER_URL`, `NEXT_PUBLIC_IPFS_GATEWAY`) is fixed at build time as build arguments.
 The services read their other settings at start-up: those in `.env.example`, and
-`GOOGLE_CLIENT_ID` for Google sign-in. Any setting can come from a file
+`GOOGLE_CLIENT_ID` for Google sign-in. When the web app is served from another origin than the
+API and the relayer, set `WEB_ORIGIN` to its origin: they accept browser requests only from the
+origins listed there, and by default only from the local web app. Any setting can come from a file
 instead: `NAME_FILE=/run/secrets/name` sets `NAME`, so keys and passwords can be mounted as
 secrets. On a public chain the registrar needs `SMTP_URL` or `GOOGLE_CLIENT_ID` (or both), the
-registrar and relayer need their own keys, and `AUTHORITIES` should list the wallets whose
-elections the registrar serves.
+registrar and relayer need their own keys, and `AUTHORITIES` must list the wallets whose
+elections the deployment serves: the registrar, the relayer and the indexer all keep to them.

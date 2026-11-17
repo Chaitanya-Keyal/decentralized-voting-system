@@ -48,7 +48,7 @@ ballots for the candidate it dislikes, and this is invisible, because turnout be
 is the normal state of every election and an aggregate observer therefore sees nothing wrong.
 
 The escape hatch does not rescue the population this design targets. Parameter E2 sets the
-voter's required holding to zero and E3 tests people who have never used a wallet, so a voter
+voter's required holding to zero and E3 is about people who have never used a wallet, so a voter
 who can self-fund never needed the relayer and a voter who cannot is exactly the one a relayer
 can censor.
 
@@ -247,18 +247,18 @@ and show the tally still verifies.**
 | `TallyLib.sol` | Counting rules: plurality and approval | Under approval a choice is a non-empty bitmask of candidates, each of which gets a vote; ties give several winners |
 | `VoteForwarder.sol` | ERC-2771 trusted forwarder | OpenZeppelin `ERC2771Forwarder`. Tier 3 elections accept ballots through it, but our relayer does not use it: see below |
 
-The forwarder deserves a note, because the obvious reading credits it with a protection it does
-not provide. It is the proof, not the EIP-712 signature, that stops a relayer altering a ballot:
+The forwarder is easy to credit with a protection it does not give. It is the proof, not the
+EIP-712 signature, that stops a relayer altering a ballot:
 the proof commits to the nullifier and the candidate signal, so any tampering invalidates it,
 and the nullifier blocks replay. `castVote` never reads the sender at all, so ERC-2771 is not a
 security boundary here and a relayer can simply submit the ballot itself, with the same result.
 The plan was to use it anyway, for a request deadline and the audited implementation, but
 measurement settled it the other way. Under mainnet's current rules a ballot through the
 forwarder costs 335,214 gas against 296,692 submitted directly. On Sepolia, which runs
-Glamsterdam, the gap was about 127,000 gas per ballot (521,094 against 393,900), most of it the
-forwarder's nonce slot for the fresh signing key each ballot used, which EIP-8037 prices as new
-state. So the relayer submits `castVote` itself and the booth signs nothing; the forwarder stays
-deployed and accepted for any ERC-2771 relayer that wants it.
+Glamsterdam, the gap was about 127,000 gas per ballot (521,094 against 393,900), most of it a
+new nonce slot in the forwarder for the fresh key each forwarded ballot was signed with, which
+EIP-8037 prices as new state. So the relayer submits `castVote` itself and the booth signs
+nothing; the forwarder stays deployed and accepted for any ERC-2771 relayer that wants it.
 
 ### Lifecycle
 
@@ -366,10 +366,11 @@ above the tier 2 line at every roll size measured, and the curves never cross in
 range. That is the price of anonymity, not a cost win.
 
 These figures are under mainnet's current rules, which Foundry's local EVM implements. Sepolia
-runs Glamsterdam, whose EIP-8037 prices new state at 1,530 gas per byte, so writing a storage
-slot for the first time costs 97,920 gas instead of 20,000 and deploying code costs about 1,530
-gas per byte instead of 200. Every ballot writes at least one new slot (its nullifier or address),
-so a typical tier 3 ballot cost about 395,000 gas there. The shape in the roll size is unchanged.
+runs Glamsterdam, whose EIP-8037 prices new state at 1,530 gas per byte, so a new storage slot
+is charged 97,920 gas for its state on top of the write itself, and deploying code costs about
+1,530 gas per byte instead of 200. Every ballot writes at least one new slot (its nullifier or
+address), so a typical tier 3 ballot cost 393,900 gas there. The shape in the roll size is
+unchanged.
 
 The two tiers do not share a tree, and the move from one to the other is a replacement rather
 than an upgrade. Tier 2 is keccak256 over sorted pairs with OpenZeppelin `MerkleProof`; tier 3
@@ -385,9 +386,9 @@ to the registrar and the auditor. A roll of 100,000 is roughly 3.2 MB of commitm
 auditor rather than O(n) once. Moving it is still worth doing, because a Poseidon hash off-chain
 costs microseconds where a storage slot on-chain costs 22,100 gas, and the auditor's share is a
 download rather than a fee paid to a network. But measuring only the on-chain side would be
-measuring the cheap side, so the scalability parameters report registrar tree-build time,
-published leaf-set size and auditor root-recomputation time across the same roll sizes as C1,
-printed beside the flat line. A flat on-chain curve next to an unreported hundred-megabyte audit
+measuring the cheap side, so C2 times rebuilding the tree from the published list, which every
+booth and every audit does, across the same roll sizes as C1: about 16 s at 65,536 voters on one
+ARM64 core in Node.js. A flat on-chain curve next to an unreported hundred-megabyte audit
 artifact would be a misleading graph, and if checking the roll at 100,000 voters turns out to be
 impractical in a browser then universal verifiability degrades even though the gas line stayed
 flat.
@@ -469,24 +470,24 @@ Three surfaces, one codebase:
 - **Device benchmark** (`/bench`): times the tree rebuild and proving on whatever device opens
   it, for parameters B2 and C2, and offers the results as CSV.
 
-Proving time and tree rebuild time are measured in `bench/results/timings-*.csv`. On the
-measurement machine named there, in Node.js on one thread, proving took about 0.6 s at a roll of
-2 and 1.5 s at 65,536, growing only with the tree's depth, while rebuilding the tree grew with the
-roll: about 2 s at 8,192 voters and 16 s at 65,536. C2 is therefore where the design struggles:
-past a few thousand voters, rebuilding the list costs the booth more than proving does. Phones
-will be slower on both, and B2 measures them with `/bench`. The failure mode to watch is not
-slowness but exhausting the mobile WASM memory ceiling while running several megabytes of
-circuit files.
+Proving time and tree rebuild time are measured in `bench/results/timings-*.csv`. On one ARM64
+core, in Node.js on one thread, proving took about 0.6 s at a roll of 2 and 1.5 s at 65,536,
+growing only with the tree's depth, while rebuilding the tree grew with the roll: about 2 s at
+8,192 voters and 16 s at 65,536. C2 is therefore where the design struggles: on that core, past a
+few thousand voters, rebuilding the list costs the booth more than proving does. B2 ran the same
+code in the browser with `/bench`. An Android phone, a Nothing Phone (3a), took about twice as
+long as a laptop at every size: 0.9 s to prove at 16 voters, and 9.1 s to prove and 7.7 s to
+rebuild the list at 65,536. In the browser, proving stayed the larger cost at every size.
 
 ## 7. Deployment targets
 
 | Network | Role | Why |
 |---|---|---|
-| **Ethereum Sepolia** | Deployment and live demo | The Ethereum Foundation's recommended testnet for application and contract development; deepest faucet and tooling support, and execution matching Ethereum mainnet |
+| **Ethereum Sepolia** | Deployment and live demo | The Ethereum Foundation's recommended testnet for application and contract development; deepest faucet and tooling support. It runs Glamsterdam ahead of mainnet, so its gas differs (below) |
 | **Local Foundry node (Anvil)** | Development, gas parameters, throughput, reorg test | Gas is deterministic, so a local sweep over roll sizes is exact, instant and free; throughput runs without network noise, and the reorg test needs a manipulable chain |
 
 Gas parameters (A1, C1) are measured locally, because gas is deterministic given the same
-bytecode and calldata and a sweep over roll sizes from ten to a hundred thousand would
+bytecode and calldata and a sweep over roll sizes from 2 to 65,536 would
 otherwise drain testnet faucets. Only end-to-end latency and the live demonstration need
 Sepolia itself. One qualification: since 6 October 2026 Sepolia runs Glamsterdam, whose EIP-8037
 charges far more for new state than mainnet's current rules, which is what Foundry's local EVM

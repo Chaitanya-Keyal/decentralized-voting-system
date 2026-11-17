@@ -1,8 +1,8 @@
 # Roadmap
 
 Evaluation 1 (problem, requirements, design, evaluation parameters) is done and its report
-and slides are frozen in `reports/submitted/`. What remains is Evaluation 2: a live demo,
-the complete code, and the final report. This roadmap builds everything the Evaluation 1
+and slides are frozen in `reports/submitted/`. Evaluation 2 asks for a live demo, the
+complete code, and the final report. This roadmap builds everything the Evaluation 1
 report committed to, in three milestones, then measures it.
 
 The system has three tiers. Tier 1 is the conventional approach and is only a point of
@@ -89,28 +89,31 @@ of A1.
 
 ## M2 · Anonymous and gasless, on Sepolia (tier 3)
 
-**Status: built; the full stack on Sepolia is being finished.** Everything below works end to end
-on a local chain, in a browser test that also covers a voter restoring their key on a new
-browser and a refused second ballot. The contracts are on Sepolia and verified on Sourcify
-(`contracts/deployments/11155111.json`), and anonymous ballots have been cast there by script.
+**Status: done.** Everything below works end to end on a local chain, in a browser test that
+also covers a voter restoring their key on a new browser and a refused second ballot. The
+contracts are on Sepolia and verified on Sourcify (`contracts/deployments/11155111.json`), and a
+browser test runs a whole anonymous election there through the real registrar and relayer
+(`e2e/sepolia.spec.ts`). The public demo runs the same stack on Sepolia.
 Three things changed from the plan. The relayer submits `castVote` itself instead of going
 through `VoteForwarder`, so there is no throwaway signing key: the proof already binds the
 ballot, and the forwarder cost about 127,000 gas more per ballot on Sepolia
 ([architecture.md](architecture.md), section 4). The proving files are pinned by SHA-256,
-checked against the `@zk-kit/semaphore-artifacts` npm package. And the go/no-go below has not
-been needed so far: proving takes about 0.6 to 1.5 s in Node.js, and phones are still to be
-measured.
+checked against the `@zk-kit/semaphore-artifacts` npm package. And the go/no-go below came out
+as go, so proving stays on the voter's device: about 0.6 to 1.5 s in Node.js on one ARM64 core,
+and in the browser on an Android phone under two seconds up to 4,096 voters and 9.1 s at 65,536
+(B2).
 
 **Proofs**
 - Poseidon LeanIMT replacing the tier 2 tree; nullifiers scoped to the election ID
 - Browser proving with Semaphore v4 in a Web Worker
 - The Semaphore setup files are taken from the published ceremony, and their hashes are
-  checked against the Semaphore repository
+  checked against the `@zk-kit/semaphore-artifacts` npm package (the plan said the Semaphore
+  repository)
 
 **Contracts**
 - `castVote` accepts a Semaphore proof against the frozen root; nullifier registry; a
   ballot is rejected once spent nullifiers would exceed the voter count (FR5)
-- ERC-2771 support on `Election`, and `VoteForwarder` (OpenZeppelin `ERC2771Forwarder`)
+- ERC-2771 support on `SemaphoreElection`, and `VoteForwarder` (OpenZeppelin `ERC2771Forwarder`)
 
 **Backend**
 - Relayer with a BullMQ queue: checks the proof and that the nullifier is unused before
@@ -122,7 +125,8 @@ measured.
 - Registration creates the voter's Semaphore identity on their device and sends only its
   commitment; the voter is offered a backup copy of the secret and told it is the only copy
 - Proving progress, receipt screen, Sepolia network handling
-- A fresh throwaway signing key for every ballot
+- ~~A fresh throwaway signing key for every ballot~~ Dropped: the relayer calls `castVote`
+  itself (see the status above)
 - If no transaction appears by a deadline, the booth warns the voter and offers direct
   submission; a voter with gas can always skip the relayer (FR7)
 
@@ -141,11 +145,11 @@ Commit the second gas snapshot here. The difference from M1's is the cost of ano
 
 ## M3 · Feature freeze
 
-**Status: mostly done.** Approval voting, Slither (no findings, one detector excluded) and
+**Status: done.** Approval voting, Slither (no findings, one detector excluded) and
 coverage (98.9% of lines, every branch), reorg handling and the rebuild, the edge cases, and the
 audit panel are built, and the end-to-end tests run the audit. Auditors' instructions, including
 how to keep their own copy of the lists, are in [auditing.md](auditing.md). The relayer is
-reachable from a phone on the public demo.
+reachable from a phone on the public demo. The tier 3 fallback below was not needed.
 
 - Approval voting in `TallyLib`
 - A clean Slither report and good test coverage
@@ -167,10 +171,13 @@ Sepolia by then, tier 2 is what gets demonstrated, and tier 3 is reported as unf
 
 ## Measurement
 
-**Status: in progress.** A1 under mainnet's rules, C1, and C2 on one machine are measured, in
-`bench/results/`; A1 under Glamsterdam's rules was measured on Sepolia once and is to be repeated
-after the next deploy. B1, B2 on a laptop and a phone, C3, D3 and E1 to E3 are still to do; D1, D2,
-D4 and D5 are covered by tests.
+**Status: done.** Section 6 of the Evaluation 2 report (`reports/eval2.pdf`) gives every result.
+The measurements are in `bench/results/`, and [bench/README.md](../bench/README.md) says which
+script wrote each; the local A1 figures are the gas snapshots in `contracts/snapshots/`. A1 was
+measured locally under mainnet's rules and on Sepolia under Glamsterdam's, B2 on a
+laptop and an Android phone, and D3 on two Sepolia elections; D1, D2, D4 and D5 are covered by
+tests. E3 was run as a simulation, in three rounds of ten participants played by language models,
+not with people.
 
 Every parameter in [`evaluation-parameters.md`](evaluation-parameters.md) gets a measured
 value, or a written reason why it has none.
@@ -187,11 +194,15 @@ value, or a written reason why it has none.
 - **D1 to D5:** attack tests that must fail, including fuzz tests on nullifiers (D1) and an
   actual attempt to link ballots to voters from chain data (D3)
 - **E1 to E3:** steps to vote, zero ETH needed, and a usability test with ten people who do
-  not use cryptocurrency
+  not use cryptocurrency (run in the end as a simulation; see the status above)
 
 ---
 
 ## Report and demo
+
+**Status:** the report (`reports/eval2.pdf`), the slides, the demo script ([demo.md](demo.md))
+and a backup video ([demo-backup.mp4](demo-backup.mp4)) are done. The rehearsals are left to the
+days before the evaluation.
 
 - Evaluation 2 report, following the template in `docs/evaluation_2_template.docx`
 - Three timed demo rehearsals on Sepolia, on the actual presentation hardware and network

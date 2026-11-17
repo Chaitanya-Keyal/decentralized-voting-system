@@ -26,9 +26,10 @@ one cast in its block.
 
 ## Before the day
 
-**The election list.** The demo lists only elections created by the wallets in its
-`AUTHORITIES` setting, so list there only the wallets that will create the demo's elections;
-test elections made from other wallets then stay off the list.
+**The election list.** The demo serves only elections created by the wallets in its
+`AUTHORITIES` setting: it lists them, registers their voters and pays for their ballots. List there
+only the wallets that will create the demo's elections; test elections made from other wallets
+then stay off the list.
 
 **Wallets.** Prepare these:
 
@@ -105,7 +106,7 @@ difference between the tiers: there, every ballot appears beside the wallet that
 
 | Problem | What to do |
 |---|---|
-| The relayer stops answering, or reports a failure | Open **Submit from a wallet instead** in the booth and submit with one of the funded wallets. The proof still hides the voter; only the wallet is visible |
+| The relayer stops answering, or reports a failure | In the booth, open **Advanced: send it from a wallet of your own instead**, connect one of the funded wallets and press **Submit from my wallet**. The proof still hides the voter; only the wallet is visible |
 | Voting closes within five minutes | The booth warns about this and suggests submitting from a wallet, which is quicker |
 | The voter list is not published a minute after registration closes | Press **Ask the registrar to publish it now** on the election page. If voting's start time passes without a list, this election cannot go ahead: switch to the finished election |
 | A page seems stuck on an old phase | Wait for the next block (12 s). The page refreshes itself, and the browser falls back to another public RPC endpoint |
@@ -119,8 +120,10 @@ difference between the tiers: there, every ballot appears beside the wallet that
   The ballot carries a proof and a nullifier, and neither can be linked to a commitment without
   the voter's key. See [architecture.md](architecture.md) for what the relayer can see.
 - *What stops the registrar adding fake voters?* Nothing on-chain. Eligibility is the one thing
-  the system trusts the registrar with. The published list makes padding visible: the count
-  is on-chain, and anyone can compare it with the number of eligible people.
+  the system trusts the registrar with. Publishing the voter count does not reveal padding,
+  because registration is voluntary and nobody else knows the true number. What it does is fix
+  that number in public before any ballot is cast, after which the contract refuses extra
+  ballots. See roll correctness in [architecture.md](architecture.md), section 2.
 - *Why does a ballot cost so much more on Sepolia?* Sepolia runs Glamsterdam, whose EIP-8037
   prices new state several times higher than mainnet. Section 6 of the report gives both.
 - *What if a voter loses their key?* They cannot vote, and nobody can vote for them. The key

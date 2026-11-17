@@ -55,15 +55,6 @@ inputs the sections in order; there is no prose in it.
 
 Figures are TikZ source rather than images, so they stay editable and diff sensibly.
 
-## Placeholders
-
-Unwritten content is marked with `\stub{...}`, which renders as a visible red
-box so an unfinished section is obvious on the page. `\note{...}` is a lighter
-inline marker for a single value still to be filled in.
-
-Delete each one as you write the prose that replaces it. When none are left, the
-report is finished.
-
 ## Formatting
 
 Matched to the `.docx` templates rather than to LaTeX defaults:
