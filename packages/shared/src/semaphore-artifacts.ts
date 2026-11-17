@@ -6,8 +6,6 @@
 // against Semaphore's on-chain verifier, which ties the proving keys to the deployed one.
 import manifest from "./semaphore-artifacts.json";
 
-export const SEMAPHORE_ARTIFACTS_VERSION = manifest.version;
-
 /** Where the files are published. The web app serves its own copies, checked against the hashes. */
 export const SEMAPHORE_ARTIFACTS_URL = manifest.url;
 
@@ -15,9 +13,6 @@ export interface ArtifactFile {
   sha256: string;
   bytes: number;
 }
-
-/** The largest depth pinned here: 2^20, about a million voters. */
-export const MAX_PINNED_DEPTH = 20;
 
 export function semaphoreArtifactName(depth: number, kind: "wasm" | "zkey"): string {
   return `semaphore-${depth}.${kind}`;

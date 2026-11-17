@@ -63,9 +63,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </main>
           <footer className="mx-auto w-full max-w-4xl px-4 pb-6 text-sm text-zinc-500 dark:text-zinc-400">
             <nav aria-label="About DVote" className="flex gap-4">
-              <Link href="/about" className="hover:underline">
-                How it works
-              </Link>
               <Link href="/privacy" className="hover:underline">
                 Privacy
               </Link>

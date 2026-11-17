@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { clientError, parse, refuseOtherSites } from "../http";
 import { loggable } from "../redact";
-import { chain, config, deployment, relayer } from "./config";
+import { chain, config, relayer } from "./config";
 import { acceptBallot, ballotStatus, connect, startWorker } from "./service";
 
 export async function buildRelayer(options: { logger?: boolean } = {}) {
@@ -42,7 +42,6 @@ export async function buildRelayer(options: { logger?: boolean } = {}) {
   app.get("/config", (): RelayConfig => ({
     chainId: chain.id,
     relayer: relayer.account.address,
-    forwarder: deployment.voteForwarder,
   }));
 
   app.post("/ballots", async (request) => {

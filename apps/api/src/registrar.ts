@@ -92,17 +92,20 @@ async function requireRegistrationOpen(state: ElectionState) {
 
 /**
  * Runs `fn` in a transaction that holds a lock on the election, so that a registration and the
- * publication of the voter list never interleave.
+ * publication of the voter list never interleave. The time allowed includes waiting for the lock,
+ * which publishing a large list holds while it hashes the list.
  */
 function withElectionLock<T>(
   election: Address,
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
-  options?: { timeout?: number },
 ): Promise<T> {
-  return db.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${election}))`;
-    return fn(tx);
-  }, options);
+  return db.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${election}))`;
+      return fn(tx);
+    },
+    { timeout: 60_000 },
+  );
 }
 
 /**
@@ -339,43 +342,39 @@ async function publish(election: Address, log: FastifyBaseLogger): Promise<Publi
 
   // Freezing the list stops any later registration. If an earlier attempt failed after this
   // point, the list it froze is rebuilt unchanged. Hashing a large list takes a few seconds.
-  const { list, root, count } = await withElectionLock(
-    election,
-    async (tx) => {
-      const registrations = await tx.registration.findMany({
-        where: { election },
-        select: { voter: true },
-      });
-      if (registrations.length === 0) {
-        throw new HttpError(409, "Nobody has registered, so there is no voter list to publish.");
-      }
-      const voters = registrations.map((registration) => registration.voter);
-      // Tier 2 lists wallet addresses under a keccak Merkle tree; tier 3 lists identity
-      // commitments under Semaphore's Poseidon tree.
-      const built =
-        state.tier === 3
-          ? (() => {
-              const list = buildIdentityList({ chainId: chain.id, election, commitments: voters });
-              const tree = identityTree(list.commitments);
-              return { list, root: rootToBytes32(tree.root), count: list.commitments.length };
-            })()
-          : (() => {
-              const list = buildVoterList({ chainId: chain.id, election, voters });
-              return {
-                list,
-                root: voterTree(list.voters).root as Hex,
-                count: list.voters.length,
-              };
-            })();
-      await tx.voterListPublication.upsert({
-        where: { election },
-        create: { election, root: built.root, count: built.count },
-        update: {},
-      });
-      return built;
-    },
-    { timeout: 60_000 },
-  );
+  const { list, root, count } = await withElectionLock(election, async (tx) => {
+    const registrations = await tx.registration.findMany({
+      where: { election },
+      select: { voter: true },
+    });
+    if (registrations.length === 0) {
+      throw new HttpError(409, "Nobody has registered, so there is no voter list to publish.");
+    }
+    const voters = registrations.map((registration) => registration.voter);
+    // Tier 2 lists wallet addresses under a keccak Merkle tree; tier 3 lists identity
+    // commitments under Semaphore's Poseidon tree.
+    const built =
+      state.tier === 3
+        ? (() => {
+            const list = buildIdentityList({ chainId: chain.id, election, commitments: voters });
+            const tree = identityTree(list.commitments);
+            return { list, root: rootToBytes32(tree.root), count: list.commitments.length };
+          })()
+        : (() => {
+            const list = buildVoterList({ chainId: chain.id, election, voters });
+            return {
+              list,
+              root: voterTree(list.voters).root as Hex,
+              count: list.voters.length,
+            };
+          })();
+    await tx.voterListPublication.upsert({
+      where: { election },
+      create: { election, root: built.root, count: built.count },
+      update: {},
+    });
+    return built;
+  });
 
   const cid = await pinJson(list, `voter-list-${election}.json`);
   await db.voterListPublication.update({ where: { election }, data: { cid, txHash: null } });

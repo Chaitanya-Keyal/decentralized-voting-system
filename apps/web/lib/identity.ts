@@ -6,11 +6,12 @@
 import {
   Identity,
   identityReceiptSchema,
+  relayReceiptSchema,
   type IdentityReceipt,
-  type RelayReceipt,
 } from "@dvote/shared";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { Address } from "viem";
+import { z } from "zod";
 
 import { downloadFile } from "./download";
 
@@ -50,7 +51,11 @@ export function saveIdentity(chainId: number, election: Address, identity: Ident
  */
 export function forgetIdentity(chainId: number, election: Address): void {
   try {
+    // The receipt and the record of the ballot go too: they belong to the key, and on a shared
+    // computer they would say who registered and how they voted.
     localStorage.removeItem(storageKey(chainId, election));
+    localStorage.removeItem(receiptKey(chainId, election));
+    localStorage.removeItem(ballotKey(chainId, election));
     window.dispatchEvent(new Event(CHANGE_EVENT));
   } catch {
     // Nothing was stored.
@@ -82,7 +87,15 @@ export function useStoredIdentity(chainId: number, election: Address | undefined
     () => (key ? read(key) : null),
     () => null,
   );
-  return useMemo(() => (exported ? Identity.import(exported) : undefined), [exported]);
+  return useMemo(() => {
+    if (!exported) return undefined;
+    try {
+      return Identity.import(exported);
+    } catch {
+      // A damaged entry: the voter can restore the key from its backup.
+      return undefined;
+    }
+  }, [exported]);
 }
 
 export function downloadIdentityBackup(chainId: number, election: Address, identity: Identity) {
@@ -151,15 +164,17 @@ const ballotKey = (chainId: number, election: Address) =>
   `dvote.anonymous-ballot.${chainId}.${election}`.toLowerCase();
 
 /** What this browser remembers of the ballot it cast, so the voter can find it again. */
-export interface CastBallot {
-  nullifier: string;
-  choice: string;
-  txHash?: string;
-  relayId?: string;
-  relayReceipt?: RelayReceipt;
+const castBallotSchema = z.object({
+  /** In decimal. */
+  nullifier: z.string().regex(/^\d+$/),
+  choice: z.string(),
+  txHash: z.string().optional(),
+  relayId: z.string().optional(),
+  relayReceipt: relayReceiptSchema.optional(),
   /** Whether the chain has counted it. */
-  counted?: boolean;
-}
+  counted: z.boolean().optional(),
+});
+export type CastBallot = z.infer<typeof castBallotSchema>;
 
 export function saveCastBallot(chainId: number, election: Address, ballot: CastBallot): void {
   try {
@@ -180,7 +195,8 @@ export function useCastBallot(chainId: number, election: Address | undefined) {
   return useMemo(() => {
     if (!raw) return undefined;
     try {
-      return JSON.parse(raw) as CastBallot;
+      const parsed = castBallotSchema.safeParse(JSON.parse(raw));
+      return parsed.success ? parsed.data : undefined;
     } catch {
       return undefined;
     }

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
-import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ISemaphoreVerifier} from "@semaphore-protocol/contracts/interfaces/ISemaphoreVerifier.sol";
 
@@ -16,16 +14,16 @@ import {Election} from "./Election.sol";
 /// voter they are.
 /// @dev The proof's public inputs are built here, never taken from the caller: the published
 /// root, the nullifier, the choice as the signal, this election's address as the scope, and the
-/// tree depth implied by the published voter count. Ballots usually arrive through the
-/// `VoteForwarder`, whose relayer pays the gas, but anyone may submit one directly.
-contract SemaphoreElection is Election, ERC2771Context {
+/// tree depth implied by the published voter count. The ballot never reads its sender, so any
+/// account may submit it: usually DVote's relayer does, and pays the gas.
+contract SemaphoreElection is Election {
     /// @notice The Groth16 verifier for Semaphore v4's circuits, one verification key per depth.
     ISemaphoreVerifier public immutable verifier;
 
     error InvalidProof();
 
-    constructor(ISemaphoreVerifier verifier_, address forwarder) ERC2771Context(forwarder) {
-        if (address(verifier_) == address(0) || forwarder == address(0)) revert ZeroAddress();
+    constructor(ISemaphoreVerifier verifier_) {
+        if (address(verifier_) == address(0)) revert ZeroAddress();
         verifier = verifier_;
     }
 
@@ -61,7 +59,8 @@ contract SemaphoreElection is Election, ERC2771Context {
     /// @notice The depth of the published voter tree, ceil(log2(voterCount)) and at least 1,
     /// which is the depth of a LeanIMT with that many leaves. It picks the verification key.
     /// @dev ceil(log2(n)) is floor(log2(n - 1)) + 1 for n >= 2. Computed in constant time from one
-    /// storage read: a loop over the depth made each ballot cost about 210 gas more per tree level.
+    /// storage read, so a ballot costs the same at every depth; a loop over the levels would add
+    /// about 210 gas per level.
     function merkleTreeDepth() public view returns (uint256) {
         uint256 count = voterCount;
         return count <= 2 ? 1 : Math.log2(count - 1) + 1;
@@ -70,24 +69,5 @@ contract SemaphoreElection is Election, ERC2771Context {
     /// @dev Semaphore's hash of a signal or scope: keccak256, shifted into the SNARK field.
     function _hash(uint256 value) private pure returns (uint256) {
         return uint256(keccak256(abi.encodePacked(value))) >> 8;
-    }
-
-    function _msgSender() internal view override(Context, ERC2771Context) returns (address) {
-        return ERC2771Context._msgSender();
-    }
-
-    /// @dev Required by the compiler, since both bases define it; nothing here reads it.
-    // slither-disable-next-line dead-code
-    function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
-        return ERC2771Context._msgData();
-    }
-
-    function _contextSuffixLength()
-        internal
-        view
-        override(Context, ERC2771Context)
-        returns (uint256)
-    {
-        return ERC2771Context._contextSuffixLength();
     }
 }

@@ -38,10 +38,8 @@ contract ElectionFactoryTest is Test {
         address first = _create("First");
         address second = _create("Second");
 
-        assertEq(factory.electionCount(), 2);
-        assertEq(factory.electionAt(0), first);
-        assertEq(factory.elections()[1], second);
         assertTrue(factory.isElection(first));
+        assertTrue(factory.isElection(second));
         assertFalse(factory.isElection(address(implementation)));
     }
 

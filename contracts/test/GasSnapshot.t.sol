@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {ERC2771Forwarder} from "@openzeppelin/contracts/metatx/ERC2771Forwarder.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Hashes} from "@openzeppelin/contracts/utils/cryptography/Hashes.sol";
 import {SemaphoreVerifier} from "@semaphore-protocol/contracts/base/SemaphoreVerifier.sol";
@@ -13,7 +12,6 @@ import {ElectionFactory} from "../src/ElectionFactory.sol";
 import {MerkleElection} from "../src/MerkleElection.sol";
 import {SemaphoreElection} from "../src/SemaphoreElection.sol";
 import {TallyLib} from "../src/TallyLib.sol";
-import {VoteForwarder} from "../src/VoteForwarder.sol";
 
 /// @notice The gas of every step of a tier 2 and a tier 3 election, for evaluation parameter A1.
 /// Ballots are measured against a voter list of 1,024, a tree of depth 10. Tier 3's ballots are
@@ -129,7 +127,6 @@ contract GasSnapshotTest is Test {
         assertEq(election.tally()[2], 1);
     }
 
-    VoteForwarder internal forwarder;
     SemaphoreElection internal tier3;
     string internal fixture;
 
@@ -143,10 +140,7 @@ contract GasSnapshotTest is Test {
         _cast(2);
         _snapshot3("castVote, a candidate's first vote");
 
-        // A gasless ballot: signed by a throwaway key, submitted and paid for by the relayer.
-        (address throwaway, uint256 key) = makeAddrAndKey("throwaway");
-        forwarder.execute(_forwardRequest(throwaway, key, _calldata(3)));
-        _snapshot3("castVote through the forwarder");
+        _cast(3);
 
         assertEq(tier3.tally()[1], 3);
         assertEq(tier3.tally()[2], 1);
@@ -156,9 +150,8 @@ contract GasSnapshotTest is Test {
         fixture =
             vm.readFile(string.concat(vm.projectRoot(), "/test/fixtures/semaphore-ballots.json"));
         SemaphoreVerifier verifier = new SemaphoreVerifier();
-        forwarder = new VoteForwarder();
         SemaphoreElection implementation =
-            new SemaphoreElection(ISemaphoreVerifier(address(verifier)), address(forwarder));
+            new SemaphoreElection(ISemaphoreVerifier(address(verifier)));
         ElectionFactory factory = new ElectionFactory(address(implementation));
         uint64 t = uint64(block.timestamp);
         Election.Schedule memory schedule =
@@ -222,50 +215,6 @@ contract GasSnapshotTest is Test {
     function _cast(uint256 i) internal {
         (bool ok,) = address(tier3).call(_calldata(i));
         assertTrue(ok);
-    }
-
-    function _forwardRequest(address from, uint256 key, bytes memory data)
-        internal
-        view
-        returns (ERC2771Forwarder.ForwardRequestData memory request)
-    {
-        request = ERC2771Forwarder.ForwardRequestData({
-            from: from,
-            to: address(tier3),
-            value: 0,
-            gas: 1_000_000,
-            deadline: uint48(block.timestamp + 1 hours),
-            data: data,
-            signature: ""
-        });
-        bytes32 structHash = keccak256(
-            abi.encode(
-                keccak256(
-                    "ForwardRequest(address from,address to,uint256 value,uint256 gas,uint256 nonce,uint48 deadline,bytes data)"
-                ),
-                from,
-                address(tier3),
-                uint256(0),
-                request.gas,
-                forwarder.nonces(from),
-                request.deadline,
-                keccak256(data)
-            )
-        );
-        bytes32 domain = keccak256(
-            abi.encode(
-                keccak256(
-                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                ),
-                keccak256("DVote VoteForwarder"),
-                keccak256("1"),
-                block.chainid,
-                address(forwarder)
-            )
-        );
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(key, keccak256(abi.encodePacked("\x19\x01", domain, structHash)));
-        request.signature = abi.encodePacked(r, s, v);
     }
 
     function _snapshot3(string memory name) internal {

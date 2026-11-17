@@ -1,6 +1,6 @@
 "use client";
 
-import { Phase, registrationTypedData, type Receipt } from "@dvote/shared";
+import { Phase, registrationTypedData, type IdentityReceipt, type Receipt } from "@dvote/shared";
 import { useState } from "react";
 import { getAddress, isAddress, isAddressEqual } from "viem";
 import { useAccount, useConfig } from "wagmi";
@@ -107,6 +107,7 @@ function RegistrationForm({
     >
       <div className="flex flex-col gap-4">
         <InstituteSignIn
+          key={account}
           election={election}
           subject={account}
           submitLabel="Sign with my wallet and register"
@@ -132,8 +133,12 @@ function registrationStatus(election: OnchainElection, now: number): string | un
 /** Tier 3: a voting key made on this device, registered by its public fingerprint. */
 function AnonymousRegistration({ election, now }: { election: OnchainElection; now: number }) {
   useHideWallet();
-  const receipt = useStoredIdentityReceipt(chain.id, election.address);
+  const stored = useStoredIdentityReceipt(chain.id, election.address);
   const identity = useStoredIdentity(chain.id, election.address);
+  const [fresh, setFresh] = useState<IdentityReceipt>();
+  // A receipt counts only for the key this browser holds: a new key is on no list.
+  const commitment = identity?.commitment.toString();
+  const receipt = [fresh, stored].find((kept) => kept && kept.commitment === commitment);
   const open = registrationOpen(election, now);
   const status = registrationStatus(election, now);
   return (
@@ -149,8 +154,8 @@ function AnonymousRegistration({ election, now }: { election: OnchainElection; n
         <IdentityListCheck election={election} commitment={identity.commitment.toString()} />
       )}
       {receipt && now < election.schedule.votingEnd && <KeyTransfer election={election} />}
-      {(open || identity) && <VotingKeyCard election={election} compact={Boolean(receipt)} />}
-      {open && !receipt && <IdentityRegistrationForm election={election} />}
+      {(open || identity) && !receipt && <VotingKeyCard election={election} />}
+      {open && !receipt && <IdentityRegistrationForm election={election} onRegistered={setFresh} />}
       {receipt && <IdentityReceiptCard receipt={receipt} />}
     </>
   );

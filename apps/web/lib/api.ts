@@ -30,6 +30,9 @@ export class ApiError extends Error {
   }
 }
 
+/** Generous: the relayer checks a proof before answering, and the registrar may be publishing. */
+const REQUEST_TIMEOUT_MS = 60_000;
+
 export async function call<T extends z.ZodType>(
   schema: T,
   path: string,
@@ -42,6 +45,8 @@ export async function call<T extends z.ZodType>(
       method: body ? "POST" : "GET",
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
+      // A service that accepts the connection and never answers must not leave the page waiting.
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch {
     throw new ApiError(0, `Could not reach ${base}. Is it running?`);

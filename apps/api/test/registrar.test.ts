@@ -682,6 +682,14 @@ describe("Google sign-in", () => {
     ).toBe(400);
   });
 
+  it("refuses an address Google has not verified", async () => {
+    const email = newEmail();
+    const response = await registerWith(email, (nonce) =>
+      idToken(email, { claims: { nonce, email_verified: false } }),
+    );
+    expect(response.statusCode).toBe(403);
+  });
+
   it("refuses a sign-in more than ten minutes old, even if Google's token has not expired", async () => {
     const email = newEmail();
     const issuedAt = Math.floor(Date.now() / 1000) - 11 * 60;

@@ -2,12 +2,12 @@
   "castVote": "80221",
   "castVote, a candidate's first vote": "97321",
   "castVote, first ballot": "114397",
-  "closeVoting": "33143",
-  "createElection": "639362",
-  "createElection, a later election": "622262",
-  "deploy a full election contract": "2084623",
+  "closeVoting": "33121",
+  "createElection": "595090",
+  "createElection, a later election": "595090",
+  "deploy a full election contract": "2080541",
   "finalize": "89881",
-  "openRegistration": "50247",
-  "openVoting": "66937",
+  "openRegistration": "50225",
+  "openVoting": "66915",
   "publishVoterList": "147165"
 }

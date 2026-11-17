@@ -44,10 +44,16 @@ function loadGoogle(): Promise<GoogleIdentity> {
     const script = document.createElement("script");
     script.src = SCRIPT;
     script.async = true;
-    script.onload = () =>
-      window.google ? resolve(window.google) : reject(new Error("Google sign-in did not load."));
+    // A failed load is forgotten, so that the next attempt tries again.
+    script.onload = () => {
+      if (window.google) return resolve(window.google);
+      loading = undefined;
+      script.remove();
+      reject(new Error("Google sign-in did not load."));
+    };
     script.onerror = () => {
       loading = undefined;
+      script.remove();
       reject(new Error("Google sign-in could not be reached."));
     };
     document.head.appendChild(script);

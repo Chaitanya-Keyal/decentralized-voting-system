@@ -1,10 +1,11 @@
 "use client";
 
+import { Phase } from "@dvote/shared";
 import { getAddress, isAddress } from "viem";
 
 import { useDocumentTitle } from "@/lib/document-title";
 import { useElection } from "@/lib/election";
-import { explorer, explorerAddress } from "@/lib/env";
+import { explorerAddress } from "@/lib/env";
 import { useMarkWalletForOrganisers } from "@/lib/header-wallet";
 import { useChainNow } from "@/lib/time";
 
@@ -40,14 +41,13 @@ export function ElectionView({ address }: { address: string }) {
           <BallotBadges tier={election.tier} countingRule={election.countingRule} />
         </div>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Contract <Mono value={election.address} short={false} />
-          {explorerAddress(election.address) && (
-            <>
-              {" · "}
-              <ExternalLink href={explorerAddress(election.address)!}>
-                see it on {explorer?.name}
-              </ExternalLink>
-            </>
+          Contract{" "}
+          {explorerAddress(election.address) ? (
+            <ExternalLink href={explorerAddress(election.address)!}>
+              <Mono value={election.address} short={false} />
+            </ExternalLink>
+          ) : (
+            <Mono value={election.address} short={false} />
           )}
         </p>
         <Description cid={election.metadataCid} />
@@ -85,24 +85,22 @@ export function ElectionView({ address }: { address: string }) {
         </Card>
       )}
 
-      <Card
-        title="Ballots"
-        description={
-          election.tier === 3
-            ? `Every ballot is public, shown by its ballot ID alone, never with who cast it.${
-                election.voterCount > 0
-                  ? ` Nobody can tell which of the ${election.voterCount} people on the voter list cast any one of them; the more people on the list, the better hidden each ballot is.`
-                  : ""
-              } A ballot this browser cast is marked "yours".`
-            : "Every ballot is public, with the wallet that cast it."
-        }
-      >
-        <Ballots
-          election={election.address}
-          candidates={election.candidates.map((candidate) => candidate.name)}
-          tier={election.tier}
-        />
-      </Card>
+      {(election.phase === Phase.Voting || election.ballotsCast > 0) && (
+        <Card
+          title="Ballots"
+          description={
+            election.tier === 3
+              ? 'Each ballot is shown by its ballot ID alone, never with who cast it. One cast in this browser is marked "yours".'
+              : "Each ballot is shown with the wallet that cast it."
+          }
+        >
+          <Ballots
+            election={election.address}
+            candidates={election.candidates.map((candidate) => candidate.name)}
+            tier={election.tier}
+          />
+        </Card>
+      )}
     </>
   );
 }

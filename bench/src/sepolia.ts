@@ -8,7 +8,7 @@
 //   AUTHORITY_PRIVATE_KEY  creates the elections and acts as their registrar
 //   VOTER_PRIVATE_KEY      the tier 2 voter
 //   SENDER_PRIVATE_KEY     submits tier 3 ballots directly, as any wallet may
-//   RELAYER_PRIVATE_KEY    submits tier 3 ballots as the relayer does, and through the forwarder
+//   RELAYER_PRIVATE_KEY    submits tier 3 ballots as the relayer does
 //
 //   RPC_URL=<sepolia> ... pnpm --filter @dvote/bench sepolia [ballots per path, default 3]
 import { mkdir, writeFile } from "node:fs/promises";
@@ -18,14 +18,12 @@ import {
   buildVoterList,
   deploymentFor,
   electionFactoryAbi,
-  forwardRequestTypedData,
   Identity,
   identityTree,
   merkleElectionAbi,
   proveBallot,
   rootToBytes32,
   semaphoreElectionAbi,
-  voteForwarderAbi,
   voterProof,
   voterTree,
   type AnonymousBallot,
@@ -34,7 +32,6 @@ import { ensureArtifacts } from "@dvote/shared/semaphore-artifacts";
 import {
   createPublicClient,
   createWalletClient,
-  encodeFunctionData,
   http,
   parseEventLogs,
   type Abi,
@@ -42,7 +39,7 @@ import {
   type Hash,
   type Hex,
 } from "viem";
-import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { privateKeyToAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
 
 import { csv, fillAddresses, fillCommitments } from "./fill";
@@ -172,43 +169,6 @@ async function create(tier: 2 | 3, schedule: Record<string, bigint>) {
   return created.args.election;
 }
 
-/** Through the ERC-2771 forwarder, signed by a fresh key: the path the relayer no longer takes. */
-async function forward(election: Address, ballot: AnonymousBallot) {
-  const throwaway = privateKeyToAccount(generatePrivateKey());
-  const data = encodeFunctionData({
-    abi: semaphoreElectionAbi,
-    functionName: "castVote",
-    args: [ballot.choice, ballot.nullifier, ballot.points],
-  });
-  const { timestamp } = await node.getBlock();
-  const request = {
-    from: throwaway.address,
-    to: election,
-    value: 0n,
-    gas: 500_000n,
-    deadline: Number(timestamp) + 3600,
-    data,
-  };
-  const signature = await throwaway.signTypedData(
-    forwardRequestTypedData({
-      chainId: sepolia.id,
-      forwarder: deployment.voteForwarder,
-      nonce: 0n,
-      ...request,
-    }),
-  );
-  return send(
-    relayer,
-    {
-      address: deployment.voteForwarder,
-      abi: voteForwarderAbi,
-      functionName: "execute",
-      args: [{ ...request, signature }],
-    },
-    { tier: 3, operation: "cast_vote_forwarded" },
-  );
-}
-
 /** Writes what was measured so far; a run that fails late keeps its earlier figures. */
 async function save() {
   await mkdir(RESULTS, { recursive: true });
@@ -220,7 +180,7 @@ const STAMP = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
 
 try {
   const identities = Array.from(
-    { length: 3 * PER_PATH },
+    { length: 2 * PER_PATH },
     (_, i) => new Identity(`sepolia ${Date.now()} ${i}`),
   );
   await ensureArtifacts(ARTIFACTS, [10, 11]);
@@ -337,8 +297,8 @@ try {
       { tier: 2, operation: "cast_vote" },
     ),
   );
-  // Three ways in: a wallet submitting the ballot itself, the relayer submitting it (what the
-  // relayer service does), and the ERC-2771 forwarder, kept for comparison.
+  // Two ways in: a wallet submitting the ballot itself, and the relayer submitting it, as the
+  // relayer service does.
   for (const [i, ballot] of ballots.entries()) {
     const call = {
       address: tier3,
@@ -346,15 +306,13 @@ try {
       functionName: "castVote",
       args: [ballot.choice, ballot.nullifier, ballot.points],
     } as const;
-    if (i % 3 === 0) {
+    if (i % 2 === 0) {
       latency("tier3_direct", await send(sender, call, { tier: 3, operation: "cast_vote" }));
-    } else if (i % 3 === 1) {
+    } else {
       latency(
         "tier3_relayed",
         await send(relayer, call, { tier: 3, operation: "cast_vote_relayed" }),
       );
-    } else {
-      latency("tier3_forwarded", await forward(tier3, ballot));
     }
   }
 

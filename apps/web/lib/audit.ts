@@ -11,15 +11,14 @@ import {
   verifyBallot,
   verifyIdentityList,
   verifyVoterList,
-  voteForwarderAbi,
   voterListSchema,
   type AnonymousBallot,
 } from "@dvote/shared";
 import {
   decodeFunctionData,
   getAbiItem,
-  isAddressEqual,
   slice,
+  toFunctionSelector,
   toHex,
   type Address,
   type Hex,
@@ -77,6 +76,9 @@ export function auditSteps(election: OnchainElection): AuditStep[] {
 }
 
 const voteCast = getAbiItem({ abi: merkleElectionAbi, name: "VoteCast" });
+const castVoteSelector = toFunctionSelector(
+  getAbiItem({ abi: semaphoreElectionAbi, name: "castVote" }),
+).slice(2);
 
 /** Public RPCs cap how many blocks one log query may span. */
 const LOG_CHUNK = 5_000n;
@@ -104,26 +106,62 @@ async function readBallots(client: PublicClient, election: Address) {
   }));
 }
 
-/** Finds a tier 3 ballot in its transaction, sent directly or through the vote forwarder. */
+/**
+ * The ballots, with the contract's own count and tally read around them. While voting is open a
+ * ballot can land between the reads; then they are taken again, so that the audit compares one
+ * moment with itself.
+ */
+async function readSnapshot(client: PublicClient, election: Address) {
+  const contract = { address: election, abi: merkleElectionAbi } as const;
+  const count = () => client.readContract({ ...contract, functionName: "ballotsCast" });
+  const read = async () => {
+    const before = await count();
+    const ballots = await readBallots(client, election);
+    const [after, tally] = await Promise.all([
+      count(),
+      client.readContract({ ...contract, functionName: "tally" }),
+    ]);
+    const steady = before === after && BigInt(ballots.length) === after;
+    return { ballots, count: Number(after), tally: tally.map(Number), steady };
+  };
+  let snapshot = await read();
+  for (let attempt = 1; attempt < 5 && !snapshot.steady; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+    snapshot = await read();
+  }
+  return snapshot;
+}
+
+/**
+ * Finds a tier 3 ballot in the transaction that cast it, by the encoded `castVote` call it carries:
+ * sent to the election directly, or from a smart-contract wallet, whose transaction wraps the
+ * same call.
+ */
 async function ballotFromTransaction(
   client: PublicClient,
   txHash: Hex,
-  election: Address,
   nullifier: bigint,
+  choice: bigint,
 ): Promise<AnonymousBallot | undefined> {
-  const tx = await client.getTransaction({ hash: txHash });
-  let data: Hex | undefined;
-  if (tx.to && isAddressEqual(tx.to, election)) data = tx.input;
-  else if (tx.to && deployment && isAddressEqual(tx.to, deployment.voteForwarder)) {
-    const call = decodeFunctionData({ abi: voteForwarderAbi, data: tx.input });
-    if (call.functionName === "execute") data = call.args[0].data;
+  const hex = (await client.getTransaction({ hash: txHash })).input.slice(2);
+  for (
+    let at = hex.indexOf(castVoteSelector);
+    at !== -1;
+    at = hex.indexOf(castVoteSelector, at + 1)
+  ) {
+    if (at % 2 !== 0) continue;
+    try {
+      const call = decodeFunctionData({ abi: semaphoreElectionAbi, data: `0x${hex.slice(at)}` });
+      if (call.functionName !== "castVote") continue;
+      const [ballotChoice, ballotNullifier, points] = call.args;
+      if (ballotNullifier === nullifier && ballotChoice === choice) {
+        return { choice: ballotChoice, nullifier: ballotNullifier, points };
+      }
+    } catch {
+      // Bytes that only looked like the call's selector.
+    }
   }
-  if (!data) return undefined;
-  const decoded = decodeFunctionData({ abi: semaphoreElectionAbi, data });
-  if (decoded.functionName !== "castVote") return undefined;
-  const [choice, ballotNullifier, points] = decoded.args;
-  if (ballotNullifier !== nullifier) return undefined;
-  return { choice, nullifier: ballotNullifier, points };
+  return undefined;
 }
 
 /** Runs the audit, reporting each step as it starts and ends. */
@@ -166,13 +204,15 @@ export async function runAudit(
   });
 
   let ballots: Awaited<ReturnType<typeof readBallots>> = [];
+  let tally: number[] = [];
   const ballotsOk = await step("ballots", async () => {
-    ballots = await readBallots(client, election.address);
+    const snapshot = await readSnapshot(client, election.address);
+    ({ ballots, tally } = snapshot);
     const keys = new Set(ballots.map((ballot) => ballot.key));
     if (keys.size !== ballots.length) throw new Error("A ballot key appears twice.");
-    if (ballots.length !== election.ballotsCast) {
+    if (ballots.length !== snapshot.count) {
       throw new Error(
-        `The log holds ${ballots.length} ballots, the contract counts ${election.ballotsCast}.`,
+        `The log holds ${ballots.length} ballots, the contract counts ${snapshot.count}.`,
       );
     }
     if (ballots.length > election.voterCount) {
@@ -187,12 +227,7 @@ export async function runAudit(
       let checked = 0;
       for (const ballot of ballots) {
         const nullifier = BigInt(ballot.key);
-        const found = await ballotFromTransaction(
-          client,
-          ballot.txHash,
-          election.address,
-          nullifier,
-        );
+        const found = await ballotFromTransaction(client, ballot.txHash, nullifier, ballot.choice);
         if (!found) throw new Error(`Could not find the ballot in ${ballot.txHash}.`);
         const valid = await verifyBallot({
           ballot: found,
@@ -227,10 +262,10 @@ export async function runAudit(
         recount[index] = (recount[index] ?? 0) + 1;
       }
     }
-    const matches = recount.every((votes, index) => votes === (election.tally[index] ?? 0));
+    const matches = recount.every((votes, index) => votes === (tally[index] ?? 0));
     if (!matches) {
       throw new Error(
-        `Recount ${recount.join(", ")} differs from the contract's ${election.tally.join(", ")}.`,
+        `Recount ${recount.join(", ")} differs from the contract's ${tally.join(", ")}.`,
       );
     }
     return `Recount ${recount.join(", ")} matches the contract`;

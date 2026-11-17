@@ -1,5 +1,5 @@
 # Local Postgres (registrar and indexer), Redis (relayer queue), an IPFS node (voter lists and
-# ballot metadata) and a mail catcher, reachable from this machine only. Postgres and Redis use
+# ballot metadata), reachable from this machine only. Postgres and Redis use
 # host ports 5433 and 6380 so they don't clash with a locally installed Postgres or Redis.
 services:
   postgres:

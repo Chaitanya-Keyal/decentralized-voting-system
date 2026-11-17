@@ -13,9 +13,10 @@ import {VoterRegistry} from "./VoterRegistry.sol";
 /// a zero-knowledge proof.
 /// @dev Phases only move forward, and every step needs its scheduled time to have passed and an
 /// explicit transaction. The authority can configure the election until registration is due to
-/// open, and change its candidates or cancel it until voting is due to open. Only the registrar
-/// can publish the voter list, between the close of registration and the start of voting. Every
-/// other step can be triggered by anyone, so the authority cannot stall an election it dislikes.
+/// open, change its candidates until voting is due to open, and cancel it until a published voter
+/// list reaches its voting window. Only the registrar can publish the voter list, between the
+/// close of registration and the start of voting. Every other step can be triggered by anyone, so
+/// the authority cannot stall an election it dislikes.
 abstract contract Election is AccessControl, Initializable, VoterRegistry {
     enum Phase {
         Created,
@@ -168,10 +169,9 @@ abstract contract Election is AccessControl, Initializable, VoterRegistry {
         _setCandidates(candidates_);
     }
 
-    /// @notice Cancels the election before voting is due to open. Once the voter list is
-    /// published and the voting window has begun, the authority can no longer stop the vote. It
-    /// can still cancel an election whose list never appeared, or whose voting window passed
-    /// without voting opening.
+    /// @notice Cancels the election. Once a published voter list reaches its voting window, the
+    /// authority can no longer stop the vote. An election whose list never appeared, or whose
+    /// voting window passed without voting opening, can still be cancelled.
     function cancel() external onlyRole(AUTHORITY_ROLE) {
         _requireCancellable();
         _setPhase(Phase.Cancelled);
@@ -243,10 +243,6 @@ abstract contract Election is AccessControl, Initializable, VoterRegistry {
 
     function candidates() external view returns (Candidate[] memory) {
         return _candidates;
-    }
-
-    function candidateCount() external view returns (uint256) {
-        return _candidates.length;
     }
 
     /// @notice Votes per candidate. Empty until voting opens.

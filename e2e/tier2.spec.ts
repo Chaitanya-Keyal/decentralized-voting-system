@@ -66,7 +66,7 @@ test("an election runs end to end in the browser", async ({ page }) => {
     await test.step(`voter ${index} votes for ${choices[index]}`, async () => {
       await page.goto(`${election}/vote`);
       await connect(page, index);
-      await expect(page.getByText("found your wallet on it")).toBeVisible();
+      await expect(page.getByText("on the voter list, checked in this browser")).toBeVisible();
       if (index === 2) await screenshot(page, "21-wallet-booth");
       await page.getByLabel(choices[index] ?? "").check();
       await page.getByRole("button", { name: "Cast my ballot" }).click();

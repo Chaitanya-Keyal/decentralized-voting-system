@@ -40,7 +40,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - uses: foundry-rs/foundry-toolchain@v1
@@ -63,7 +63,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter @dvote/contracts --filter @dvote/shared
       - uses: foundry-rs/foundry-toolchain@v1
@@ -129,7 +129,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - uses: foundry-rs/foundry-toolchain@v1
@@ -138,7 +138,8 @@ jobs:
       - name: Start Anvil and deploy the contracts
         run: |
           anvil --silent &
-          sleep 2
+          for attempt in $(seq 30); do cast block-number > /dev/null 2>&1 && break; sleep 1; done
+          cast block-number > /dev/null
           pnpm deploy:local
       - name: Start the API, the indexer and the web app
         run: |
@@ -152,11 +153,14 @@ jobs:
           pnpm --filter @dvote/api indexer > indexer.log 2>&1 &
           pnpm --filter @dvote/api relayer > relayer.log 2>&1 &
           pnpm --filter @dvote/web start > web.log 2>&1 &
+          # Each service must answer within a minute, or the job stops here rather than in the tests.
           for url in http://127.0.0.1:4000/health http://127.0.0.1:4100/health http://localhost:3000 http://127.0.0.1:5001/api/v0/version; do
+            up=""
             for attempt in $(seq 60); do
-              curl -sf -X POST "$url" > /dev/null || curl -sf "$url" > /dev/null && break
+              if curl -sf -X POST "$url" > /dev/null || curl -sf "$url" > /dev/null; then up=1; break; fi
               sleep 1
             done
+            [ -n "$up" ] || { echo "$url did not come up"; tail -20 *.log; exit 1; }
           done
       - run: pnpm --filter @dvote/e2e exec playwright install --with-deps --only-shell chromium
       - run: pnpm e2e

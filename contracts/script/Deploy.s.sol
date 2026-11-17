@@ -9,10 +9,9 @@ import {VmSafe} from "forge-std/Vm.sol";
 import {ElectionFactory} from "../src/ElectionFactory.sol";
 import {MerkleElection} from "../src/MerkleElection.sol";
 import {SemaphoreElection} from "../src/SemaphoreElection.sol";
-import {VoteForwarder} from "../src/VoteForwarder.sol";
 
 /// @notice Deploys both tiers: the tier 2 election and its factory, and the tier 3 election with
-/// Semaphore's verifier, the vote forwarder and its own factory. Records the addresses in
+/// Semaphore's verifier and its own factory. Records the addresses in
 /// `deployments/<chain id>.json`. A dry run, without `--broadcast`, records nothing.
 /// @dev Locally, start a fresh `anvil` and run `pnpm deploy:local`. On a fresh chain the addresses
 /// are always the same, because they depend only on the deployer and its nonce. On Sepolia, set
@@ -32,9 +31,8 @@ contract Deploy is Script {
         MerkleElection merkleElection = new MerkleElection();
         ElectionFactory electionFactory = new ElectionFactory(address(merkleElection));
         SemaphoreVerifier verifier = new SemaphoreVerifier();
-        VoteForwarder forwarder = new VoteForwarder();
         SemaphoreElection semaphoreElection =
-            new SemaphoreElection(ISemaphoreVerifier(address(verifier)), address(forwarder));
+            new SemaphoreElection(ISemaphoreVerifier(address(verifier)));
         ElectionFactory semaphoreFactory = new ElectionFactory(address(semaphoreElection));
         vm.stopBroadcast();
 
@@ -49,7 +47,6 @@ contract Deploy is Script {
         vm.serializeAddress(key, "merkleElection", address(merkleElection));
         vm.serializeAddress(key, "electionFactory", address(electionFactory));
         vm.serializeAddress(key, "semaphoreVerifier", address(verifier));
-        vm.serializeAddress(key, "voteForwarder", address(forwarder));
         vm.serializeAddress(key, "semaphoreElection", address(semaphoreElection));
         string memory json = vm.serializeAddress(key, "semaphoreFactory", address(semaphoreFactory));
         vm.writeJson(

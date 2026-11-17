@@ -51,32 +51,24 @@ function SecrecyNote() {
 export function VotingKeyCard({
   election,
   restoreOnly = false,
-  compact = false,
 }: {
   election: OnchainElection;
   /** In the booth a new key would not be on the published list, so only restoring makes sense. */
   restoreOnly?: boolean;
-  /** Once registered, one line is enough: the key is here, and its backup is a click away. */
-  compact?: boolean;
 }) {
   const identity = useStoredIdentity(chain.id, election.address);
   const [problem, setProblem] = useState<string>();
 
-  if (compact && identity) {
-    return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Your voting key is in this browser.{" "}
-        <TextButton onClick={() => downloadIdentityBackup(chain.id, election.address, identity)}>
-          Download a backup
-        </TextButton>{" "}
-        to vote from another device; keep it private.
-      </p>
-    );
-  }
+  const cannotKeep =
+    "This browser would not keep the key, as happens in private browsing. Open this page in a normal window.";
 
   const create = () => {
+    setProblem(undefined);
     const fresh = createIdentity();
-    saveIdentity(chain.id, election.address, fresh);
+    if (!saveIdentity(chain.id, election.address, fresh)) {
+      setProblem(cannotKeep);
+      return;
+    }
     // Downloaded straight away: without it, a cleared browser means the voter cannot vote.
     downloadIdentityBackup(chain.id, election.address, fresh);
   };
@@ -86,7 +78,7 @@ export function VotingKeyCard({
     if (!file) return;
     try {
       const restored = parseIdentityBackup(await file.text(), chain.id, election.address);
-      saveIdentity(chain.id, election.address, restored);
+      if (!saveIdentity(chain.id, election.address, restored)) setProblem(cannotKeep);
     } catch (error) {
       setProblem(describeError(error));
     }
@@ -152,7 +144,14 @@ export function VotingKeyCard({
 }
 
 /** Registers this browser's voting key once the voter proves their institute email address. */
-export function IdentityRegistrationForm({ election }: { election: OnchainElection }) {
+export function IdentityRegistrationForm({
+  election,
+  onRegistered,
+}: {
+  election: OnchainElection;
+  /** Called with the checked receipt, which the page shows even if storage fails. */
+  onRegistered: (receipt: IdentityReceipt) => void;
+}) {
   const identity = useStoredIdentity(chain.id, election.address);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string>();
@@ -172,6 +171,7 @@ export function IdentityRegistrationForm({ election }: { election: OnchainElecti
       if (!matches) {
         throw new Error("The registrar's receipt is for a different key or election.");
       }
+      onRegistered(receipt);
       saveIdentityReceipt(receipt);
     } catch (error) {
       setProblem(describeError(error));
@@ -187,6 +187,7 @@ export function IdentityRegistrationForm({ election }: { election: OnchainElecti
     >
       <div className="flex flex-col gap-4">
         <InstituteSignIn
+          key={identity.commitment.toString()}
           election={election}
           subject={identity.commitment.toString()}
           submitLabel="Register my voting key"

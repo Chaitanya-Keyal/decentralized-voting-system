@@ -7,22 +7,26 @@
 import {
   relayAcceptedSchema,
   relayConfigSchema,
+  relayReceiptTypedData,
   relayStatusSchema,
   type AnonymousBallot,
 } from "@dvote/shared";
-import type { Address } from "viem";
+import { isAddressEqual, recoverTypedDataAddress, type Address } from "viem";
 
 import { call } from "./api";
-import { relayerUrl } from "./env";
+import { chain, relayerUrl } from "./env";
 
 export const relayerApi = {
   config: () => call(relayConfigSchema, "/config", undefined, relayerUrl),
   status: (id: string) => call(relayStatusSchema, `/ballots/${id}`, undefined, relayerUrl),
 };
 
-/** Hands the ballot to the relayer, which checks it and returns its signed promise to submit it. */
-export function relayBallot(args: { election: Address; ballot: AnonymousBallot }) {
-  return call(
+/**
+ * Hands the ballot to the relayer, which checks it and returns its signed promise to submit it.
+ * The promise is checked before it is kept: it must be for this ballot, signed by the relayer.
+ */
+export async function relayBallot(args: { election: Address; ballot: AnonymousBallot }) {
+  const accepted = await call(
     relayAcceptedSchema,
     "/ballots",
     {
@@ -33,4 +37,18 @@ export function relayBallot(args: { election: Address; ballot: AnonymousBallot }
     },
     relayerUrl,
   );
+  const { receipt } = accepted;
+  const forThisBallot =
+    receipt.chainId === chain.id &&
+    isAddressEqual(receipt.election, args.election) &&
+    receipt.nullifier === args.ballot.nullifier.toString() &&
+    receipt.choice === args.ballot.choice.toString();
+  const signer = await recoverTypedDataAddress({
+    ...relayReceiptTypedData(receipt),
+    signature: receipt.signature,
+  }).catch(() => undefined);
+  if (!forThisBallot || !signer || !isAddressEqual(signer, receipt.relayer)) {
+    throw new Error("The relayer's receipt does not match this ballot. Submit it from a wallet.");
+  }
+  return accepted;
 }

@@ -88,26 +88,13 @@ export function Header() {
     <header className="border-b border-zinc-200 dark:border-zinc-800">
       <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-4 py-3">
         <nav aria-label="Main" className="flex items-center gap-4 text-sm sm:gap-5">
+          {/* The home page is the list of elections, where an organiser also starts a new one. */}
           <Link href="/" className="text-base font-semibold tracking-tight">
             DVote
           </Link>
           <Link
-            href="/"
-            className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-          >
-            Elections
-          </Link>
-          <Link
-            href="/elections/new"
-            className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-          >
-            <span className="hidden sm:inline">New election</span>
-            <span className="sm:hidden">New</span>
-          </Link>
-          {/* On a phone there is no room; the footer and the home page link to it. */}
-          <Link
             href="/about"
-            className="hidden text-zinc-600 hover:text-zinc-900 sm:inline dark:text-zinc-400 dark:hover:text-zinc-100"
+            className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           >
             How it works
           </Link>

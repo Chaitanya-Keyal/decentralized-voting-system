@@ -15,7 +15,7 @@ import { recoverTypedDataAddress, type Address } from "viem";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { buildRelayer } from "../src/relayer/main";
-import { contracts, createElection, node, REGISTRAR, warpTo } from "./helpers";
+import { createElection, node, REGISTRAR, warpTo } from "./helpers";
 
 const ARTIFACTS = new URL("../node_modules/.cache/semaphore-artifacts/", import.meta.url).pathname;
 const RELAYER = process.env.RELAYER_ADDRESS as Address;
@@ -98,9 +98,9 @@ async function waitUntilMined(id: string, timeoutMs = 10_000) {
 }
 
 describe("relayer", () => {
-  it("names its account and the forwarder", async () => {
-    const config = (await relayer.inject("/config")).json<{ relayer: string; forwarder: string }>();
-    expect(config).toMatchObject({ relayer: RELAYER, forwarder: contracts.voteForwarder });
+  it("names its account", async () => {
+    const config = (await relayer.inject("/config")).json<{ relayer: string }>();
+    expect(config).toMatchObject({ relayer: RELAYER });
   });
 
   it("submits an anonymous ballot, pays for it, and signs a receipt", async () => {

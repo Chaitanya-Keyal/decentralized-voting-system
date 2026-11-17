@@ -1,7 +1,7 @@
 // Request and response bodies of the API, shared so the web app and the API agree on them.
 import { z } from "zod";
 
-import { commitmentSchema } from "./semaphore";
+import { commitmentSchema, SNARK_FIELD } from "./semaphore";
 import { addressSchema } from "./voter-list";
 
 export const hexSchema = z
@@ -181,15 +181,17 @@ export const indexerStatusSchema = z.object({
 // ---------------------------------------------------------------------------------------------
 
 const decimalSchema = z.string().regex(/^\d{1,78}$/, "Expected a number in decimal");
+const below = (limit: bigint, message: string) =>
+  decimalSchema.refine((value) => BigInt(value) < limit, message);
+const UINT256 = 1n << 256n;
 
 /** An anonymous ballot for the relayer to submit: the choice, the nullifier and the proof. */
 export const relayRequestSchema = z.object({
   election: addressSchema,
-  choice: decimalSchema,
-  nullifier: decimalSchema,
-  points: z.array(decimalSchema).length(8),
+  choice: below(UINT256, "The choice is out of range"),
+  nullifier: below(SNARK_FIELD, "The nullifier is out of range"),
+  points: z.array(below(UINT256, "A proof point is out of range")).length(8),
 });
-export type RelayRequest = z.input<typeof relayRequestSchema>;
 
 /** The relayer's signed promise to submit a ballot. The signature is over `relayReceiptTypedData`. */
 export const relayReceiptSchema = z.object({
@@ -219,6 +221,5 @@ export type RelayStatus = z.infer<typeof relayStatusSchema>;
 export const relayConfigSchema = z.object({
   chainId: z.number(),
   relayer: addressSchema,
-  forwarder: addressSchema,
 });
 export type RelayConfig = z.infer<typeof relayConfigSchema>;

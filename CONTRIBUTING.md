@@ -130,7 +130,7 @@ and format-on-save from `.vscode/`.
 
 ```bash
 pnpm format              # Prettier, writes changes
-pnpm lint                # ESLint over the whole workspace (pnpm lint:fix to auto-fix)
+pnpm lint                # ESLint over the apps, packages and tests (pnpm lint:fix to auto-fix)
 pnpm typecheck           # tsc in every package, strict mode
 pnpm test                # Vitest in every package that has tests
 pnpm format:contracts    # forge fmt
@@ -200,11 +200,15 @@ The `Dockerfile` builds one image for every service: the web app, the API, the i
 relayer and the database migration, each started with the command in the file's header. What
 the browser needs (`NEXT_PUBLIC_CHAIN_ID`, `NEXT_PUBLIC_RPC_URL`, `NEXT_PUBLIC_API_URL`,
 `NEXT_PUBLIC_RELAYER_URL`, `NEXT_PUBLIC_IPFS_GATEWAY`) is fixed at build time as build arguments.
-The services read their other settings at start-up: those in `.env.example`, and
-`GOOGLE_CLIENT_ID` for Google sign-in. When the web app is served from another origin than the
+The services read their other settings at start-up: those in `.env.example`. When the web app is served from another origin than the
 API and the relayer, set `WEB_ORIGIN` to its origin: they accept browser requests only from the
 origins listed there, and by default only from the local web app. Any setting can come from a file
 instead: `NAME_FILE=/run/secrets/name` sets `NAME`, so keys and passwords can be mounted as
 secrets. On a public chain the registrar needs `GOOGLE_CLIENT_ID`, the
 registrar and relayer need their own keys, and `AUTHORITIES` must list the wallets whose
 elections the deployment serves: the registrar, the relayer and the indexer all keep to them.
+
+With `PINATA_JWT` set, the registrar copies each voter list it publishes, with its election's
+description and manifestos, to Pinata, so any IPFS gateway can serve them. For elections published
+before it was set, `pnpm --filter @dvote/api copy-to-pinata <election address>...` copies them from
+the IPFS node at `IPFS_API_URL`.

@@ -19,13 +19,13 @@ function voterOf(key: Hex, tier: number): Hex {
   return tier === 3 ? key : slice(key, 12);
 }
 
-/** Every accepted ballot, from the indexer. Each one links to its transaction on-chain. */
 /** The ballot ID of the anonymous ballot this browser cast here, if any. */
 function useOwnBallot(election: Address): bigint | undefined {
   const cast = useCastBallot(chain.id, election);
   return cast?.counted ? BigInt(cast.nullifier) : undefined;
 }
 
+/** Every accepted ballot, from the indexer. Each one links to its transaction on-chain. */
 export function Ballots({
   election,
   candidates,
@@ -70,10 +70,7 @@ export function Ballots({
           {data.ballots.map((ballot) => {
             const link = explorerTx(ballot.txHash);
             return (
-              <tr
-                key={`${ballot.txHash}`}
-                className="border-t border-zinc-100 dark:border-zinc-900"
-              >
+              <tr key={ballot.key} className="border-t border-zinc-100 dark:border-zinc-900">
                 <td className="py-2 pr-4">
                   <Mono value={voterOf(ballot.key, tier)} />
                   {own !== undefined && BigInt(ballot.key) === own && (

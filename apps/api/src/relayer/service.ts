@@ -6,14 +6,12 @@
 //
 // The relayer calls `castVote` itself. The ballot's proof binds the choice and the election, and
 // `castVote` never reads the sender, so nothing is gained by having the voter sign the call: the
-// relayer can neither change a ballot nor cast one it was not given. Going through the ERC-2771
-// `VoteForwarder` instead, as the contracts also allow, costs a signature check and, for the fresh
-// key each ballot is signed with, a new nonce slot; under Glamsterdam's state pricing (EIP-8037)
-// that was about 127,000 gas more per ballot on Sepolia.
+// relayer can neither change a ballot nor cast one it was not given.
 import { createHash } from "node:crypto";
 
 import {
   AUTHORITY_ROLE,
+  electionFactories,
   electionFactoryAbi,
   Phase,
   relayReceiptTypedData,
@@ -126,13 +124,24 @@ export async function acceptBallot(
   const { election } = request;
   const ballot = toBallot(request);
 
-  const created = await publicClient.readContract({
-    address: deployment.semaphoreFactory,
-    abi: electionFactoryAbi,
-    functionName: "isElection",
-    args: [election],
-  });
-  if (!created) {
+  const created = await Promise.all(
+    electionFactories(deployment).map((factory) =>
+      publicClient.readContract({
+        address: factory,
+        abi: electionFactoryAbi,
+        functionName: "isElection",
+        args: [election],
+      }),
+    ),
+  );
+  const anonymous =
+    created.includes(true) &&
+    (await publicClient.readContract({
+      address: election,
+      abi: semaphoreElectionAbi,
+      functionName: "tier",
+    })) === 3;
+  if (!anonymous) {
     throw new HttpError(400, "The relayer only submits ballots for anonymous elections.");
   }
   if (!(await servesElection(election))) {
@@ -182,6 +191,12 @@ export async function acceptBallot(
       ...castVoteCall(election, ballot),
     });
   } catch (error) {
+    const reverted =
+      error instanceof BaseError &&
+      error.walk((cause) => cause instanceof ContractFunctionRevertedError) !== null;
+    if (!reverted) {
+      throw new HttpError(503, "The relayer cannot reach the chain just now. Try again shortly.");
+    }
     throw new HttpError(400, `The ballot would be refused on-chain: ${revertReason(error)}`);
   }
 

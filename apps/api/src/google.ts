@@ -3,7 +3,7 @@
 // the audience (our client ID) and the expiry. Membership of the institute is the `hd` (hosted
 // domain) claim, which Google sets only for accounts its Workspace manages; the email's domain
 // alone would not show that.
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, errors, jwtVerify } from "jose";
 
 import { env } from "./env";
 import { HttpError } from "./http";
@@ -24,8 +24,13 @@ export async function verifyGoogleIdToken(token: string, nonce: string): Promise
       audience: env.GOOGLE_CLIENT_ID,
       requiredClaims: ["exp", "iat", "nonce"],
       maxTokenAge: "10m",
+      clockTolerance: "5s",
     }));
-  } catch {
+  } catch (error) {
+    const unreachable = error instanceof errors.JWKSTimeout || !(error instanceof errors.JOSEError);
+    if (unreachable) {
+      throw new HttpError(503, "Google's sign-in keys could not be fetched. Try again shortly.");
+    }
     throw new HttpError(400, "Google sign-in did not check out. Sign in again.");
   }
   if (payload.nonce !== nonce) {

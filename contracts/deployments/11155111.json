@@ -1,10 +1,13 @@
 {
   "chainId": 11155111,
-  "electionFactory": "0x983f62B08b34AF0FeA66589141f64d3ec2eFFd54",
-  "merkleElection": "0x18574D1B6432b14C262dCf4Cee4C2604dF2016C3",
-  "semaphoreElection": "0xD04F2BE039C50f78eBa1353A8D4721fEc913A022",
-  "semaphoreFactory": "0xE2B0121FdC5b8E5359FdE77dE7e44333AAe90690",
-  "semaphoreVerifier": "0x58Bd456880b0CD225629ECF676c7bF611FFA1A1e",
-  "startBlock": 12150344,
-  "voteForwarder": "0xd0464A0CEa219C92c40d1A4770D43560aA701257"
+  "electionFactory": "0xd58fcA0A33832aFE632CeCcFa8cF76212A442D50",
+  "merkleElection": "0xf511F0313BC5ae067f115c360a695513fB9E2b25",
+  "semaphoreElection": "0xC68Bc7E5781BBCEeBE2A5191B1CA67a103c5F748",
+  "semaphoreFactory": "0x775dbb03Bf006965F87e823DE9a2b4bD43865659",
+  "semaphoreVerifier": "0x63793A1033c88645C8a25648e02Ad22F581Ccee1",
+  "earlierFactories": [
+    "0x983f62B08b34AF0FeA66589141f64d3ec2eFFd54",
+    "0xE2B0121FdC5b8E5359FdE77dE7e44333AAe90690"
+  ],
+  "startBlock": 12150344
 }

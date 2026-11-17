@@ -38,7 +38,6 @@ export default defineConfig({
         "MerkleElection.sol/MerkleElection.json",
         "SemaphoreElection.sol/SemaphoreElection.json",
         "ElectionFactory.sol/ElectionFactory.json",
-        "VoteForwarder.sol/VoteForwarder.json",
       ],
     }),
     deployments(),

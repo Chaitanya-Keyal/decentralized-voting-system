@@ -75,14 +75,11 @@ async function deployContracts(rpcUrl: string) {
   const verifier = await deploy(
     await client.deployContract({ abi: [], bytecode: bytecode("SemaphoreVerifier") }),
   );
-  const forwarder = await deploy(
-    await client.deployContract({ abi: [], bytecode: bytecode("VoteForwarder") }),
-  );
   const semaphoreElection = await deploy(
     await client.deployContract({
       abi: semaphoreElectionAbi,
       bytecode: bytecode("SemaphoreElection"),
-      args: [verifier, forwarder],
+      args: [verifier],
     }),
   );
   const semaphoreFactory = await deploy(
@@ -93,7 +90,7 @@ async function deployContracts(rpcUrl: string) {
     }),
   );
   const expected = deploymentFor(anvil.id);
-  const deployed = { electionFactory, voteForwarder: forwarder, semaphoreFactory };
+  const deployed = { electionFactory, semaphoreFactory };
   for (const [name, address] of Object.entries(deployed)) {
     const want = expected?.[name as keyof typeof deployed];
     if (!want || !isAddressEqual(address, want)) {

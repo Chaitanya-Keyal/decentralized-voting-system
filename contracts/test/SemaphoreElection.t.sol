@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {ERC2771Forwarder} from "@openzeppelin/contracts/metatx/ERC2771Forwarder.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {SemaphoreVerifier} from "@semaphore-protocol/contracts/base/SemaphoreVerifier.sol";
 import {ISemaphoreVerifier} from "@semaphore-protocol/contracts/interfaces/ISemaphoreVerifier.sol";
@@ -10,7 +9,6 @@ import {Test} from "forge-std/Test.sol";
 import {Election} from "../src/Election.sol";
 import {SemaphoreElection} from "../src/SemaphoreElection.sol";
 import {TallyLib} from "../src/TallyLib.sol";
-import {VoteForwarder} from "../src/VoteForwarder.sol";
 
 /// @dev The ballots in fixtures/semaphore-ballots.json are real Semaphore v4 proofs made in
 /// TypeScript (packages/shared/src/semaphore.test.ts) for an election at a fixed address, so the
@@ -23,7 +21,6 @@ contract SemaphoreElectionTest is Test {
     }
 
     SemaphoreVerifier internal verifier;
-    VoteForwarder internal forwarder;
     SemaphoreElection internal implementation;
     SemaphoreElection internal election;
     Election.Schedule internal schedule;
@@ -37,9 +34,7 @@ contract SemaphoreElectionTest is Test {
         fixture =
             vm.readFile(string.concat(vm.projectRoot(), "/test/fixtures/semaphore-ballots.json"));
         verifier = new SemaphoreVerifier();
-        forwarder = new VoteForwarder();
-        implementation =
-            new SemaphoreElection(ISemaphoreVerifier(address(verifier)), address(forwarder));
+        implementation = new SemaphoreElection(ISemaphoreVerifier(address(verifier)));
         uint64 t = uint64(block.timestamp);
         schedule = Election.Schedule(t + 100, t + 200, t + 300, t + 400);
     }
@@ -140,66 +135,30 @@ contract SemaphoreElectionTest is Test {
     }
 
     // -------------------------------------------------------------------------------------------
-    // Gasless ballots through the forwarder
+    // Ballots submitted by someone else
     // -------------------------------------------------------------------------------------------
 
-    function test_forwarder_relaysABallotSignedByAThrowawayKey() public {
+    function test_castVote_anyAccountMaySubmitABallot() public {
         _openVoting(TallyLib.CountingRule.Plurality, _root(), _count());
-        (address throwaway, uint256 key) = makeAddrAndKey("throwaway");
-        Ballot memory b = _ballot(".ballots[2]");
-
-        ERC2771Forwarder.ForwardRequestData memory request = _request(throwaway, key, b);
+        Ballot memory b = _ballot(".ballots[0]");
         vm.prank(relayer);
-        forwarder.execute(request);
-
-        assertEq(election.tally()[2], 1);
-        assertEq(throwaway.balance, 0);
-        // The forwarder rejects the same request again, and the nullifier the ballot itself.
-        vm.expectRevert();
-        vm.prank(relayer);
-        forwarder.execute(request);
+        _cast(b);
+        assertEq(election.tally()[b.choice], 1);
+        assertTrue(election.ballotKeyUsed(bytes32(b.nullifier)));
     }
 
-    function test_forwarder_aSecondKeyCannotReplayACountedBallot() public {
+    function test_castVote_anotherAccountCannotReplayACountedBallot() public {
         _openVoting(TallyLib.CountingRule.Plurality, _root(), _count());
-        Ballot memory b = _ballot(".ballots[2]");
-        (address first, uint256 firstKey) = makeAddrAndKey("first throwaway");
-        (address second, uint256 secondKey) = makeAddrAndKey("second throwaway");
+        Ballot memory b = _ballot(".ballots[0]");
         vm.prank(relayer);
-        forwarder.execute(_request(first, firstKey, b));
-
-        // A fresh key passes the forwarder's checks, so only the nullifier stops the replay.
-        ERC2771Forwarder.ForwardRequestData memory replay = _request(second, secondKey, b);
-        assertTrue(forwarder.verify(replay));
-        vm.expectRevert();
-        vm.prank(relayer);
-        forwarder.execute(replay);
-        // What the forwarder ran into: the election refuses the spent nullifier, whoever sends it.
+        _cast(b);
+        // A different sender with the same proof is stopped by the nullifier alone.
+        vm.prank(makeAddr("someone else"));
         vm.expectRevert(
             abi.encodeWithSelector(Election.AlreadyVoted.selector, bytes32(b.nullifier))
         );
         _cast(b);
         assertEq(election.ballotsCast(), 1);
-    }
-
-    function test_forwarder_cannotChangeTheBallotItCarries() public {
-        _openVoting(TallyLib.CountingRule.Plurality, _root(), _count());
-        (address throwaway, uint256 key) = makeAddrAndKey("throwaway");
-        Ballot memory b = _ballot(".ballots[2]");
-        ERC2771Forwarder.ForwardRequestData memory request = _request(throwaway, key, b);
-        request.data = abi.encodeCall(SemaphoreElection.castVote, (0, b.nullifier, b.points));
-
-        // The signature no longer matches the request, so the forwarder refuses it.
-        vm.expectRevert();
-        vm.prank(relayer);
-        forwarder.execute(request);
-        assertEq(election.ballotsCast(), 0);
-    }
-
-    function test_forwarder_isTrustedByTheElection() public {
-        _openVoting(TallyLib.CountingRule.Plurality, _root(), _count());
-        assertTrue(election.isTrustedForwarder(address(forwarder)));
-        assertEq(election.trustedForwarder(), address(forwarder));
     }
 
     // -------------------------------------------------------------------------------------------
@@ -230,11 +189,9 @@ contract SemaphoreElectionTest is Test {
         assertEq(election.scope(), uint256(uint160(address(election))));
     }
 
-    function test_constructor_rejectsZeroAddresses() public {
+    function test_constructor_rejectsAZeroVerifier() public {
         vm.expectRevert(Election.ZeroAddress.selector);
-        new SemaphoreElection(ISemaphoreVerifier(address(0)), address(forwarder));
-        vm.expectRevert(Election.ZeroAddress.selector);
-        new SemaphoreElection(ISemaphoreVerifier(address(verifier)), address(0));
+        new SemaphoreElection(ISemaphoreVerifier(address(0)));
     }
 
     // -------------------------------------------------------------------------------------------
@@ -298,49 +255,5 @@ contract SemaphoreElectionTest is Test {
 
     function _count() internal view returns (uint256) {
         return vm.parseJsonUint(fixture, ".voterCount");
-    }
-
-    function _request(address from, uint256 key, Ballot memory b)
-        internal
-        view
-        returns (ERC2771Forwarder.ForwardRequestData memory request)
-    {
-        request = ERC2771Forwarder.ForwardRequestData({
-            from: from,
-            to: address(election),
-            value: 0,
-            gas: 1_000_000,
-            deadline: uint48(block.timestamp + 1 hours),
-            data: abi.encodeCall(SemaphoreElection.castVote, (b.choice, b.nullifier, b.points)),
-            signature: ""
-        });
-        bytes32 structHash = keccak256(
-            abi.encode(
-                keccak256(
-                    "ForwardRequest(address from,address to,uint256 value,uint256 gas,uint256 nonce,uint48 deadline,bytes data)"
-                ),
-                request.from,
-                request.to,
-                request.value,
-                request.gas,
-                forwarder.nonces(from),
-                request.deadline,
-                keccak256(request.data)
-            )
-        );
-        bytes32 domain = keccak256(
-            abi.encode(
-                keccak256(
-                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                ),
-                keccak256("DVote VoteForwarder"),
-                keccak256("1"),
-                block.chainid,
-                address(forwarder)
-            )
-        );
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(key, keccak256(abi.encodePacked("\x19\x01", domain, structHash)));
-        request.signature = abi.encodePacked(r, s, v);
     }
 }

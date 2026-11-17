@@ -26,7 +26,8 @@ export default function AboutPage() {
       <ol>
         <li>
           <strong>The organiser creates it</strong> from their wallet: the title, the candidates and
-          the schedule. All three are fixed in the election&apos;s contract.
+          the schedule. All three are recorded in the election&apos;s contract; the schedule is
+          fixed once registration opens, and the candidates once voting opens.
         </li>
         <li>
           <strong>Voters register.</strong> Each voter&apos;s browser makes a voting key, and they
@@ -64,7 +65,8 @@ export default function AboutPage() {
         </li>
         <li>
           <strong>Private:</strong> who cast which ballot. The registrar knows who registered but
-          cannot tell which ballot is whose, and the relayer sees ballots but not who sent them.
+          cannot tell which ballot is whose. The relayer sees each ballot and the network address it
+          came from, but not whose key made it.
         </li>
         <li>
           <strong>Kept by the registrar only:</strong> email addresses, to stop anyone registering

@@ -42,27 +42,6 @@ export const electionFactoryAbi = [
   },
   {
     type: "function",
-    inputs: [{ name: "index", internalType: "uint256", type: "uint256" }],
-    name: "electionAt",
-    outputs: [{ name: "", internalType: "address", type: "address" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    inputs: [],
-    name: "electionCount",
-    outputs: [{ name: "", internalType: "uint256", type: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    inputs: [],
-    name: "elections",
-    outputs: [{ name: "", internalType: "address[]", type: "address[]" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
     inputs: [],
     name: "implementation",
     outputs: [{ name: "", internalType: "address", type: "address" }],
@@ -145,13 +124,6 @@ export const merkleElectionAbi = [
     stateMutability: "view",
   },
   { type: "function", inputs: [], name: "cancel", outputs: [], stateMutability: "nonpayable" },
-  {
-    type: "function",
-    inputs: [],
-    name: "candidateCount",
-    outputs: [{ name: "", internalType: "uint256", type: "uint256" }],
-    stateMutability: "view",
-  },
   {
     type: "function",
     inputs: [],
@@ -583,10 +555,7 @@ export const merkleElectionAbi = [
 export const semaphoreElectionAbi = [
   {
     type: "constructor",
-    inputs: [
-      { name: "verifier_", internalType: "contract ISemaphoreVerifier", type: "address" },
-      { name: "forwarder", internalType: "address", type: "address" },
-    ],
+    inputs: [{ name: "verifier_", internalType: "contract ISemaphoreVerifier", type: "address" }],
     stateMutability: "nonpayable",
   },
   {
@@ -632,13 +601,6 @@ export const semaphoreElectionAbi = [
     stateMutability: "view",
   },
   { type: "function", inputs: [], name: "cancel", outputs: [], stateMutability: "nonpayable" },
-  {
-    type: "function",
-    inputs: [],
-    name: "candidateCount",
-    outputs: [{ name: "", internalType: "uint256", type: "uint256" }],
-    stateMutability: "view",
-  },
   {
     type: "function",
     inputs: [],
@@ -763,13 +725,6 @@ export const semaphoreElectionAbi = [
     name: "initialize",
     outputs: [],
     stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    inputs: [{ name: "forwarder", internalType: "address", type: "address" }],
-    name: "isTrustedForwarder",
-    outputs: [{ name: "", internalType: "bool", type: "bool" }],
-    stateMutability: "view",
   },
   {
     type: "function",
@@ -900,13 +855,6 @@ export const semaphoreElectionAbi = [
     inputs: [],
     name: "title",
     outputs: [{ name: "", internalType: "string", type: "string" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    inputs: [],
-    name: "trustedForwarder",
-    outputs: [{ name: "", internalType: "address", type: "address" }],
     stateMutability: "view",
   },
   {
@@ -1093,166 +1041,6 @@ export const semaphoreElectionAbi = [
 ] as const;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// VoteForwarder
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-export const voteForwarderAbi = [
-  { type: "constructor", inputs: [], stateMutability: "nonpayable" },
-  {
-    type: "function",
-    inputs: [],
-    name: "eip712Domain",
-    outputs: [
-      { name: "fields", internalType: "bytes1", type: "bytes1" },
-      { name: "name", internalType: "string", type: "string" },
-      { name: "version", internalType: "string", type: "string" },
-      { name: "chainId", internalType: "uint256", type: "uint256" },
-      { name: "verifyingContract", internalType: "address", type: "address" },
-      { name: "salt", internalType: "bytes32", type: "bytes32" },
-      { name: "extensions", internalType: "uint256[]", type: "uint256[]" },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    inputs: [
-      {
-        name: "request",
-        internalType: "struct ERC2771Forwarder.ForwardRequestData",
-        type: "tuple",
-        components: [
-          { name: "from", internalType: "address", type: "address" },
-          { name: "to", internalType: "address", type: "address" },
-          { name: "value", internalType: "uint256", type: "uint256" },
-          { name: "gas", internalType: "uint256", type: "uint256" },
-          { name: "deadline", internalType: "uint48", type: "uint48" },
-          { name: "data", internalType: "bytes", type: "bytes" },
-          { name: "signature", internalType: "bytes", type: "bytes" },
-        ],
-      },
-    ],
-    name: "execute",
-    outputs: [],
-    stateMutability: "payable",
-  },
-  {
-    type: "function",
-    inputs: [
-      {
-        name: "requests",
-        internalType: "struct ERC2771Forwarder.ForwardRequestData[]",
-        type: "tuple[]",
-        components: [
-          { name: "from", internalType: "address", type: "address" },
-          { name: "to", internalType: "address", type: "address" },
-          { name: "value", internalType: "uint256", type: "uint256" },
-          { name: "gas", internalType: "uint256", type: "uint256" },
-          { name: "deadline", internalType: "uint48", type: "uint48" },
-          { name: "data", internalType: "bytes", type: "bytes" },
-          { name: "signature", internalType: "bytes", type: "bytes" },
-        ],
-      },
-      { name: "refundReceiver", internalType: "address payable", type: "address" },
-    ],
-    name: "executeBatch",
-    outputs: [],
-    stateMutability: "payable",
-  },
-  {
-    type: "function",
-    inputs: [{ name: "owner", internalType: "address", type: "address" }],
-    name: "nonces",
-    outputs: [{ name: "", internalType: "uint256", type: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    inputs: [
-      {
-        name: "request",
-        internalType: "struct ERC2771Forwarder.ForwardRequestData",
-        type: "tuple",
-        components: [
-          { name: "from", internalType: "address", type: "address" },
-          { name: "to", internalType: "address", type: "address" },
-          { name: "value", internalType: "uint256", type: "uint256" },
-          { name: "gas", internalType: "uint256", type: "uint256" },
-          { name: "deadline", internalType: "uint48", type: "uint48" },
-          { name: "data", internalType: "bytes", type: "bytes" },
-          { name: "signature", internalType: "bytes", type: "bytes" },
-        ],
-      },
-    ],
-    name: "verify",
-    outputs: [{ name: "", internalType: "bool", type: "bool" }],
-    stateMutability: "view",
-  },
-  { type: "event", anonymous: false, inputs: [], name: "EIP712DomainChanged" },
-  {
-    type: "event",
-    anonymous: false,
-    inputs: [
-      { name: "signer", internalType: "address", type: "address", indexed: true },
-      { name: "nonce", internalType: "uint256", type: "uint256", indexed: false },
-      { name: "success", internalType: "bool", type: "bool", indexed: false },
-    ],
-    name: "ExecutedForwardRequest",
-  },
-  {
-    type: "error",
-    inputs: [{ name: "deadline", internalType: "uint48", type: "uint48" }],
-    name: "ERC2771ForwarderExpiredRequest",
-  },
-  {
-    type: "error",
-    inputs: [
-      { name: "signer", internalType: "address", type: "address" },
-      { name: "from", internalType: "address", type: "address" },
-    ],
-    name: "ERC2771ForwarderInvalidSigner",
-  },
-  {
-    type: "error",
-    inputs: [
-      { name: "requestedValue", internalType: "uint256", type: "uint256" },
-      { name: "msgValue", internalType: "uint256", type: "uint256" },
-    ],
-    name: "ERC2771ForwarderMismatchedValue",
-  },
-  {
-    type: "error",
-    inputs: [
-      { name: "target", internalType: "address", type: "address" },
-      { name: "forwarder", internalType: "address", type: "address" },
-    ],
-    name: "ERC2771UntrustfulTarget",
-  },
-  { type: "error", inputs: [], name: "FailedCall" },
-  {
-    type: "error",
-    inputs: [
-      { name: "balance", internalType: "uint256", type: "uint256" },
-      { name: "needed", internalType: "uint256", type: "uint256" },
-    ],
-    name: "InsufficientBalance",
-  },
-  {
-    type: "error",
-    inputs: [
-      { name: "account", internalType: "address", type: "address" },
-      { name: "currentNonce", internalType: "uint256", type: "uint256" },
-    ],
-    name: "InvalidAccountNonce",
-  },
-  { type: "error", inputs: [], name: "InvalidShortString" },
-  {
-    type: "error",
-    inputs: [{ name: "str", internalType: "string", type: "string" }],
-    name: "StringTooLong",
-  },
-] as const;
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Deployments
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1261,20 +1049,22 @@ export const deployments = {
     chainId: 31337,
     electionFactory: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
     merkleElection: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-    semaphoreElection: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
-    semaphoreFactory: "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+    semaphoreElection: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+    semaphoreFactory: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
     semaphoreVerifier: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
     startBlock: 0,
-    voteForwarder: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
   },
   "11155111": {
     chainId: 11155111,
-    electionFactory: "0x983f62B08b34AF0FeA66589141f64d3ec2eFFd54",
-    merkleElection: "0x18574D1B6432b14C262dCf4Cee4C2604dF2016C3",
-    semaphoreElection: "0xD04F2BE039C50f78eBa1353A8D4721fEc913A022",
-    semaphoreFactory: "0xE2B0121FdC5b8E5359FdE77dE7e44333AAe90690",
-    semaphoreVerifier: "0x58Bd456880b0CD225629ECF676c7bF611FFA1A1e",
+    electionFactory: "0xd58fcA0A33832aFE632CeCcFa8cF76212A442D50",
+    merkleElection: "0xf511F0313BC5ae067f115c360a695513fB9E2b25",
+    semaphoreElection: "0xC68Bc7E5781BBCEeBE2A5191B1CA67a103c5F748",
+    semaphoreFactory: "0x775dbb03Bf006965F87e823DE9a2b4bD43865659",
+    semaphoreVerifier: "0x63793A1033c88645C8a25648e02Ad22F581Ccee1",
+    earlierFactories: [
+      "0x983f62B08b34AF0FeA66589141f64d3ec2eFFd54",
+      "0xE2B0121FdC5b8E5359FdE77dE7e44333AAe90690",
+    ],
     startBlock: 12150344,
-    voteForwarder: "0xd0464A0CEa219C92c40d1A4770D43560aA701257",
   },
 } as const;

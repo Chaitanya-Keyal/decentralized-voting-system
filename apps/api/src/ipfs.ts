@@ -2,6 +2,7 @@ import type { FastifyBaseLogger } from "fastify";
 import { z } from "zod";
 
 import { env } from "./env";
+import { loggable } from "./redact";
 
 const addResponse = z.object({ Hash: z.string() });
 const uploadResponse = z.object({ data: z.object({ cid: z.string() }) });
@@ -67,7 +68,7 @@ export async function copyToPinata(
       copied += 1;
       log.info({ cid }, "Copied to Pinata");
     } catch (error) {
-      log.warn({ cid, err: error }, "Could not copy the document to Pinata");
+      log.warn({ cid, err: loggable(error) }, "Could not copy the document to Pinata");
     }
   }
   return { copied, failed: documents.length - copied };

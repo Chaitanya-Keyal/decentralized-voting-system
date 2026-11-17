@@ -125,8 +125,7 @@ function Booth({ election, account }: { election: OnchainElection; account: Addr
 
   const checked = (
     <Notice tone="success">
-      Your browser downloaded the voter list, checked that it produces the root recorded in the
-      contract, and found your wallet on it. It built your proof itself, without asking anyone.
+      You&apos;re on the voter list, checked in this browser against the contract.
     </Notice>
   );
 

@@ -5,6 +5,7 @@ import type { Address } from "viem";
 import { publicClient } from "./chain";
 import { env } from "./env";
 import { copyToPinata, type Document } from "./ipfs";
+import { loggable } from "./redact";
 
 /**
  * An election's documents on IPFS, as its contract names them: its voter list, its description and
@@ -42,6 +43,9 @@ export async function copyElectionToPinata(
     const { copied, failed } = await copyToPinata(await electionDocuments(election, listCid), log);
     log.info({ election, copied, failed }, "Copied the election's documents to Pinata");
   } catch (error) {
-    log.warn({ election, err: error }, "Could not copy the election's documents to Pinata");
+    log.warn(
+      { election, err: loggable(error) },
+      "Could not copy the election's documents to Pinata",
+    );
   }
 }

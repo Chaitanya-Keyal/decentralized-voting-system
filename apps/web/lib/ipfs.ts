@@ -15,26 +15,32 @@ export function publicIpfsUrl(cid: string): string | undefined {
 }
 
 /**
- * Downloads a JSON document and checks its shape: from this site's gateway, or if that fails, from
- * a public one, whose answer is taken only if it hashes to the CID.
+ * Downloads a JSON document and checks its shape: from this site's gateway, or if that fails or
+ * sends something else, from a public one. A document stored as one raw block, as every
+ * description, manifesto and list of a few thousand voters is, is taken only if it hashes to its
+ * CID. A larger one can come only from this site's gateway, and a voter list is checked against
+ * the on-chain root wherever it came from.
  */
 export async function fetchFromIpfs<T extends z.ZodType>(
   schema: T,
   cid: string,
 ): Promise<z.output<T>> {
-  return schema.parse(JSON.parse(new TextDecoder().decode(await download(cid))));
-}
-
-async function download(cid: string): Promise<Uint8Array> {
-  try {
-    return await bytesFrom(ipfsUrl(cid));
-  } catch (error) {
-    const elsewhere = publicIpfsUrl(cid);
-    if (!elsewhere || !rawDigest(cid)) throw error;
-    const bytes = await bytesFrom(elsewhere);
-    if (!(await hashesTo(cid, bytes))) throw new Error(`${elsewhere} sent a different document`);
-    return bytes;
+  const sources = [ipfsUrl(cid)];
+  const elsewhere = publicIpfsUrl(cid);
+  if (elsewhere && rawDigest(cid)) sources.push(elsewhere);
+  let failure: unknown;
+  for (const url of sources) {
+    try {
+      const bytes = await bytesFrom(url);
+      if (rawDigest(cid) && !(await hashesTo(cid, bytes))) {
+        throw new Error(`${url} sent a different document`);
+      }
+      return schema.parse(JSON.parse(new TextDecoder().decode(bytes)));
+    } catch (error) {
+      failure = error;
+    }
   }
+  throw failure;
 }
 
 async function bytesFrom(url: string): Promise<Uint8Array> {

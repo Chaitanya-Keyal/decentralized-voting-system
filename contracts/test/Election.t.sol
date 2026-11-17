@@ -57,7 +57,7 @@ contract ElectionTest is Test {
         assertTrue(election.hasRole(election.REGISTRAR_ROLE(), registrar));
         assertEq(election.title(), "Senate");
         assertEq(election.metadataCid(), "bafy-ballot");
-        assertEq(election.candidateCount(), 3);
+        assertEq(election.candidates().length, 3);
         assertEq(election.candidates()[1].name, "Candidate 1");
         assertEq(uint8(election.phase()), uint8(Election.Phase.Created));
     }
@@ -181,12 +181,12 @@ contract ElectionTest is Test {
     function test_setCandidates_allowedUntilVotingOpens() public {
         vm.prank(authority);
         election.setCandidates(_candidates(2));
-        assertEq(election.candidateCount(), 2);
+        assertEq(election.candidates().length, 2);
 
         _toRegistration();
         vm.prank(authority);
         election.setCandidates(_candidates(4));
-        assertEq(election.candidateCount(), 4);
+        assertEq(election.candidates().length, 4);
 
         _publish(1);
         _toVoting();

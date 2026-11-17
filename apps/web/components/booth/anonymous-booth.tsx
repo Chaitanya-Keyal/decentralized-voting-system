@@ -8,7 +8,7 @@ import { useBlockNumber, useConfig, usePublicClient, useReadContract } from "wag
 import { simulateContract, writeContract } from "wagmi/actions";
 
 import type { OnchainElection } from "@/lib/election";
-import { chain, explorerTx, simulateAt } from "@/lib/env";
+import { chain, explorer, explorerAddress, explorerTx, simulateAt } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 import { useHideWallet } from "@/lib/header-wallet";
 import {
@@ -72,8 +72,9 @@ async function waitUntilCounted(args: {
   const started = Date.now();
   while (Date.now() - started < RELAY_PATIENCE_MS) {
     const status = await relayerApi.status(args.id).catch(() => undefined);
-    if (status?.status === "mined") return status.txHash;
-    if (await args.isCounted().catch(() => false)) return undefined;
+    if (await args.isCounted().catch(() => false)) {
+      return status?.status === "mined" ? status.txHash : undefined;
+    }
     if (status?.status === "failed") {
       throw new Error(
         `The relayer could not submit the ballot (${status.error ?? "no reason given"}). Try again, or submit it from a wallet.`,
@@ -162,8 +163,9 @@ function AnonymousBallotForm({
     }
   }
 
-  const castFromWallet = () =>
-    void transaction.send(async () => {
+  async function castFromWallet() {
+    let sent: AnonymousBallot | undefined;
+    const receipt = await transaction.send(async () => {
       setStep({ kind: "idle" });
       const ballot = await prove();
       const { request } = await simulateContract(config, {
@@ -176,9 +178,13 @@ function AnonymousBallotForm({
         args: [ballot.choice, ballot.nullifier, ballot.points],
       });
       const hash = await writeContract(config, request);
-      record(ballot, { txHash: hash, counted: true });
+      sent = ballot;
+      record(ballot, { txHash: hash });
       return hash;
     });
+    // Counted only once the transaction has succeeded on-chain.
+    if (receipt && sent) record(sent, { txHash: receipt.transactionHash, counted: true });
+  }
 
   return (
     <Card
@@ -237,7 +243,7 @@ function AnonymousBallotForm({
               <Button
                 type="button"
                 variant="secondary"
-                onClick={castFromWallet}
+                onClick={() => void castFromWallet()}
                 disabled={choice === undefined || busy || transaction.busy || !wallet.ready}
                 title={wallet.blocker}
               >
@@ -256,7 +262,9 @@ function AnonymousBallotForm({
 }
 
 function CastBallotCard({ election, ballot }: { election: OnchainElection; ballot: CastBallot }) {
-  const link = ballot.txHash ? explorerTx(ballot.txHash) : undefined;
+  const id = pad(toHex(BigInt(ballot.nullifier)));
+  const transaction = ballot.txHash ? explorerTx(ballot.txHash) : undefined;
+  const events = explorerAddress(election.address);
   return (
     <>
       <Notice tone="success">
@@ -264,30 +272,26 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
         you nothing.
       </Notice>
       <p className="text-sm text-zinc-700 dark:text-zinc-300">
-        Your ballot ID is <Mono value={pad(toHex(BigInt(ballot.nullifier)))} />. On the
-        election&apos;s page, this browser marks your ballot &ldquo;yours&rdquo;; note the ID if you
-        want to find it from another device. Nobody can connect the ID to your name.{" "}
-        <CopyButton value={pad(toHex(BigInt(ballot.nullifier)))}>Copy the ballot ID</CopyButton>
+        Your ballot ID is <Mono value={id} />. Nobody can connect it to your name. On the
+        election&apos;s page this browser marks your ballot &ldquo;yours&rdquo;; note the ID to find
+        it from another device. <CopyButton value={id}>Copy the ballot ID</CopyButton>
       </p>
-      <Disclosure summary="Details">
-        {ballot.txHash && (
-          <p>
-            Transaction{" "}
-            {link ? (
-              <ExternalLink href={link}>
-                <Mono value={ballot.txHash} />
-              </ExternalLink>
-            ) : (
-              <Mono value={ballot.txHash} />
-            )}
-          </p>
-        )}
-        {ballot.relayReceipt && (
-          <p>
-            The relayer signed a receipt for it at {formatTime(ballot.relayReceipt.acceptedAt)}.
-          </p>
-        )}
-      </Disclosure>
+      {(transaction ?? events) && (
+        <p className="text-sm text-zinc-700 dark:text-zinc-300">
+          To check it without this site, open{" "}
+          {transaction ? (
+            <ExternalLink href={transaction}>
+              your ballot&apos;s transaction on {explorer?.name}
+            </ExternalLink>
+          ) : (
+            <ExternalLink href={`${events}?tab=logs`}>
+              the election&apos;s events on {explorer?.name}
+            </ExternalLink>
+          )}
+          : its <code className="font-mono text-xs">VoteCast</code> event shows this ballot ID and
+          your choice.
+        </p>
+      )}
       <LinkButton href={`/elections/${election.address}`} variant="secondary">
         See your ballot in the count
       </LinkButton>
