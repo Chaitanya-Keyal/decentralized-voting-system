@@ -40,11 +40,9 @@ then stay off the list.
 - the relayer's account, funded, and a funded backup key;
 - two or three funded wallets for direct submission, in case the relayer is down.
 
-**Sign-in.** Google sign-in is a hard requirement: it is the only way to register on the public
-demo, since the demo cannot send email and so email codes are off there. Check it with a real
-institute account the day before. If it is not working by then, run the demo on the laptop's
-local stack instead ([CONTRIBUTING.md](../CONTRIBUTING.md#local-setup)), where codes go to
-Mailpit and the presenters play the voters; the room watches rather than votes.
+**Sign-in.** Voters register by signing in with their institute Google account, so check it with
+a real institute account the day before. If it is not working by then, show the finished
+election and the backup video instead.
 
 **A finished election.** Run one complete anonymous election the day before, with a few
 voters. Its result page and audit can then be shown at once if the live election runs late. A
@@ -53,7 +51,8 @@ finished wallet election makes a useful comparison: its ballots table shows who 
 **Rehearsals.** Rehearse three times on the presentation laptop and the room's network, timing
 each step. A backup video, [demo-backup.mp4](demo-backup.mp4), tells the whole story in under
 two and a half minutes: a scripted run on a local chain, in dark mode, narrated, with a caption and
-a visible pointer for each step.
+a visible pointer for each step. Its voters sign in through the browser tests' stand-in for Google
+(`e2e/google.ts`), which shows an address box where Google's button would be.
 `E2E_VIDEO=1 E2E_VIDEO_OUT=<file> pnpm e2e --grep "backup video"` records it again after a change;
 the comment at the top of `e2e/video.spec.ts` says how the narration is laid over it.
 A recording of a live rehearsal on Sepolia is a better backup still, if there is time.
