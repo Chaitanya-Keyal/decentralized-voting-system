@@ -5,7 +5,7 @@
 | Actor | On-chain identity | Can do | Explicitly *cannot* do |
 |---|---|---|---|
 | **Election Authority** | `AUTHORITY_ROLE` | Configure an election before registration opens (windows, metadata CID); change its candidates and cancel it until voting opens | Cast or alter a ballot, change the voter root after registration closes, delay or block the count |
-| **Registrar** | `REGISTRAR_ROLE` | Verify eligibility off-chain (an institute email address, by emailed code or Google sign-in), collect identity commitments (wallet addresses in tier 2) into an off-chain tree, publish the root, the roll size and the leaf-set CID | Add voters after the root is frozen; learn which leaf is voting, because the booth derives its own authentication path |
+| **Registrar** | `REGISTRAR_ROLE` | Verify eligibility off-chain (an institute email address, by Google sign-in for the institute's domain), collect identity commitments (wallet addresses in tier 2) into an off-chain tree, publish the root, the roll size and the leaf-set CID | Add voters after the root is frozen; learn which leaf is voting, because the booth derives its own authentication path |
 | **Voter** | *none* (anonymous) | Register an identity commitment, check that commitment appears in the published leaf set, cast exactly one ballot, verify their own ballot landed | Vote twice, vote without being in the committed set |
 | **Candidate** | address (optional) | Be listed on a ballot, publish a manifesto to IPFS | Anything privileged |
 | **Auditor / Observer** | *none* (permissionless) | Re-derive the full tally from chain events, verify every ZK proof, recompute the root from the published leaf set, trigger any phase change once its time has passed | Alter anything |
@@ -409,13 +409,13 @@ still does not make the declared number honest, which is the roll correctness no
 
 Not a source of truth; it is a convenience and liveness layer. Four services:
 
-- **Registrar**: off-chain eligibility check: the voter proves an institute email address with
-  a one-time code emailed to it, or with Google sign-in, where the registrar checks the ID token's
+- **Registrar**: off-chain eligibility check: the voter proves an institute email address by
+  signing in with its Google account, and the registrar checks the ID token's
   signature against Google's published keys, its issuer, audience and expiry, and requires its
   `hd` (hosted domain) claim to be the institute's domain. The token must also carry the nonce the
   web app gave Google for this election and this commitment or wallet, and be at most ten minutes
   old, so a token that leaked could not register someone else's key under the voter's address.
-  Per-client limits guard the routes that send email, register, publish and pin. It builds the Semaphore group (in tier
+  Per-client limits guard the routes that register, publish and pin. It builds the Semaphore group (in tier
   2, the list of registered wallet addresses), returns a signed receipt over each accepted
   commitment and the election, binds an email address to one commitment or wallet for good,
   and at the close of registration publishes the root, the roll size and the leaf-set CID in one

@@ -24,53 +24,30 @@ export const apiConfigSchema = z.object({
   electionFactory: addressSchema,
   semaphoreFactory: addressSchema,
   emailDomain: z.string(),
-  /** Google sign-in's client ID, or null where only email codes are offered. */
+  /** Google sign-in's client ID, or null where registration is not set up. */
   googleClientId: z.string().nullable(),
-  /** Whether codes can be emailed. */
-  emailCodes: z.boolean(),
 });
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
 
-export const codeRequestSchema = z.object({ email: emailSchema });
-export type CodeRequest = z.input<typeof codeRequestSchema>;
+/** How a voter proves their institute address: a Google ID token for an account in its domain. */
+const googleIdToken = z.string().min(20).max(4096);
 
-export const codeResponseSchema = z.object({ expiresAt: z.number() });
-
-/**
- * How a voter proves their institute address: the code emailed to it, or a Google ID token for a
- * Google account in the institute's domain. Exactly one is given.
- */
-const emailProof = {
-  code: z
-    .string()
-    .regex(/^\d{6}$/, "The code has six digits")
-    .optional(),
-  googleIdToken: z.string().min(20).max(4096).optional(),
-};
-const oneProof = (request: { code?: string; googleIdToken?: string }) =>
-  (request.code === undefined) !== (request.googleIdToken === undefined);
-const oneProofMessage = { message: "Give an email code or a Google sign-in, not both" };
-
-export const registrationRequestSchema = z
-  .object({
-    email: emailSchema,
-    ...emailProof,
-    voter: addressSchema,
-    /** The voter's signature over `registrationTypedData`. */
-    signature: hexSchema,
-  })
-  .refine(oneProof, oneProofMessage);
+export const registrationRequestSchema = z.object({
+  email: emailSchema,
+  googleIdToken,
+  voter: addressSchema,
+  /** The voter's signature over `registrationTypedData`. */
+  signature: hexSchema,
+});
 export type RegistrationRequest = z.input<typeof registrationRequestSchema>;
 
 /** Tier 3: the voter registers the commitment of an identity their device created. */
-export const identityRegistrationRequestSchema = z
-  .object({
-    email: emailSchema,
-    ...emailProof,
-    /** The identity commitment, in decimal. */
-    commitment: commitmentSchema.refine((value) => value !== "0", "Not an identity commitment"),
-  })
-  .refine(oneProof, oneProofMessage);
+export const identityRegistrationRequestSchema = z.object({
+  email: emailSchema,
+  googleIdToken,
+  /** The identity commitment, in decimal. */
+  commitment: commitmentSchema.refine((value) => value !== "0", "Not an identity commitment"),
+});
 export type IdentityRegistrationRequest = z.input<typeof identityRegistrationRequestSchema>;
 
 /** What a voter keeps after registering. The signature is over `receiptTypedData`. */

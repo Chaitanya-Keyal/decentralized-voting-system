@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { createServer, type Server } from "node:http";
 
 import {
   googleNonce,
@@ -21,13 +20,14 @@ import {
 } from "@dvote/shared";
 import { ensureArtifacts } from "@dvote/shared/semaphore-artifacts";
 import type { FastifyInstance } from "fastify";
-import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { recoverTypedDataAddress, type Address, type Hex } from "viem";
+import { generateKeyPair, SignJWT } from "jose";
+import { recoverTypedDataAddress, type Address, type Hex, type PrivateKeyAccount } from "viem";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildApp } from "../src/app";
 import { db } from "../src/db";
 import { publishDueVoterLists } from "../src/registrar";
+import { GOOGLE_CLIENT_ID, startGoogle, type TokenOptions } from "./google";
 import {
   chain,
   createElection,
@@ -40,18 +40,9 @@ import {
   type TestElection,
 } from "./helpers";
 
-// Emails and IPFS are replaced: the codes are read from `mail`, and pinned documents from `ipfs`.
-// Mail to an address in `mail.failing` fails, as does pinning a document described as "fail".
-const mail = vi.hoisted(() => ({ codes: new Map<string, string>(), failing: new Set<string>() }));
+// IPFS is replaced: pinned documents are kept in `ipfs`, and pinning a document described as
+// "fail" fails.
 const ipfs = vi.hoisted(() => ({ pinned: new Map<string, unknown>() }));
-
-vi.mock("../src/mailer", () => ({
-  sendCode: (message: { to: string; code: string }) => {
-    if (mail.failing.has(message.to)) return Promise.reject(new Error("SMTP is down"));
-    mail.codes.set(message.to, message.code);
-    return Promise.resolve();
-  },
-}));
 
 vi.mock("../src/ipfs", () => ({
   copyToPinata: () => Promise.resolve({ copied: 0, failed: 0 }),
@@ -66,38 +57,45 @@ vi.mock("../src/ipfs", () => ({
 }));
 
 let app: FastifyInstance;
+let google: Awaited<ReturnType<typeof startGoogle>>;
 
 beforeAll(async () => {
+  google = await startGoogle();
   app = await buildApp({ logger: false });
 });
 
 afterAll(async () => {
   await app.close();
+  await google.close();
 });
 
 function post(url: string, payload: object) {
   return app.inject({ method: "POST", url, payload });
 }
 
-async function requestCode(election: Address, email: string): Promise<string> {
-  const response = await post(`/elections/${election}/codes`, { email });
-  expect(response.statusCode, response.body).toBe(200);
-  const code = mail.codes.get(email);
-  if (!code) throw new Error(`No code was sent to ${email}`);
-  return code;
+/** The Google sign-in the web app would get for registering `subject` in `election`. */
+function signIn(election: Address, email: string, subject: string) {
+  return google.idToken(email, { claims: { nonce: googleNonce(chain.id, election, subject) } });
+}
+
+/** Asks the registrar to register `voter`'s wallet for `email`, and returns the response. */
+async function requestRegistration(
+  election: Address,
+  voter: PrivateKeyAccount,
+  email: string,
+  options: { signer?: PrivateKeyAccount } = {},
+) {
+  return post(`/elections/${election}/registrations`, {
+    email,
+    googleIdToken: await signIn(election, email, voter.address),
+    voter: voter.address,
+    signature: await signRegistration(options.signer ?? voter, election, email),
+  });
 }
 
 /** Registers a new voter with a new email address, and returns the response. */
 async function registerVoter(election: Address, voter = newVoter(), email = newEmail()) {
-  const code = await requestCode(election, email);
-  const signature = await signRegistration(voter, election, email);
-  const response = await post(`/elections/${election}/registrations`, {
-    email,
-    code,
-    voter: voter.address,
-    signature,
-  });
-  return { response, voter, email };
+  return { response: await requestRegistration(election, voter, email), voter, email };
 }
 
 async function registrationCount(election: Address): Promise<number> {
@@ -106,9 +104,13 @@ async function registrationCount(election: Address): Promise<number> {
 }
 
 describe("GET /config", () => {
-  it("names the chain, the registrar and the factory", async () => {
+  it("names the chain, the registrar, the factory and Google sign-in's client", async () => {
     const response = await app.inject("/config");
-    expect(response.json()).toMatchObject({ chainId: chain.id, registrar: REGISTRAR });
+    expect(response.json()).toMatchObject({
+      chainId: chain.id,
+      registrar: REGISTRAR,
+      googleClientId: GOOGLE_CLIENT_ID,
+    });
   });
 
   it("answers the web app, but not a page on another site", async () => {
@@ -132,7 +134,6 @@ describe("registration", () => {
 
   it("registers a wallet and returns a receipt signed by the registrar", async () => {
     const { response, voter } = await registerVoter(test.election);
-
     expect(response.statusCode, response.body).toBe(200);
     const receipt = receiptSchema.parse(response.json());
     expect(receipt).toMatchObject({
@@ -150,118 +151,62 @@ describe("registration", () => {
   });
 
   it("does not accept a + tag, which would let one mailbox register several wallets", async () => {
-    const response = await post(`/elections/${test.election}/codes`, {
-      email: "f20230001+second@hyderabad.bits-pilani.ac.in",
-    });
+    const response = await requestRegistration(
+      test.election,
+      newVoter(),
+      "f20230001+second@hyderabad.bits-pilani.ac.in",
+    );
     expect(response.statusCode).toBe(400);
     expect(response.json<{ message: string }>().message).toMatch(/\+ tag/);
   });
 
   it("refuses the zero address, which an invalid signature recovers to", async () => {
     const email = newEmail();
-    const code = await requestCode(test.election, email);
+    const zero = "0x0000000000000000000000000000000000000000";
     const response = await post(`/elections/${test.election}/registrations`, {
       email,
-      code,
-      voter: "0x0000000000000000000000000000000000000000",
+      googleIdToken: await signIn(test.election, email, zero),
+      voter: zero,
       signature: `0x${"00".repeat(64)}1b`,
     });
     expect(response.statusCode).toBe(400);
   });
 
   it("only accepts institute email addresses", async () => {
-    const response = await post(`/elections/${test.election}/codes`, {
-      email: "someone@gmail.com",
-    });
+    const response = await requestRegistration(test.election, newVoter(), "someone@gmail.com");
     expect(response.statusCode).toBe(400);
     expect(response.json<{ message: string }>().message).toMatch(/hyderabad\.bits-pilani\.ac\.in/);
   });
 
-  it("refuses to send codes before registration opens", async () => {
+  it("refuses a registration without a Google sign-in", async () => {
+    const voter = newVoter();
+    const email = newEmail();
+    const response = await post(`/elections/${test.election}/registrations`, {
+      email,
+      code: "123456",
+      voter: voter.address,
+      signature: await signRegistration(voter, test.election, email),
+    });
+    expect(response.statusCode).toBe(400);
+    expect(await registrationCount(test.election)).toBe(0);
+  });
+
+  it("refuses to register before registration opens", async () => {
     const early = await createElection();
-    const response = await post(`/elections/${early.election}/codes`, { email: newEmail() });
+    const response = await requestRegistration(early.election, newVoter(), newEmail());
     expect(response.statusCode).toBe(409);
     expect(response.json<{ message: string }>().message).toMatch(/not opened/);
   });
 
-  it("refuses to send codes after registration closes", async () => {
+  it("refuses to register after registration closes", async () => {
     await warpTo(test.schedule.registrationEnd);
-    const response = await post(`/elections/${test.election}/codes`, { email: newEmail() });
+    const response = await requestRegistration(test.election, newVoter(), newEmail());
     expect(response.statusCode).toBe(409);
   });
 
-  it("sends at most one code a minute to an address", async () => {
-    const email = newEmail();
-    await requestCode(test.election, email);
-    const again = await post(`/elections/${test.election}/codes`, { email });
-    expect(again.statusCode).toBe(429);
-  });
-
-  it("sends one code when asked for several at once", async () => {
-    const email = newEmail();
-    const responses = await Promise.all(
-      Array.from({ length: 5 }, () => post(`/elections/${test.election}/codes`, { email })),
-    );
-    const statuses = responses.map((response) => response.statusCode).sort();
-    expect(statuses).toEqual([200, 429, 429, 429, 429]);
-  });
-
-  it("does not count a code that could not be emailed", async () => {
-    const email = newEmail();
-    mail.failing.add(email);
-    const failed = await post(`/elections/${test.election}/codes`, { email });
-    expect(failed.statusCode).toBe(502);
-    mail.failing.delete(email);
-    // Without the failed code counting, there is no minute to wait.
-    await requestCode(test.election, email);
-  });
-
-  it("sends at most twenty codes a day to an address", async () => {
-    const email = newEmail();
-    try {
-      for (let i = 0; i < 20; i++) {
-        vi.useFakeTimers({ now: Date.now() + (i * 61 + 1) * 1000, toFake: ["Date"] });
-        await requestCode(test.election, email);
-      }
-      vi.useFakeTimers({ now: Date.now() + 61_000, toFake: ["Date"] });
-      const extra = await post(`/elections/${test.election}/codes`, { email });
-      expect(extra.statusCode).toBe(429);
-      expect(extra.json<{ message: string }>().message).toMatch(/today/);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("rejects a wrong code, and stops accepting the code after five attempts", async () => {
-    const voter = newVoter();
-    const email = newEmail();
-    const code = await requestCode(test.election, email);
-    const signature = await signRegistration(voter, test.election, email);
-    const attempt = (guess: string) =>
-      post(`/elections/${test.election}/registrations`, {
-        email,
-        code: guess,
-        voter: voter.address,
-        signature,
-      });
-
-    const wrong = code === "000000" ? "111111" : "000000";
-    for (let i = 0; i < 5; i++) {
-      expect((await attempt(wrong)).statusCode).toBe(400);
-    }
-    expect((await attempt(code)).statusCode).toBe(429);
-    expect(await registrationCount(test.election)).toBe(0);
-  });
-
   it("rejects a signature made by a different wallet", async () => {
-    const email = newEmail();
-    const code = await requestCode(test.election, email);
-    const signature = await signRegistration(newVoter(), test.election, email);
-    const response = await post(`/elections/${test.election}/registrations`, {
-      email,
-      code,
-      voter: newVoter().address,
-      signature,
+    const response = await requestRegistration(test.election, newVoter(), newEmail(), {
+      signer: newVoter(),
     });
     expect(response.statusCode).toBe(400);
     expect(response.json<{ message: string }>().message).toMatch(/signature/);
@@ -279,38 +224,23 @@ describe("registration", () => {
     const email = newEmail();
     const voter = newVoter();
     await registerVoter(test.election, voter, email);
-    // The one-minute limit applies to codes, so move the wall clock on as well as the chain.
-    try {
-      vi.useFakeTimers({ now: Date.now() + 61_000, toFake: ["Date"] });
-      const again = await registerVoter(test.election, voter, email);
-      expect(again.response.statusCode, again.response.body).toBe(200);
-      expect(receiptSchema.parse(again.response.json()).voter).toBe(voter.address);
+    const again = await registerVoter(test.election, voter, email);
+    expect(again.response.statusCode, again.response.body).toBe(200);
+    expect(receiptSchema.parse(again.response.json()).voter).toBe(voter.address);
 
-      // Moving to another wallet would let a registrar pass off a swap as the voter's own doing.
-      vi.useFakeTimers({ now: Date.now() + 61_000, toFake: ["Date"] });
-      const other = await registerVoter(test.election, newVoter(), email);
-      expect(other.response.statusCode).toBe(409);
-      expect(other.response.json<{ message: string }>().message).toContain(voter.address);
-    } finally {
-      vi.useRealTimers();
-    }
+    // Moving to another wallet would let a registrar pass off a swap as the voter's own doing.
+    const other = await registerVoter(test.election, newVoter(), email);
+    expect(other.response.statusCode).toBe(409);
+    expect(other.response.json<{ message: string }>().message).toContain(voter.address);
     expect(await registrationCount(test.election)).toBe(1);
   });
 
   it("closes as soon as the registrar starts publishing, whatever the clock says", async () => {
-    const email = newEmail();
-    const voter = newVoter();
-    const code = await requestCode(test.election, email);
     // Publishing has begun, so the list is frozen, even though the chain's clock is still early.
     await db.voterListPublication.create({
       data: { election: test.election, root: "0x01", count: 1 },
     });
-    const response = await post(`/elections/${test.election}/registrations`, {
-      email,
-      code,
-      voter: voter.address,
-      signature: await signRegistration(voter, test.election, email),
-    });
+    const response = await requestRegistration(test.election, newVoter(), newEmail());
     expect(response.statusCode).toBe(409);
     expect(await registrationCount(test.election)).toBe(0);
   });
@@ -318,7 +248,7 @@ describe("registration", () => {
   it("does not serve an election that names another registrar", async () => {
     const elsewhere = await createElection("Elsewhere", { registrar: newVoter().address });
     await warpTo(elsewhere.schedule.registrationStart);
-    const response = await post(`/elections/${elsewhere.election}/codes`, { email: newEmail() });
+    const response = await requestRegistration(elsewhere.election, newVoter(), newEmail());
     expect(response.statusCode).toBe(403);
   });
 
@@ -327,17 +257,17 @@ describe("registration", () => {
       authority: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
     });
     await warpTo(unknown.schedule.registrationStart);
-    const response = await post(`/elections/${unknown.election}/codes`, { email: newEmail() });
+    const response = await requestRegistration(unknown.election, newVoter(), newEmail());
     expect(response.statusCode).toBe(403);
   });
 
   it("answers 404 for an address that is not an election", async () => {
-    const response = await post(`/elections/${newVoter().address}/codes`, { email: newEmail() });
+    const response = await requestRegistration(newVoter().address, newVoter(), newEmail());
     expect(response.statusCode).toBe(404);
   });
 
   it("answers 400 for an election that is not an address", async () => {
-    const response = await post(`/elections/not-an-address/codes`, { email: newEmail() });
+    const response = await post(`/elections/not-an-address/registrations`, { email: newEmail() });
     expect(response.statusCode).toBe(400);
   });
 });
@@ -395,7 +325,7 @@ describe("publishing the voter list", () => {
     });
 
     // Registration is now closed, even before the schedule says so to anyone else.
-    const late = await post(`/elections/${test.election}/codes`, { email: newEmail() });
+    const late = await requestRegistration(test.election, newVoter(), newEmail());
     expect(late.statusCode).toBe(409);
 
     await warpTo(test.schedule.votingStart);
@@ -525,11 +455,11 @@ describe("tier 3: anonymous voters", () => {
   });
 
   async function registerIdentity(identity = new Identity(), email = newEmail()) {
-    const code = await requestCode(test.election, email);
+    const commitment = identity.commitment.toString();
     const response = await post(`/elections/${test.election}/registrations`, {
       email,
-      code,
-      commitment: identity.commitment.toString(),
+      googleIdToken: await signIn(test.election, email, commitment),
+      commitment,
     });
     return { response, identity, email };
   }
@@ -551,15 +481,7 @@ describe("tier 3: anonymous voters", () => {
   });
 
   it("refuses a wallet where it expects an identity", async () => {
-    const email = newEmail();
-    const voter = newVoter();
-    const code = await requestCode(test.election, email);
-    const response = await post(`/elections/${test.election}/registrations`, {
-      email,
-      code,
-      voter: voter.address,
-      signature: await signRegistration(voter, test.election, email),
-    });
+    const response = await requestRegistration(test.election, newVoter(), newEmail());
     expect(response.statusCode).toBe(400);
   });
 
@@ -567,16 +489,10 @@ describe("tier 3: anonymous voters", () => {
     const email = newEmail();
     const identity = new Identity();
     await registerIdentity(identity, email);
-    try {
-      vi.useFakeTimers({ now: Date.now() + 61_000, toFake: ["Date"] });
-      const again = await registerIdentity(identity, email);
-      expect(again.response.statusCode, again.response.body).toBe(200);
-      vi.useFakeTimers({ now: Date.now() + 61_000, toFake: ["Date"] });
-      const other = await registerIdentity(new Identity(), email);
-      expect(other.response.statusCode).toBe(409);
-    } finally {
-      vi.useRealTimers();
-    }
+    const again = await registerIdentity(identity, email);
+    expect(again.response.statusCode, again.response.body).toBe(200);
+    const other = await registerIdentity(new Identity(), email);
+    expect(other.response.statusCode).toBe(409);
   });
 
   it("publishes the identity list, and a registered voter's anonymous ballot counts", async () => {
@@ -670,49 +586,7 @@ describe("POST /metadata", () => {
 });
 
 describe("Google sign-in", () => {
-  const CLIENT_ID = "dvote-test.apps.googleusercontent.com";
-  let server: Server;
-  let signingKey: Awaited<ReturnType<typeof generateKeyPair>>["privateKey"];
-
-  beforeAll(async () => {
-    const { publicKey, privateKey } = await generateKeyPair("RS256");
-    signingKey = privateKey;
-    const jwk = { ...(await exportJWK(publicKey)), kid: "test-key", alg: "RS256", use: "sig" };
-    server = createServer((_, response) => {
-      response.setHeader("content-type", "application/json");
-      response.end(JSON.stringify({ keys: [jwk] }));
-    });
-    await new Promise<void>((resolve) => server.listen(8566, "127.0.0.1", resolve));
-  });
-
-  afterAll(async () => {
-    await new Promise((resolve) => server.close(resolve));
-  });
-
-  /** An ID token as Google would issue it, with any claim overridden. */
-  function idToken(
-    email: string,
-    options: {
-      claims?: Record<string, unknown>;
-      audience?: string;
-      expiresAt?: number | string;
-      issuedAt?: number;
-    } = {},
-  ) {
-    return new SignJWT({
-      email,
-      email_verified: true,
-      hd: "hyderabad.bits-pilani.ac.in",
-      ...options.claims,
-    })
-      .setProtectedHeader({ alg: "RS256", kid: "test-key" })
-      .setIssuer("https://accounts.google.com")
-      .setAudience(options.audience ?? CLIENT_ID)
-      .setSubject("1234567890")
-      .setIssuedAt(options.issuedAt)
-      .setExpirationTime(options.expiresAt ?? "1h")
-      .sign(signingKey);
-  }
+  const idToken = (email: string, options?: TokenOptions) => google.idToken(email, options);
 
   let test: TestElection;
   beforeEach(async () => {
@@ -736,7 +610,7 @@ describe("Google sign-in", () => {
     });
   };
 
-  it("registers a voter signed in with an institute Google account, without a code", async () => {
+  it("registers a voter signed in with an institute Google account", async () => {
     const email = newEmail();
     const response = await registerWith(email, (nonce) => idToken(email, { claims: { nonce } }));
     expect(response.statusCode, response.body).toBe(200);
@@ -824,23 +698,11 @@ describe("Google sign-in", () => {
       new SignJWT({ email, email_verified: true, hd: "hyderabad.bits-pilani.ac.in", nonce })
         .setProtectedHeader({ alg: "RS256", kid: "test-key" })
         .setIssuer("https://accounts.google.com")
-        .setAudience(CLIENT_ID)
+        .setAudience(GOOGLE_CLIENT_ID)
         .setIssuedAt()
         .setExpirationTime("1h")
         .sign(privateKey),
     );
-    expect(response.statusCode).toBe(400);
-  });
-
-  it("takes either a code or a Google sign-in, not both", async () => {
-    const email = newEmail();
-    const code = await requestCode(test.election, email);
-    const response = await post(`/elections/${test.election}/registrations`, {
-      email,
-      code,
-      googleIdToken: await idToken(email),
-      commitment: new Identity().commitment.toString(),
-    });
     expect(response.statusCode).toBe(400);
   });
 });

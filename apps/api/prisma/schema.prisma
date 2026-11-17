@@ -9,21 +9,6 @@ datasource db {
   provider = "postgresql"
 }
 
-/// A one-time code sent to an email address, to register for one election.
-model EmailCode {
-  id        Int      @id @default(autoincrement())
-  /// Checksummed address of the election.
-  election  String
-  /// Lower case.
-  email     String
-  codeHash  String
-  attempts  Int      @default(0)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  @@index([election, email])
-}
-
 /// An accepted registration: one per email address and one per wallet in each election. It never
 /// moves to another wallet, so that its receipt stays evidence of what the registrar accepted.
 model Registration {

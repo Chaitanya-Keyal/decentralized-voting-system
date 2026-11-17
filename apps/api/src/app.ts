@@ -1,7 +1,7 @@
 import { STATUS_CODES } from "node:http";
 
 import cors from "@fastify/cors";
-import { addressSchema, codeRequestSchema, metadataSchema, type ApiConfig } from "@dvote/shared";
+import { addressSchema, metadataSchema, type ApiConfig } from "@dvote/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -12,7 +12,7 @@ import { loggable } from "./redact";
 import { getElection, indexerStatus, listBallots, listElections } from "./indexer/queries";
 import { pinJson } from "./ipfs";
 import { perClient, perDay } from "./limits";
-import { publishVoterList, registerVoter, registrationCount, sendCode } from "./registrar";
+import { publishVoterList, registerVoter, registrationCount } from "./registrar";
 
 const electionParams = z.object({ election: addressSchema });
 
@@ -58,18 +58,11 @@ export async function buildApp(options: { logger?: boolean } = {}): Promise<Fast
     semaphoreFactory: deployment.semaphoreFactory,
     emailDomain: env.EMAIL_DOMAIN,
     googleClientId: env.GOOGLE_CLIENT_ID ?? null,
-    emailCodes: env.SMTP_URL !== undefined || env.CHAIN_ID === 31337,
   }));
 
   // Registrar
 
   // Generous per client, since a classroom may share one network address.
-  app.post("/elections/:election/codes", { preHandler: limit("codes", 120) }, async (request) => {
-    const { election } = parse(electionParams, request.params);
-    const { email } = parse(codeRequestSchema, request.body);
-    return sendCode(election, email, request.log);
-  });
-
   app.post(
     "/elections/:election/registrations",
     { preHandler: limit("registrations", 120) },

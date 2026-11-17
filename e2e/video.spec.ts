@@ -14,7 +14,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
-import { emailedCode, skipAhead } from "./helpers";
+import { signInWithGoogle, useGoogleStandIn } from "./google";
+import { skipAhead } from "./helpers";
 
 // Each action in the recorded browser waits, so a viewer can follow the pointer to it. The other
 // voters use a browser of their own, without the wait.
@@ -202,16 +203,17 @@ async function register(page: Page, election: string, email: string, slowly = fa
   await page.goto(`${election}/register`);
   await page.getByRole("button", { name: "Create my voting key" }).click();
   await expect(page.getByText("This browser holds your voting key")).toBeVisible();
-  if (slowly) {
-    await beat(page);
-    await type(page, "Institute email address", email);
-  } else await page.getByLabel("Institute email address").fill(email);
-  await page.getByRole("button", { name: "Send me a code" }).click();
-  const code = await emailedCode(email);
-  if (slowly) {
-    await beat(page);
-    await type(page, "Code", code);
-  } else await page.getByLabel("Code").fill(code);
+  // The sign-in in the middle of the screen, clear of the caption.
+  await page
+    .getByLabel("Google account (test stand-in)")
+    .evaluate((box) => box.scrollIntoView({ block: "center" }));
+  if (slowly) await beat(page);
+  await signInWithGoogle(
+    page,
+    email,
+    slowly ? (text) => page.keyboard.type(text, { delay: 70 }) : undefined,
+  );
+  if (slowly) await beat(page);
   await page.getByRole("button", { name: "Register my voting key" }).click();
   await expect(page.getByText("You're registered")).toBeVisible();
   if (slowly) await beat(page, 1_500);
@@ -242,6 +244,7 @@ async function disconnect(page: Page) {
 
 async function otherVoter(browser: Browser) {
   const context = await browser.newContext({ acceptDownloads: true });
+  await useGoogleStandIn(context);
   return { context, page: await context.newPage() };
 }
 
@@ -255,6 +258,7 @@ test("the backup video of the demo", async ({ browser }) => {
     acceptDownloads: true,
   });
   await context.addInitScript(stage);
+  await useGoogleStandIn(context);
   const page = await context.newPage();
   const { say, timeline } = narrator(page, Date.now());
   const run = Date.now();

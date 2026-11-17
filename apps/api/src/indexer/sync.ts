@@ -230,7 +230,6 @@ async function checkChain(
     }
     await db.$transaction(async (tx) => {
       await forgetIndex(tx);
-      await tx.emailCode.deleteMany();
       await tx.registration.deleteMany();
       await tx.voterListPublication.deleteMany();
     });

@@ -3,8 +3,6 @@ import { mkdir } from "node:fs/promises";
 
 import { expect, type Page } from "@playwright/test";
 
-const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:8025";
-
 /** Connects Anvil's account `index`, disconnecting whichever wallet was connected. */
 export async function connect(page: Page, index: number) {
   const header = page.locator("header");
@@ -24,21 +22,6 @@ export async function connect(page: Page, index: number) {
 /** Moves the chain's clock to the next step, with the election page's Anvil-only button. */
 export async function skipAhead(page: Page) {
   await page.getByRole("button", { name: /Move the chain's clock/ }).click();
-}
-
-/** The latest code the registrar emailed to `email`, read from Mailpit. */
-export async function emailedCode(email: string): Promise<string> {
-  let code: string | undefined;
-  await expect
-    .poll(async () => {
-      const query = encodeURIComponent(`to:"${email}"`);
-      const response = await fetch(`${MAILPIT}/api/v1/search?query=${query}`);
-      const { messages } = (await response.json()) as { messages?: { Subject: string }[] };
-      code = /^(\d{6}) is your DVote code/.exec(messages?.[0]?.Subject ?? "")?.[1];
-      return code;
-    })
-    .toBeTruthy();
-  return code ?? "";
 }
 
 const SIZES = [

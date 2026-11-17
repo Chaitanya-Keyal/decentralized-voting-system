@@ -6,7 +6,8 @@ import { readFile } from "node:fs/promises";
 
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 
-import { connect, emailedCode, screenshot, skipAhead } from "./helpers";
+import { signInWithGoogle, useGoogleStandIn } from "./google";
+import { connect, screenshot, skipAhead } from "./helpers";
 
 /** A browser of the voter's own: its storage, and so its voting key, belongs to that voter. */
 async function voterBrowser(browser: Browser, errors: string[]) {
@@ -14,6 +15,7 @@ async function voterBrowser(browser: Browser, errors: string[]) {
     acceptDownloads: true,
     permissions: ["clipboard-read", "clipboard-write"],
   });
+  await useGoogleStandIn(context);
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
   return { context, page };
@@ -72,10 +74,8 @@ test("an anonymous approval election runs end to end without voter wallets", asy
       const backup = await (await download).path();
       voters[index]!.backup = (await readFile(backup)).toString();
       await expect(voter.page.getByText("This browser holds your voting key")).toBeVisible();
-      await voter.page.getByLabel("Institute email address").fill(email);
-      await voter.page.getByRole("button", { name: "Send me a code" }).click();
-      if (index === 0) await screenshot(voter.page, "07-register-code-sent");
-      await voter.page.getByLabel("Code").fill(await emailedCode(email));
+      await signInWithGoogle(voter.page, email);
+      if (index === 0) await screenshot(voter.page, "07-register-signed-in");
       await voter.page.getByRole("button", { name: "Register my voting key" }).click();
       await expect(voter.page.getByText("You're registered")).toBeVisible();
       await voter.page.getByText("Proof of registration").click();

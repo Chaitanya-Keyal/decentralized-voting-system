@@ -102,8 +102,8 @@ Recording these keeps the report honest and gives us a real "future work" sectio
   its own.
 - **Ranked-choice / quadratic voting**: `TallyLib` is structured so these can be added;
   we ship plurality and approval voting.
-- **Real government-grade identity**: we use the institute email address, proved by an emailed
-  code or by Google sign-in for the institute's domain. Production would need
+- **Real government-grade identity**: we use the institute email address, proved by Google
+  sign-in for the institute's domain. Production would need
   Aadhaar/DigiLocker-class verification, which we discuss but do not build.
 - **Splitting the registrar**: one party controls enrolment, and committing the roll size
   before any ballot exists bounds that power rather than checking it. The genuine remedies

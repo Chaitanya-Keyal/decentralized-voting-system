@@ -1,6 +1,6 @@
-// Limits on what one client can ask of the registrar, so that nobody can fill its database, its
-// mail quota or its IPFS node, or spend its RPC allowance. The API runs as one process, so the
-// counts are kept in memory; a restart clears them.
+// Limits on what one client can ask of the registrar, so that nobody can fill its database or its
+// IPFS node, or spend its RPC allowance. The API runs as one process, so the counts are kept in
+// memory; a restart clears them.
 import type { FastifyRequest } from "fastify";
 
 import { HttpError } from "./http";

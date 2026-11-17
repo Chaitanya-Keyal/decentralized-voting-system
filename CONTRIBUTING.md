@@ -53,7 +53,7 @@ version this repo pins), Docker, and Foundry for the contracts.
 ```bash
 pnpm install
 cp .env.example .env               # works as it is for a local chain
-docker compose up -d               # Postgres, Redis, IPFS and Mailpit
+docker compose up -d               # Postgres, Redis and IPFS
 anvil                              # a local chain; leave it running in its own terminal
 pnpm deploy:local                  # deploy the contracts to it
 pnpm db:migrate                    # create the database tables
@@ -92,8 +92,9 @@ for them, so you can play every role from one browser without a wallet extension
 3. Register voters. In a wallet election, connect another account for each voter. In an
    anonymous election no wallet is needed: the browser makes a voting key and downloads a backup
    of it, so use a separate browser profile, or a private window, per voter, or restore a backup
-   to switch. The codes are emailed to Mailpit, at <http://127.0.0.1:8025>. With
-   `GOOGLE_CLIENT_ID` set, voters can sign in with Google instead.
+   to switch. Voters sign in with Google, which needs `GOOGLE_CLIENT_ID` in `.env`: the client ID
+   of an OAuth client in Google Cloud that lists `http://localhost:3000` as an authorised
+   JavaScript origin.
 4. Once registration closes, the registrar publishes the voter list by itself within a few
    seconds. Then open voting, vote as each voter, close voting and finalize. Anonymous ballots
    are proved in the browser and submitted by the relayer, which pays the gas.
@@ -115,7 +116,10 @@ pnpm e2e                           # Playwright: both kinds of election end to e
 The API's tests start their own Anvil node and create a database of their own for each run, so
 they never touch your development setup; the relayer's tests keep to Redis keys of their own.
 `pnpm e2e` drives the running stack from the setup above; install its browser once with
-`pnpm --filter @dvote/e2e exec playwright install --only-shell chromium`. With
+`pnpm --filter @dvote/e2e exec playwright install --only-shell chromium`. Its voters sign in
+through a stand-in for Google (`e2e/google.ts`), so start the API for it with
+`GOOGLE_CLIENT_ID=dvote-e2e.apps.googleusercontent.com GOOGLE_JWKS_URL=http://127.0.0.1:4410/certs`,
+where the test serves the stand-in's keys. With
 `SCREENSHOTS=<directory>`, the end-to-end tests also save every step at desktop and phone width.
 
 ## Code style
@@ -201,6 +205,6 @@ The services read their other settings at start-up: those in `.env.example`, and
 API and the relayer, set `WEB_ORIGIN` to its origin: they accept browser requests only from the
 origins listed there, and by default only from the local web app. Any setting can come from a file
 instead: `NAME_FILE=/run/secrets/name` sets `NAME`, so keys and passwords can be mounted as
-secrets. On a public chain the registrar needs `SMTP_URL` or `GOOGLE_CLIENT_ID` (or both), the
+secrets. On a public chain the registrar needs `GOOGLE_CLIENT_ID`, the
 registrar and relayer need their own keys, and `AUTHORITIES` must list the wallets whose
 elections the deployment serves: the registrar, the relayer and the indexer all keep to them.

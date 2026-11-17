@@ -44,12 +44,12 @@ const schema = z
 
     /** Only addresses at this domain can register. */
     EMAIL_DOMAIN: z.string().default("hyderabad.bits-pilani.ac.in"),
-    /** For email codes. Without it, on Anvil only, codes are written to the log instead. */
-    SMTP_URL: optional(z.string()),
-    /** Google sign-in: the OAuth client ID of the web app. Unset turns Google sign-in off. */
+    /**
+     * Google sign-in: the OAuth client ID of the web app. Voters register by signing in with their
+     * institute's Google account, so without it nobody can register.
+     */
     GOOGLE_CLIENT_ID: optional(z.string()),
     GOOGLE_JWKS_URL: z.url().default("https://www.googleapis.com/oauth2/v3/certs"),
-    MAIL_FROM: optional(z.string()).default("DVote <no-reply@dvote.local>"),
     /**
      * How many proxies sit in front of the API and set X-Forwarded-For, so that its limits see each
      * client's address rather than the proxy's. 0 when clients connect directly.
@@ -70,18 +70,3 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
-
-/**
- * Why voters would have no way to prove their address, if they would not. A code in a log can be
- * read by whoever reads the log, so a public chain needs real email, or Google sign-in alone.
- * Without either, registration is off.
- */
-export function emailProofProblem(settings: {
-  SMTP_URL?: string;
-  GOOGLE_CLIENT_ID?: string;
-  CHAIN_ID: number;
-}): string | undefined {
-  if (settings.SMTP_URL !== undefined || settings.GOOGLE_CLIENT_ID !== undefined) return undefined;
-  if (settings.CHAIN_ID === 31337) return undefined;
-  return "Set SMTP_URL or GOOGLE_CLIENT_ID; only on Anvil (CHAIN_ID 31337) may codes be logged";
-}

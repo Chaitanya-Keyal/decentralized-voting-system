@@ -21,7 +21,7 @@ import { ElectionHeader } from "../election/election-header";
 import { ElectionPending } from "../election/election-pending";
 import { Card, Notice } from "../ui";
 import { ConnectWallet } from "../wallet-connect";
-import { EmailProof, type EmailProofValue } from "./email-proof";
+import { InstituteSignIn, type SignIn } from "./institute-sign-in";
 import {
   IdentityReceiptCard,
   IdentityRegistrationForm,
@@ -52,7 +52,7 @@ function RegistrationForm({
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string>();
 
-  const register = async (proof: EmailProofValue) => {
+  const register = async (proof: SignIn) => {
     if (!account) return;
     setProblem(undefined);
     setBusy(true);
@@ -106,7 +106,7 @@ function RegistrationForm({
       description={`Registration closes ${formatTime(election.schedule.registrationEnd)}. Your email address stays with the registrar and is never put on-chain.`}
     >
       <div className="flex flex-col gap-4">
-        <EmailProof
+        <InstituteSignIn
           election={election}
           subject={account}
           submitLabel="Sign with my wallet and register"

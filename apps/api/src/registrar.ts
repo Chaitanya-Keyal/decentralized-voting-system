@@ -1,7 +1,6 @@
 // The registrar: checks that a voter has an institute email address, registers their wallet with a
 // signed receipt, and publishes the voter list when registration closes. It is not involved in
 // voting at all.
-import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 
 import {
   googleNonce,
@@ -49,26 +48,13 @@ import { verifyGoogleIdToken } from "./google";
 import { HttpError, parse } from "./http";
 import { copyElectionToPinata } from "./documents";
 import { pinJson } from "./ipfs";
-import { sendCode as emailCode } from "./mailer";
 import { loggable } from "./redact";
-
-const CODE_VALID_MINUTES = 10;
-const CODE_RESEND_SECONDS = 60;
-const MAX_CODE_ATTEMPTS = 5;
-/**
- * With five tries a code, guessing gets 100 tries a day per address and election, against a million
- * codes. Enough codes that someone requesting them for a voter's address cannot easily use up the
- * voter's own; the per-client limits in app.ts make that harder still.
- */
-const MAX_CODES_PER_DAY = 20;
 
 /**
  * How long to wait for a transaction to be mined. After that it is left to a later attempt, which
  * checks on it instead of sending another.
  */
 const CONFIRM_TIMEOUT_MS = chain.id === anvil.id ? 10_000 : 60_000;
-
-const hashCode = (code: string) => createHash("sha256").update(code).digest();
 
 /**
  * Institute addresses only, written plainly. Mail to `name+tag@` reaches `name@`, so allowing a
@@ -119,106 +105,29 @@ function withElectionLock<T>(
   }, options);
 }
 
-export async function sendCode(
-  election: Address,
-  email: string,
-  log: FastifyBaseLogger,
-): Promise<{ expiresAt: number }> {
-  requireInstituteEmail(email);
-  if (env.SMTP_URL === undefined && env.CHAIN_ID !== 31337) {
-    throw new HttpError(400, "Email codes are not available here. Sign in with Google instead.");
-  }
-  const state = await readElection(election);
-  await requireRegistrationOpen(state);
-
-  const code = randomInt(1_000_000).toString().padStart(6, "0");
-  const expiresAt = new Date(Date.now() + CODE_VALID_MINUTES * 60_000);
-  // The limits are checked and the code recorded under one lock, so that requests sent in
-  // parallel cannot all pass the check.
-  const { id } = await db.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${election} ${email}`}))`;
-    const recent = await tx.emailCode.findFirst({
-      where: {
-        election,
-        email,
-        createdAt: { gt: new Date(Date.now() - CODE_RESEND_SECONDS * 1000) },
-      },
-    });
-    if (recent) {
-      throw new HttpError(429, "A code was sent less than a minute ago. Check your inbox first.");
-    }
-    const today = await tx.emailCode.count({
-      where: { election, email, createdAt: { gt: new Date(Date.now() - 24 * 60 * 60_000) } },
-    });
-    if (today >= MAX_CODES_PER_DAY) {
-      throw new HttpError(429, "Too many codes for this address today. Try again tomorrow.");
-    }
-    return tx.emailCode.create({
-      data: { election, email, codeHash: hashCode(code).toString("hex"), expiresAt },
-      select: { id: true },
-    });
-  });
-
-  try {
-    await emailCode(
-      { to: email, code, electionTitle: state.title, validMinutes: CODE_VALID_MINUTES },
-      log,
-    );
-  } catch (error) {
-    // A code that never arrived must not count against the address.
-    await db.emailCode.delete({ where: { id } });
-    log.error({ err: loggable(error), election }, "Could not email a code");
-    throw new HttpError(502, "The code could not be emailed. Try again in a moment.");
-  }
-  return { expiresAt: Math.floor(expiresAt.getTime() / 1000) };
-}
-
 /**
- * Checks the voter's proof of their institute address: the code emailed to it, or Google's
- * sign-in for that same address.
+ * Checks the voter's Google sign-in: made for this election and this wallet or commitment, and for
+ * the institute address they are registering.
  */
 async function proveEmail(
   election: Address,
   email: string,
-  proof: { code?: string; googleIdToken?: string },
-  /** The wallet or commitment being registered, which a Google sign-in must have been made for. */
+  googleIdToken: string,
+  /** The wallet or commitment being registered, which the sign-in must have been made for. */
   subject: string,
 ) {
-  if (proof.googleIdToken !== undefined) {
-    const signedIn = await verifyGoogleIdToken(
-      proof.googleIdToken,
-      googleNonce(chain.id, election, subject),
-    );
-    if (signedIn !== email) {
-      throw new HttpError(400, `Google signed you in as ${signedIn}, not ${email}.`);
-    }
-    return;
-  }
-  if (proof.code === undefined) throw new HttpError(400, "Give the code we emailed you.");
-  await checkCode(election, email, proof.code);
-}
-
-async function checkCode(election: Address, email: string, code: string) {
-  const latest = await db.emailCode.findFirst({
-    where: { election, email, expiresAt: { gt: new Date() } },
-    orderBy: { createdAt: "desc" },
-  });
-  if (!latest) throw new HttpError(400, "That code has expired. Ask for a new one.");
-
-  // Count the attempt before comparing, so that guesses sent in parallel cannot pass the limit.
-  const { count } = await db.emailCode.updateMany({
-    where: { id: latest.id, attempts: { lt: MAX_CODE_ATTEMPTS } },
-    data: { attempts: { increment: 1 } },
-  });
-  if (count === 0) throw new HttpError(429, "Too many wrong codes. Ask for a new one.");
-  if (!timingSafeEqual(hashCode(code), Buffer.from(latest.codeHash, "hex"))) {
-    throw new HttpError(400, "That code is not right.");
+  const signedIn = await verifyGoogleIdToken(
+    googleIdToken,
+    googleNonce(chain.id, election, subject),
+  );
+  if (signedIn !== email) {
+    throw new HttpError(400, `Google signed you in as ${signedIn}, not ${email}.`);
   }
 }
 
 /**
- * Registers a voter's wallet once they have proved their email address and signed with the
- * wallet, and returns the registrar's signed receipt (FR2). An email address registers one wallet
+ * Registers a voter's wallet once they have signed in with their institute Google account and
+ * signed with the wallet, and returns the registrar's signed receipt (FR2). An email address registers one wallet
  * and a wallet one email address, and the pair never changes: registering again with the same
  * wallet gives a fresh receipt, and any other wallet is refused. If a registration could move to
  * another wallet, a registrar that dropped or swapped a voter's wallet could claim the voter had
@@ -228,8 +137,7 @@ async function register(
   election: Address,
   request: {
     email: string;
-    code?: string;
-    googleIdToken?: string;
+    googleIdToken: string;
     voter: Address;
     signature: Hex;
   },
@@ -244,7 +152,7 @@ async function register(
     throw new HttpError(400, "This election registers identities, not wallets.");
   }
   await requireRegistrationOpen(state);
-  await proveEmail(election, email, request, voter);
+  await proveEmail(election, email, request.googleIdToken, voter);
 
   const signedByVoter = await publicClient.verifyTypedData({
     address: voter,
@@ -299,21 +207,20 @@ async function register(
       create: { election, email, ...record },
       update: record,
     });
-    await tx.emailCode.deleteMany({ where: { election, email } });
   });
   return receipt;
 }
 
 /**
  * Tier 3: registers the commitment of a Semaphore identity the voter's device created, once they
- * have proved their email address, and returns the registrar's signed receipt (FR2). The secret
+ * have signed in with their institute Google account, and returns the registrar's signed receipt (FR2). The secret
  * behind the commitment never leaves the device, so the registrar cannot vote in the voter's
  * name or tell which ballot is theirs. As with wallets, an email address registers one identity
  * and the pair never changes.
  */
 async function registerIdentity(
   election: Address,
-  request: { email: string; code?: string; googleIdToken?: string; commitment: string },
+  request: { email: string; googleIdToken: string; commitment: string },
   known?: ElectionState,
 ): Promise<IdentityReceipt> {
   const { email, commitment } = request;
@@ -323,7 +230,7 @@ async function registerIdentity(
     throw new HttpError(400, "This election registers wallets, not identities.");
   }
   await requireRegistrationOpen(state);
-  await proveEmail(election, email, request, commitment);
+  await proveEmail(election, email, request.googleIdToken, commitment);
 
   const issuedAt = Number(await chainNow());
   const receipt: IdentityReceipt = {
@@ -369,7 +276,6 @@ async function registerIdentity(
       create: { election, email, ...record },
       update: record,
     });
-    await tx.emailCode.deleteMany({ where: { election, email } });
   });
   return receipt;
 }

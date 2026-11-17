@@ -21,7 +21,7 @@ import { downloadReceipt, useReceiptCheck } from "@/lib/receipts";
 import { formatTime } from "@/lib/time";
 
 import { Button, buttonClass, Card, Disclosure, Mono, muted, Notice, TextButton } from "../ui";
-import { EmailProof, type EmailProofValue } from "./email-proof";
+import { InstituteSignIn, type SignIn } from "./institute-sign-in";
 
 /** What each party can see, for voters who want to know why their ballot stays secret. */
 function SecrecyNote() {
@@ -159,7 +159,7 @@ export function IdentityRegistrationForm({ election }: { election: OnchainElecti
 
   if (!identity) return null;
 
-  const register = async (proof: EmailProofValue) => {
+  const register = async (proof: SignIn) => {
     setProblem(undefined);
     setBusy(true);
     try {
@@ -186,7 +186,7 @@ export function IdentityRegistrationForm({ election }: { election: OnchainElecti
       description={`Registration closes ${formatTime(election.schedule.registrationEnd)}. Your email address stays with the registrar and is never put on-chain. No wallet is needed.`}
     >
       <div className="flex flex-col gap-4">
-        <EmailProof
+        <InstituteSignIn
           election={election}
           subject={identity.commitment.toString()}
           submitLabel="Register my voting key"

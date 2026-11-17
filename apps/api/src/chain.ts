@@ -65,7 +65,7 @@ const served = new Set<Address>();
  * Reads what the registrar needs to know about an election, and checks that it serves it: the
  * factory created it, this registrar holds its registrar role, and, if AUTHORITIES is set, its
  * authority is one of them. Anyone can create an election naming this registrar, so without
- * these checks it would email codes under anyone's title and pay gas to publish anyone's list.
+ * these checks it would register voters under anyone's title and pay gas to publish anyone's list.
  * The checks are made once per election, which keeps each request to a few reads.
  */
 export async function readElection(election: Address): Promise<ElectionState> {

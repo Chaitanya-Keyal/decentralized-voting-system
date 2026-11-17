@@ -3,7 +3,6 @@ import {
   apiConfigSchema,
   apiErrorSchema,
   ballotListSchema,
-  codeResponseSchema,
   electionDetailSchema,
   electionListSchema,
   identityReceiptSchema,
@@ -58,8 +57,6 @@ export async function call<T extends z.ZodType>(
 export const api = {
   config: () => call(apiConfigSchema, "/config"),
 
-  requestCode: (election: Address, email: string) =>
-    call(codeResponseSchema, `/elections/${election}/codes`, { email }),
   register: (election: Address, request: RegistrationRequest) =>
     call(receiptSchema, `/elections/${election}/registrations`, request),
   registerIdentity: (election: Address, request: IdentityRegistrationRequest) =>

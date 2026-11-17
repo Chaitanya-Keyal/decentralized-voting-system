@@ -96,7 +96,7 @@ jobs:
   e2e:
     name: End to end
     runs-on: ubuntu-latest
-    # The whole local stack: Postgres, Redis, IPFS and Mailpit as services, Anvil, the API, the
+    # The whole local stack: Postgres, Redis and IPFS as services, Anvil, the API, the
     # indexer, the relayer and a production build of the web app. Then a browser runs two elections
     # from start to finish, one with wallet ballots and one with anonymous ballots.
     services:
@@ -124,11 +124,6 @@ jobs:
         ports:
           - 5001:5001
           - 8080:8080
-      mailpit:
-        image: axllent/mailpit:v1.32.0
-        ports:
-          - 1025:1025
-          - 8025:8025
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -151,7 +146,9 @@ jobs:
           pnpm db:migrate
           node packages/shared/scripts/semaphore-artifacts.mjs apps/web/public/semaphore 4
           pnpm --filter @dvote/web build
-          pnpm --filter @dvote/api start > api.log 2>&1 &
+          # Google sign-in checks tokens against the browser test's stand-in for Google (e2e/google.ts).
+          GOOGLE_CLIENT_ID=dvote-e2e.apps.googleusercontent.com GOOGLE_JWKS_URL=http://127.0.0.1:4410/certs \
+            pnpm --filter @dvote/api start > api.log 2>&1 &
           pnpm --filter @dvote/api indexer > indexer.log 2>&1 &
           pnpm --filter @dvote/api relayer > relayer.log 2>&1 &
           pnpm --filter @dvote/web start > web.log 2>&1 &

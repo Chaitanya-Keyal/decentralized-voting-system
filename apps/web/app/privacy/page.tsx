@@ -17,9 +17,9 @@ export default function PrivacyPage() {
       <ul>
         <li>
           <strong>Your institute email address</strong>, to check that you may vote and that you
-          register only once in each election. You prove it by signing in with Google or with a code
-          sent to it. From Google we read only your email address and that it belongs to the
-          institute; we keep no name or photo.
+          register only once in each election. You prove it by signing in with your institute Google
+          account. From Google we read only your email address and that it belongs to the institute;
+          we keep no name or photo.
         </li>
         <li>
           <strong>What you register with</strong>: in an anonymous election, the public part of a

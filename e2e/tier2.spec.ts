@@ -3,7 +3,10 @@
 // unlocked accounts as wallets and moving its clock between steps.
 import { expect, test } from "@playwright/test";
 
-import { connect, emailedCode, screenshot, skipAhead } from "./helpers";
+import { signInWithGoogle, useGoogleStandIn } from "./google";
+import { connect, screenshot, skipAhead } from "./helpers";
+
+test.beforeEach(({ context }) => useGoogleStandIn(context));
 
 test("an election runs end to end in the browser", async ({ page }) => {
   const errors: string[] = [];
@@ -37,10 +40,8 @@ test("an election runs end to end in the browser", async ({ page }) => {
       const email = `voter${index}.${run}@hyderabad.bits-pilani.ac.in`;
       await page.goto(`${election}/register`);
       await connect(page, index);
-      await page.getByLabel("Institute email address").fill(email);
+      await signInWithGoogle(page, email);
       if (index === 2) await screenshot(page, "20-wallet-register");
-      await page.getByRole("button", { name: "Send me a code" }).click();
-      await page.getByLabel("Code").fill(await emailedCode(email));
       await page.getByRole("button", { name: /Sign with my wallet and register/ }).click();
       await expect(
         page.getByText("The receipt is signed by this election's registrar"),

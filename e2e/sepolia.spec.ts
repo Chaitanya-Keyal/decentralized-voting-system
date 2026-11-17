@@ -4,8 +4,9 @@
 //
 //   E2E_SEPOLIA=1 AUTHORITY_PRIVATE_KEY=0x... pnpm e2e --grep "on Sepolia"
 //
-// It needs the stack running against Sepolia (registrar, indexer, relayer, web app) with codes going
-// to Mailpit, and AUTHORITY_PRIVATE_KEY for a funded account the registrar serves.
+// It needs the stack running against Sepolia (registrar, indexer, relayer, web app) with the API
+// pointed at the Google sign-in stand-in's keys (google.ts), and AUTHORITY_PRIVATE_KEY for a funded
+// account the registrar serves.
 import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test, type Browser } from "@playwright/test";
@@ -26,7 +27,7 @@ import { sepolia } from "viem/chains";
 // The ABIs and addresses only: the package index also loads JSON, which Playwright's loader refuses.
 import { deploymentFor } from "../packages/shared/src/deployment";
 import { electionFactoryAbi, merkleElectionAbi } from "../packages/shared/src/generated";
-import { emailedCode } from "./helpers";
+import { signInWithGoogle, useGoogleStandIn } from "./google";
 
 const RPC = process.env.SEPOLIA_RPC_URL ?? "https://ethereum-sepolia-rpc.publicnode.com";
 const API = process.env.E2E_API_URL ?? "http://127.0.0.1:4000";
@@ -38,6 +39,7 @@ const BURST = Boolean(process.env.E2E_SEPOLIA_BURST);
 
 async function voterBrowser(browser: Browser, errors: string[]) {
   const context = await browser.newContext({ acceptDownloads: true });
+  await useGoogleStandIn(context);
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
   return { context, page };
@@ -148,9 +150,7 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
       const download = voter.page.waitForEvent("download");
       await voter.page.getByRole("button", { name: "Create my voting key" }).click();
       await download;
-      await voter.page.getByLabel("Institute email address").fill(email);
-      await voter.page.getByRole("button", { name: "Send me a code" }).click();
-      await voter.page.getByLabel("Code").fill(await emailedCode(email));
+      await signInWithGoogle(voter.page, email);
       await voter.page.getByRole("button", { name: "Register my voting key" }).click();
       await expect(voter.page.getByText("You're registered")).toBeVisible({ timeout: 60_000 });
     }
