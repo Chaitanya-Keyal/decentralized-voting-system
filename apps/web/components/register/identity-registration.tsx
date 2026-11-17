@@ -1,15 +1,9 @@
 "use client";
 
-import {
-  identityReceiptTypedData,
-  merkleElectionAbi,
-  REGISTRAR_ROLE,
-  type IdentityReceipt,
-} from "@dvote/shared";
-import { useQuery } from "@tanstack/react-query";
+import type { IdentityReceipt } from "@dvote/shared";
+import { ShieldCheck } from "lucide-react";
 import { useState } from "react";
-import { isAddressEqual, recoverTypedDataAddress } from "viem";
-import { usePublicClient } from "wagmi";
+import { isAddressEqual } from "viem";
 
 import { api } from "@/lib/api";
 import type { OnchainElection } from "@/lib/election";
@@ -23,41 +17,37 @@ import {
   saveIdentityReceipt,
   useStoredIdentity,
 } from "@/lib/identity";
+import { downloadReceipt, useReceiptCheck } from "@/lib/receipts";
 import { formatTime } from "@/lib/time";
 
+import { Button, buttonClass, Card, Disclosure, Mono, muted, Notice, TextButton } from "../ui";
 import { EmailProof, type EmailProofValue } from "./email-proof";
-import { Button, Card, Mono, Notice } from "./ui";
+
+/** What each party can see, for voters who want to know why their ballot stays secret. */
+function SecrecyNote() {
+  return (
+    <Disclosure summary="How is my vote kept secret?">
+      <p>
+        The registrar sees your email and a public code made from your voting key. That is how it
+        knows who may vote.
+      </p>
+      <p>
+        When you vote, your browser proves that the ballot comes from one of the registered codes,
+        without saying which one. So the registrar, the people running this site and anyone reading
+        the blockchain can see the ballot, but none of them can tell it is yours.
+      </p>
+      <p>
+        Your ballot is hidden among everyone on the voter list, so the more people register, the
+        better hidden it is.
+      </p>
+    </Disclosure>
+  );
+}
 
 /**
  * Tier 3's voting key: a secret this browser creates and keeps. It is what proves, later, that the
  * ballot comes from someone on the list without saying who.
  */
-/** What each party can see, for voters who want to know why their ballot stays secret. */
-export function SecrecyNote() {
-  return (
-    <details className="text-zinc-600 dark:text-zinc-400">
-      <summary className="cursor-pointer font-medium text-zinc-800 dark:text-zinc-200">
-        How is my vote kept secret?
-      </summary>
-      <div className="mt-2 flex flex-col gap-2">
-        <p>
-          The registrar sees your email and a public code made from your voting key. That is how it
-          knows who may vote.
-        </p>
-        <p>
-          When you vote, your browser proves that the ballot comes from one of the registered codes,
-          without saying which one. So the registrar, the people running this site and anyone
-          reading the blockchain can see the ballot, but none of them can tell it is yours.
-        </p>
-        <p>
-          Your ballot is hidden among everyone on the voter list, so the more people register, the
-          better hidden it is.
-        </p>
-      </div>
-    </details>
-  );
-}
-
 export function VotingKeyCard({
   election,
   restoreOnly = false,
@@ -76,13 +66,9 @@ export function VotingKeyCard({
     return (
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
         Your voting key is in this browser.{" "}
-        <button
-          type="button"
-          className="underline"
-          onClick={() => downloadIdentityBackup(chain.id, election.address, identity)}
-        >
+        <TextButton onClick={() => downloadIdentityBackup(chain.id, election.address, identity)}>
           Download a backup
-        </button>{" "}
+        </TextButton>{" "}
         to vote from another device; keep it private.
       </p>
     );
@@ -129,13 +115,11 @@ export function VotingKeyCard({
               A spare copy was saved to your downloads. You need it only if you vote from another
               device or clear this browser&apos;s data. Keep it private: anyone holding it can cast
               your ballot.{" "}
-              <button
-                type="button"
-                className="underline"
+              <TextButton
                 onClick={() => downloadIdentityBackup(chain.id, election.address, identity)}
               >
                 Save it again
-              </button>
+              </TextButton>
             </p>
           </>
         ) : (
@@ -143,11 +127,7 @@ export function VotingKeyCard({
             <div className="flex flex-wrap gap-3">
               {!restoreOnly && <Button onClick={create}>Create my voting key</Button>}
               <label
-                className={
-                  restoreOnly
-                    ? "inline-flex cursor-pointer items-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white focus-within:ring-2 focus-within:ring-zinc-400 hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
-                    : "inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium focus-within:ring-2 focus-within:ring-zinc-400 dark:border-zinc-700"
-                }
+                className={`${buttonClass({ variant: restoreOnly ? "primary" : "secondary" })} cursor-pointer focus-within:ring-2 focus-within:ring-zinc-400`}
               >
                 {restoreOnly ? "Choose my key file" : "I already have a key file"}
                 <input
@@ -158,7 +138,7 @@ export function VotingKeyCard({
                 />
               </label>
             </div>
-            <p className="text-zinc-500">
+            <p className={muted}>
               {restoreOnly
                 ? "Use the backup file you downloaded when you registered."
                 : "Creating the key also saves a spare copy to your downloads."}
@@ -221,60 +201,35 @@ export function IdentityRegistrationForm({ election }: { election: OnchainElecti
 
 /** The registrar's receipt for a voting key, checked against the election's registrar. */
 export function IdentityReceiptCard({ receipt }: { receipt: IdentityReceipt }) {
-  const client = usePublicClient();
-  const check = useQuery({
-    queryKey: ["identity-receipt-check", receipt],
-    enabled: Boolean(client),
-    queryFn: async () => {
-      if (!client) throw new Error("Not ready");
-      const signer = await recoverTypedDataAddress({
-        ...identityReceiptTypedData(receipt),
-        signature: receipt.signature,
-      });
-      const isRegistrar = await client.readContract({
-        address: receipt.election,
-        abi: merkleElectionAbi,
-        functionName: "hasRole",
-        args: [REGISTRAR_ROLE, signer],
-      });
-      return isRegistrar && isAddressEqual(signer, receipt.registrar);
-    },
-  });
-  const download = () => {
-    const blob = new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `dvote-receipt-${receipt.election.slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  };
-  const valid = check.data;
+  const check = useReceiptCheck(receipt);
+  const valid = check.data?.valid;
   return (
-    <details className="rounded-xl border border-zinc-200 px-5 py-4 text-sm dark:border-zinc-800">
-      <summary className="cursor-pointer font-medium">Proof of registration</summary>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+    <Disclosure card summary="Proof of registration">
+      <p>
         Optional. If your voting key were missing from the published list, this receipt would show
         that the registrar accepted it. It names your key&apos;s public code, not your ballot.
       </p>
-      <div className="mt-3 flex flex-col gap-3">
-        <p>
-          Voting key <Mono value={receipt.commitment} /> was registered on{" "}
-          {formatTime(receipt.issuedAt)}.
+      <p className="text-zinc-900 dark:text-zinc-100">
+        Voting key <Mono value={receipt.commitment} /> was registered on{" "}
+        {formatTime(receipt.issuedAt)}.
+      </p>
+      {valid === true && (
+        <p className="flex items-start gap-2">
+          <ShieldCheck
+            aria-hidden
+            className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+          />
+          The receipt is signed by this election&apos;s registrar, as recorded in the contract.
         </p>
-        {valid === true && (
-          <p className="text-zinc-600 dark:text-zinc-400">
-            ✓ The receipt is signed by this election&apos;s registrar, as recorded in the contract.
-          </p>
-        )}
-        {valid === false && (
-          <Notice tone="error">This receipt is not signed by the election&apos;s registrar.</Notice>
-        )}
-        <div>
-          <Button variant="secondary" onClick={download}>
-            Download the receipt
-          </Button>
-        </div>
+      )}
+      {valid === false && (
+        <Notice tone="error">This receipt is not signed by the election&apos;s registrar.</Notice>
+      )}
+      <div>
+        <Button variant="secondary" onClick={() => downloadReceipt(receipt)}>
+          Download the receipt
+        </Button>
       </div>
-    </details>
+    </Disclosure>
   );
 }

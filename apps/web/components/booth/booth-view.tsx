@@ -14,12 +14,13 @@ import { useTransaction } from "@/lib/transaction";
 import { proofFor, useVoterList } from "@/lib/voter-list";
 import { useWallet } from "@/lib/wallet";
 
-import { ConnectWallet } from "./wallet-connect";
+import { ElectionHeader } from "../election/election-header";
+import { ElectionPending } from "../election/election-pending";
+import { TransactionStatus } from "../transaction-status";
+import { Button, Card, LinkButton, Notice } from "../ui";
+import { ConnectWallet } from "../wallet-connect";
 import { AnonymousBooth } from "./anonymous-booth";
 import { CandidateChoice, choiceFor, type Marks } from "./candidate-choice";
-import { ElectionHeader } from "./election-header";
-import { TransactionStatus } from "./transaction-status";
-import { Button, Card, LinkButton, Notice, Spinner } from "./ui";
 
 function Ballot({ election, proof }: { election: OnchainElection; proof: Hex[] }) {
   const config = useConfig();
@@ -69,7 +70,9 @@ function Ballot({ election, proof }: { election: OnchainElection; proof: Hex[] }
             Cast my ballot
           </Button>
         </div>
-        {blocker && <p className="text-sm text-zinc-500">{blocker} to cast your ballot.</p>}
+        {blocker && (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">{blocker} to cast your ballot.</p>
+        )}
         <TransactionStatus state={transaction.state} />
       </form>
     </Card>
@@ -95,10 +98,8 @@ function Booth({ election, account }: { election: OnchainElection; account: Addr
 
   if (list.isPending) {
     return (
-      <Notice>
-        <span className="flex items-center gap-2">
-          <Spinner /> Downloading the voter list from IPFS and checking it against the contract…
-        </span>
+      <Notice busy>
+        Downloading the voter list from IPFS and checking it against the contract…
       </Notice>
     );
   }
@@ -139,11 +140,7 @@ function Booth({ election, account }: { election: OnchainElection; account: Addr
     return (
       <>
         {checked}
-        <Notice>
-          <span className="flex items-center gap-2">
-            <Spinner /> Checking whether this wallet has voted…
-          </span>
-        </Notice>
+        <Notice busy>Checking whether this wallet has voted…</Notice>
       </>
     );
   }
@@ -212,17 +209,8 @@ export function BoothView({ address }: { address: string }) {
   const { address: account } = useAccount();
   const now = useChainNow();
 
-  if (!valid) return <Notice tone="error">That is not an election address.</Notice>;
-  if (error) return <Notice tone="error">{describeError(error)}</Notice>;
-  if (election === undefined) {
-    return (
-      <p className="flex items-center gap-2 text-sm text-zinc-500">
-        <Spinner /> Reading the election from the chain…
-      </p>
-    );
-  }
-  if (election === null) {
-    return <Notice tone="error">This contract was not created by the election factory.</Notice>;
+  if (!valid || error || !election) {
+    return <ElectionPending valid={valid} error={error} election={election} />;
   }
 
   if (election.tier === 3) {

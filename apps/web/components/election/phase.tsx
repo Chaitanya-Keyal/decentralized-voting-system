@@ -1,9 +1,9 @@
 import { Phase, phaseName, CountingRule } from "@dvote/shared";
 
-import { Badge } from "./ui";
+import { Badge } from "../ui";
 
 /** What to call the phase now: the clock moves an election on before anyone records it. */
-export function phaseLabel(
+function phaseLabel(
   phase: number,
   window?: { registrationStart: number; registrationEnd: number; votingEnd: number },
   now?: number,

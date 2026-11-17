@@ -5,11 +5,11 @@ import { slice, type Address, type Hex } from "viem";
 
 import { api } from "@/lib/api";
 import { chain, explorerTx } from "@/lib/env";
-import { useCastBallot } from "@/lib/identity";
 import { describeError } from "@/lib/errors";
+import { useCastBallot } from "@/lib/identity";
 import { formatTime } from "@/lib/time";
 
-import { Mono, Notice } from "../ui";
+import { Badge, ExternalLink, Loading, Mono, muted, Notice } from "../ui";
 
 /**
  * In tier 2 a ballot's key is the voter's address, left-padded to 32 bytes. In tier 3 it is the
@@ -43,13 +43,13 @@ export function Ballots({
   });
 
   if (error) return <Notice tone="error">{describeError(error)}</Notice>;
-  if (!data) return null;
-  if (data.ballots.length === 0) return <p className="text-sm text-zinc-500">No ballots yet.</p>;
+  if (!data) return <Loading>Loading the ballots…</Loading>;
+  if (data.ballots.length === 0) return <p className={`text-sm ${muted}`}>No ballots yet.</p>;
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
-        <thead className="text-xs text-zinc-500">
+        <thead className={`text-xs ${muted}`}>
           <tr>
             <th className="py-2 pr-4 font-medium">{tier === 3 ? "Ballot ID" : "Voter"}</th>
             <th className="py-2 pr-4 font-medium">Choice</th>
@@ -68,8 +68,8 @@ export function Ballots({
                 <td className="py-2 pr-4">
                   <Mono value={voterOf(ballot.key, tier)} />
                   {own !== undefined && BigInt(ballot.key) === own && (
-                    <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                      yours
+                    <span className="ml-2">
+                      <Badge tone="live">yours</Badge>
                     </span>
                   )}
                 </td>
@@ -77,14 +77,14 @@ export function Ballots({
                   {ballot.candidates.map((index) => candidates[index] ?? `#${index}`).join(", ") ||
                     `choice ${ballot.choice}`}
                 </td>
-                <td className="hidden py-2 pr-4 text-zinc-500 sm:table-cell">
+                <td className={`hidden py-2 pr-4 sm:table-cell ${muted}`}>
                   {formatTime(ballot.timestamp)}
                 </td>
                 <td className="hidden py-2 sm:table-cell">
                   {link ? (
-                    <a href={link} target="_blank" rel="noreferrer" className="underline">
+                    <ExternalLink href={link}>
                       <Mono value={ballot.txHash} />
-                    </a>
+                    </ExternalLink>
                   ) : (
                     <Mono value={ballot.txHash} />
                   )}

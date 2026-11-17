@@ -1,12 +1,13 @@
 "use client";
 
+import { Check, X } from "lucide-react";
 import { useState } from "react";
 import { usePublicClient } from "wagmi";
 
 import { auditSteps, runAudit, type AuditStep } from "@/lib/audit";
 import type { OnchainElection } from "@/lib/election";
 
-import { Button, Spinner } from "../ui";
+import { Button, muted, Spinner } from "../ui";
 
 function Mark({ status }: { status: AuditStep["status"] }) {
   if (status === "running") return <Spinner />;
@@ -16,12 +17,18 @@ function Mark({ status }: { status: AuditStep["status"] }) {
     fail: "bg-red-500 text-white",
   } as const;
   return (
-    <span
-      aria-hidden
-      className={`inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${styles[status]}`}
-    >
-      {status === "pass" ? "✓" : status === "fail" ? "✕" : ""}
-    </span>
+    <>
+      <span
+        aria-hidden
+        className={`inline-flex size-4 shrink-0 items-center justify-center rounded-full ${styles[status]}`}
+      >
+        {status === "pass" && <Check className="size-3" strokeWidth={3} />}
+        {status === "fail" && <X className="size-3" strokeWidth={3} />}
+      </span>
+      {status !== "waiting" && (
+        <span className="sr-only">{status === "pass" ? "Passed: " : "Failed: "}</span>
+      )}
+    </>
   );
 }
 
@@ -53,7 +60,7 @@ export function Audit({ election }: { election: OnchainElection }) {
         <ol className="flex flex-col gap-3">
           {steps.map((step) => (
             <li key={step.id} className="flex gap-3">
-              <span className="mt-0.5">
+              <span className="mt-0.5 flex">
                 <Mark status={step.status} />
               </span>
               <span className="flex min-w-0 flex-col gap-0.5">
@@ -63,7 +70,7 @@ export function Audit({ election }: { election: OnchainElection }) {
                     className={
                       step.status === "fail"
                         ? "text-xs wrap-anywhere text-red-700 dark:text-red-400"
-                        : "text-xs wrap-anywhere text-zinc-500"
+                        : `text-xs wrap-anywhere ${muted}`
                     }
                   >
                     {step.detail}
@@ -76,6 +83,7 @@ export function Audit({ election }: { election: OnchainElection }) {
       )}
       {done && (
         <p
+          role="status"
           className={
             failed ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"
           }

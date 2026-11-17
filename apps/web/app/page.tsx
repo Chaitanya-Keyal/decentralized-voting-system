@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { Suspense } from "react";
 
-import { ElectionList } from "@/components/election-list";
+import { ElectionList } from "@/components/election/election-list";
+import { LinkButton, Loading } from "@/components/ui";
 
 export default function Home() {
   return (
@@ -13,15 +13,10 @@ export default function Home() {
             Every election here runs on a smart contract, so anyone can check the count.
           </p>
         </div>
-        <Link
-          href="/elections/new"
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
-          New election
-        </Link>
+        <LinkButton href="/elections/new">New election</LinkButton>
       </div>
       {/* Phases follow the clock, so the list renders per visit. */}
-      <Suspense fallback={<p className="text-sm text-zinc-500">Loading elections…</p>}>
+      <Suspense fallback={<Loading>Loading elections…</Loading>}>
         <ElectionList />
       </Suspense>
     </>

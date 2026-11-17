@@ -12,6 +12,8 @@ import {
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { Address } from "viem";
 
+import { downloadFile } from "./download";
+
 const CHANGE_EVENT = "dvote-identities";
 
 function storageKey(chainId: number, election: Address): string {
@@ -19,7 +21,7 @@ function storageKey(chainId: number, election: Address): string {
 }
 
 /** The backup file's contents: the secret, and which election it is for. */
-export interface IdentityBackup {
+interface IdentityBackup {
   format: "dvote-identity-v1";
   chainId: number;
   election: Address;
@@ -90,12 +92,11 @@ export function downloadIdentityBackup(chainId: number, election: Address, ident
     election,
     privateKey: identity.export(),
   };
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `dvote-voting-key-${election.slice(0, 10)}.json`;
-  link.click();
-  URL.revokeObjectURL(link.href);
+  downloadFile(
+    `dvote-voting-key-${election.slice(0, 10)}.json`,
+    JSON.stringify(backup, null, 2),
+    "application/json",
+  );
 }
 
 /** Reads a backup file, checking that it is one and that it belongs to this election. */

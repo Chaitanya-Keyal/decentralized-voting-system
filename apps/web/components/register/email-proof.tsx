@@ -9,8 +9,18 @@ import type { OnchainElection } from "@/lib/election";
 import { chain, isLocalChain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 
+import {
+  Button,
+  ExternalLink,
+  Field,
+  Input,
+  Loading,
+  muted,
+  Notice,
+  Spinner,
+  TextButton,
+} from "../ui";
 import { GoogleSignInButton } from "./google-sign-in";
-import { Button, Field, Input, Spinner } from "./ui";
 
 /** How the voter showed they hold an institute address. */
 export type EmailProofValue =
@@ -53,11 +63,7 @@ export function EmailProof({
   const [problem, setProblem] = useState<string>();
 
   if (!config.data) {
-    return (
-      <p className="flex items-center gap-2 text-sm text-zinc-500">
-        <Spinner /> Loading…
-      </p>
-    );
+    return <Loading>Loading…</Loading>;
   }
   const { googleClientId, emailCodes, emailDomain } = config.data;
   if (googleClientId === null && !emailCodes) {
@@ -97,7 +103,7 @@ export function EmailProof({
           {busy && <Spinner />} {submitLabel}
         </Button>
       </div>
-      {disabled && <p className="text-sm text-zinc-500">{disabled}.</p>}
+      {disabled && <p className={`text-sm ${muted}`}>{disabled}.</p>}
     </div>
   );
 
@@ -106,13 +112,9 @@ export function EmailProof({
       <div className="flex flex-col gap-4 text-sm">
         <p>
           Signed in with Google as <strong>{google.email}</strong>.{" "}
-          <button
-            type="button"
-            className="text-zinc-500 underline"
-            onClick={() => setGoogle(undefined)}
-          >
+          <TextButton className={muted} onClick={() => setGoogle(undefined)}>
             Use another account
-          </button>
+          </TextButton>
         </p>
         {children}
         {submitButton({ email: google.email, googleIdToken: google.idToken }, false)}
@@ -133,16 +135,12 @@ export function EmailProof({
             onSignedIn={setGoogle}
           />
         ) : (
-          <p className="text-zinc-500">{disabled ?? "Make your voting key first."}</p>
+          <p className={muted}>{disabled ?? "Make your voting key first."}</p>
         )}
         {emailCodes && (
-          <button
-            type="button"
-            className="w-fit text-zinc-500 underline"
-            onClick={() => setUseCode(true)}
-          >
+          <TextButton className={`w-fit ${muted}`} onClick={() => setUseCode(true)}>
             Get a code by email instead
-          </button>
+          </TextButton>
         )}
       </div>
     );
@@ -175,13 +173,9 @@ export function EmailProof({
             {sending && <Spinner />} {sentTo ? "Send a new code" : "Send me a code"}
           </Button>
           {googleClientId !== null && (
-            <button
-              type="button"
-              className="text-sm text-zinc-500 underline"
-              onClick={() => setUseCode(false)}
-            >
+            <TextButton className={`text-sm ${muted}`} onClick={() => setUseCode(false)}>
               Sign in with Google instead
-            </button>
+            </TextButton>
           )}
         </div>
       </form>
@@ -200,15 +194,7 @@ export function EmailProof({
               <>
                 {" "}
                 Locally, the email lands in{" "}
-                <a
-                  href="http://127.0.0.1:8025"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  Mailpit
-                </a>
-                .
+                <ExternalLink href="http://127.0.0.1:8025">Mailpit</ExternalLink>.
               </>
             )}
           </p>
@@ -232,7 +218,7 @@ export function EmailProof({
         </form>
       )}
 
-      {problem && <p className="text-sm text-red-700 dark:text-red-400">{problem}</p>}
+      {problem && <Notice tone="error">{problem}</Notice>}
     </div>
   );
 }

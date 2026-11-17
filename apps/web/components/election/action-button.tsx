@@ -10,7 +10,7 @@ import { useTransaction } from "@/lib/transaction";
 import { useWallet } from "@/lib/wallet";
 
 import { TransactionStatus } from "../transaction-status";
-import { Button } from "../ui";
+import { Button, muted } from "../ui";
 
 /** The election's steps that take no arguments. */
 export type ElectionStep =
@@ -56,6 +56,7 @@ export function ActionButton({
           {children}
         </Button>
       </div>
+      {blocker && <p className={`text-sm ${muted}`}>{blocker}.</p>}
       <TransactionStatus state={transaction.state} />
     </div>
   );

@@ -6,7 +6,7 @@ import type { OnchainElection } from "@/lib/election";
 import { describeError } from "@/lib/errors";
 import { proofFor, useIdentityList, useVoterList } from "@/lib/voter-list";
 
-import { Notice, Spinner } from "./ui";
+import { Notice } from "../ui";
 
 /**
  * Whether `voter` is on the published voter list, checked in the browser: it downloads the list
@@ -16,13 +16,7 @@ export function ListCheck({ election, voter }: { election: OnchainElection; vote
   const list = useVoterList(election);
   if (election.voterListCid === "") return null;
   if (list.isPending) {
-    return (
-      <Notice>
-        <span className="flex items-center gap-2">
-          <Spinner /> Downloading the voter list and checking it against the contract…
-        </span>
-      </Notice>
-    );
+    return <Notice busy>Downloading the voter list and checking it against the contract…</Notice>;
   }
   if (list.error) {
     return (
@@ -52,13 +46,7 @@ export function IdentityListCheck({
 }) {
   const list = useIdentityList(election);
   if (list.isPending) {
-    return (
-      <Notice>
-        <span className="flex items-center gap-2">
-          <Spinner /> Downloading the voter list and checking it against the contract…
-        </span>
-      </Notice>
-    );
+    return <Notice busy>Downloading the voter list and checking it against the contract…</Notice>;
   }
   if (list.error) {
     return (

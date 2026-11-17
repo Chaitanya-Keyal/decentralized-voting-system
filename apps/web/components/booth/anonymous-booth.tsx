@@ -10,7 +10,7 @@ import { simulateContract, writeContract } from "wagmi/actions";
 import type { OnchainElection } from "@/lib/election";
 import { chain, explorerTx, simulateAt } from "@/lib/env";
 import { describeError } from "@/lib/errors";
-import { useHideWallet } from "@/lib/chrome";
+import { useHideWallet } from "@/lib/header-wallet";
 import {
   saveCastBallot,
   useCastBallot,
@@ -25,11 +25,22 @@ import { useTransaction } from "@/lib/transaction";
 import { useIdentityList } from "@/lib/voter-list";
 import { useWallet } from "@/lib/wallet";
 
-import { ConnectWallet } from "./wallet-connect";
+import { CopyButton } from "../copy-button";
+import { VotingKeyCard } from "../register/identity-registration";
+import { TransactionStatus } from "../transaction-status";
+import {
+  Button,
+  Card,
+  Disclosure,
+  ExternalLink,
+  LinkButton,
+  Mono,
+  muted,
+  Notice,
+  Spinner,
+} from "../ui";
+import { ConnectWallet } from "../wallet-connect";
 import { CandidateChoice, choiceFor, type Marks } from "./candidate-choice";
-import { VotingKeyCard } from "./identity-registration";
-import { TransactionStatus } from "./transaction-status";
-import { Button, Card, LinkButton, Mono, Notice, Spinner } from "./ui";
 
 /** Within this long of the close, a relayed ballot may not be mined in time. */
 const DEADLINE_MARGIN = 5 * 60;
@@ -183,7 +194,7 @@ function AnonymousBallotForm({
       >
         <CandidateChoice election={election} marks={marks} onChange={setMarks} />
         {closingSoon && (
-          <Notice tone="error">
+          <Notice tone="warning">
             Voting closes {formatRelative(election.schedule.votingEnd, now)}. A relayed ballot may
             not be mined in time; submitting from a wallet is quicker.
           </Notice>
@@ -194,100 +205,53 @@ function AnonymousBallotForm({
           </Button>
         </div>
         {step.kind === "proving" && (
-          <Notice>
-            <span className="flex items-center gap-2">
-              <Spinner />
-              {step.stage === "downloading"
-                ? "Downloading the proving files and checking their hashes…"
-                : "Making the zero-knowledge proof on this device. This takes a few seconds…"}
-            </span>
+          <Notice busy>
+            {step.stage === "downloading"
+              ? "Downloading the proving files and checking their hashes…"
+              : "Making the zero-knowledge proof on this device. This takes a few seconds…"}
           </Notice>
         )}
         {step.kind === "relaying" && (
-          <Notice>
-            <span className="flex items-center gap-2">
-              <Spinner /> Handing the ballot to the relayer, which checks it and pays the gas…
-            </span>
-          </Notice>
+          <Notice busy>Handing the ballot to the relayer, which checks it and pays the gas…</Notice>
         )}
         {step.kind === "queued" && (
-          <Notice>
-            <span className="flex items-center gap-2">
-              <Spinner /> The relayer accepted the ballot and signed a receipt. Waiting for it to be
-              mined…
-            </span>
+          <Notice busy>
+            The relayer accepted the ballot and signed a receipt. Waiting for it to be mined…
           </Notice>
         )}
         {step.kind === "error" && <Notice tone="error">{step.message}</Notice>}
         {proved && (
-          <p className="text-xs text-zinc-500">
+          <p className={`text-xs ${muted}`}>
             Proved in {(proved.provingMs / 1000).toFixed(1)} s on this device.
           </p>
         )}
 
-        <details className="text-sm">
-          <summary className="cursor-pointer text-zinc-600 dark:text-zinc-400">
-            Advanced: send it from a wallet of your own instead
-          </summary>
-          <div className="mt-3 flex flex-col gap-3">
-            <p className="text-zinc-500">
-              If the relayer is down{relayer.isError ? " (it is not answering now)" : ""}, any
-              wallet can submit your ballot and pay its gas. The proof still hides who you are, but
-              the wallet is shown as having submitted a ballot, so use one that is not linked to
-              you.
-            </p>
-            {wallet.account ? (
-              <div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={castFromWallet}
-                  disabled={choice === undefined || busy || transaction.busy || !wallet.ready}
-                  title={wallet.blocker}
-                >
-                  Submit from my wallet
-                </Button>
-              </div>
-            ) : (
-              <ConnectWallet />
-            )}
-            <TransactionStatus state={transaction.state} />
-          </div>
-        </details>
+        <Disclosure summary="Advanced: send it from a wallet of your own instead">
+          <p>
+            If the relayer is down{relayer.isError ? " (it is not answering now)" : ""}, any wallet
+            can submit your ballot and pay its gas. The proof still hides who you are, but the
+            wallet is shown as having submitted a ballot, so use one that is not linked to you.
+          </p>
+          {wallet.account ? (
+            <div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={castFromWallet}
+                disabled={choice === undefined || busy || transaction.busy || !wallet.ready}
+                title={wallet.blocker}
+              >
+                Submit from my wallet
+              </Button>
+              {wallet.blocker && <p className={`mt-2 ${muted}`}>{wallet.blocker}.</p>}
+            </div>
+          ) : (
+            <ConnectWallet />
+          )}
+          <TransactionStatus state={transaction.state} />
+        </Disclosure>
       </form>
     </Card>
-  );
-}
-
-/** Copies this page's address, to open it in another browser. */
-function CopyAddress() {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className="underline"
-      onClick={() => {
-        void navigator.clipboard.writeText(window.location.href).then(() => setCopied(true));
-      }}
-    >
-      {copied ? "address copied; paste it there" : "copy this page's address"}
-    </button>
-  );
-}
-
-/** Copies the full ballot ID, which the page shows shortened. */
-function CopyBallotId({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className="underline"
-      onClick={() => {
-        void navigator.clipboard.writeText(id).then(() => setCopied(true));
-      }}
-    >
-      {copied ? "Copied" : "Copy the ballot ID"}
-    </button>
   );
 }
 
@@ -303,30 +267,27 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
         Your ballot ID is <Mono value={pad(toHex(BigInt(ballot.nullifier)))} />. On the
         election&apos;s page, this browser marks your ballot &ldquo;yours&rdquo;; note the ID if you
         want to find it from another device. Nobody can connect the ID to your name.{" "}
-        <CopyBallotId id={pad(toHex(BigInt(ballot.nullifier)))} />
+        <CopyButton value={pad(toHex(BigInt(ballot.nullifier)))}>Copy the ballot ID</CopyButton>
       </p>
-      <details className="text-sm text-zinc-600 dark:text-zinc-400">
-        <summary className="cursor-pointer">Details</summary>
-        <div className="mt-2 flex flex-col gap-1.5">
-          {ballot.txHash && (
-            <p>
-              Transaction{" "}
-              {link ? (
-                <a href={link} target="_blank" rel="noreferrer" className="underline">
-                  <Mono value={ballot.txHash} />
-                </a>
-              ) : (
+      <Disclosure summary="Details">
+        {ballot.txHash && (
+          <p>
+            Transaction{" "}
+            {link ? (
+              <ExternalLink href={link}>
                 <Mono value={ballot.txHash} />
-              )}
-            </p>
-          )}
-          {ballot.relayReceipt && (
-            <p>
-              The relayer signed a receipt for it at {formatTime(ballot.relayReceipt.acceptedAt)}.
-            </p>
-          )}
-        </div>
-      </details>
+              </ExternalLink>
+            ) : (
+              <Mono value={ballot.txHash} />
+            )}
+          </p>
+        )}
+        {ballot.relayReceipt && (
+          <p>
+            The relayer signed a receipt for it at {formatTime(ballot.relayReceipt.acceptedAt)}.
+          </p>
+        )}
+      </Disclosure>
       <LinkButton href={`/elections/${election.address}`} variant="secondary">
         See your ballot in the count
       </LinkButton>
@@ -422,7 +383,10 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
           <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-zinc-700 dark:text-zinc-300">
             <li>
               Registered on this phone or computer, but this page opened inside WhatsApp or another
-              app? Open it in the browser you registered in instead: <CopyAddress />
+              app? Open it in the browser you registered in instead:{" "}
+              <CopyButton value={() => window.location.href} copied="Copied. Paste it there.">
+                copy this page&apos;s address
+              </CopyButton>
             </li>
             <li>
               Or open the link you sent yourself when you registered. It opens this page with your
@@ -452,10 +416,8 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
   }
   if (list.isPending) {
     return (
-      <Notice>
-        <span className="flex items-center gap-2">
-          <Spinner /> Downloading the voter list from IPFS and checking it against the contract…
-        </span>
+      <Notice busy>
+        Downloading the voter list from IPFS and checking it against the contract…
       </Notice>
     );
   }

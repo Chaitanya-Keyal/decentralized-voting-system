@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 import type { OnchainElection } from "@/lib/election";
@@ -18,9 +19,10 @@ export function ElectionHeader({
     <div className="flex flex-col gap-1">
       <Link
         href={`/elections/${election.address}`}
-        className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+        className="inline-flex w-fit items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
-        ← {election.title}
+        <ArrowLeft aria-hidden className="size-4 shrink-0" />
+        {election.title}
       </Link>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">{action}</h1>

@@ -7,8 +7,8 @@ import { api } from "@/lib/api";
 import { describeError } from "@/lib/errors";
 import { formatShort, useChainNow } from "@/lib/time";
 
+import { Card, Loading, Notice } from "../ui";
 import { BallotBadges, PhaseBadge } from "./phase";
-import { Card, Notice, Spinner } from "./ui";
 
 export function ElectionList() {
   const now = useChainNow();
@@ -19,11 +19,7 @@ export function ElectionList() {
   });
 
   if (isPending) {
-    return (
-      <p className="flex items-center gap-2 text-sm text-zinc-500">
-        <Spinner /> Loading elections…
-      </p>
-    );
+    return <Loading>Loading elections…</Loading>;
   }
   if (error) return <Notice tone="error">{describeError(error)}</Notice>;
   if (data.elections.length === 0) {

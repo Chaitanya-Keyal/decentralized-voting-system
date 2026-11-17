@@ -16,6 +16,8 @@ import { toLocalInput, useChainNow } from "@/lib/time";
 import { useTransaction } from "@/lib/transaction";
 import { useWallet } from "@/lib/wallet";
 
+import { TransactionStatus } from "../transaction-status";
+import { Button, Card, choiceCard, Disclosure, Field, Input, muted, Notice, Textarea } from "../ui";
 import {
   CandidatesEditor,
   candidatesProblem,
@@ -26,8 +28,6 @@ import {
   type CandidateDraft,
   type ScheduleDraft,
 } from "./election-fields";
-import { TransactionStatus } from "./transaction-status";
-import { Button, Card, Field, Input, Notice, Textarea } from "./ui";
 
 const MINUTE = 60;
 
@@ -50,18 +50,17 @@ function Choice(props: {
   detail: string;
 }) {
   return (
-    <label className="flex cursor-pointer gap-3 rounded-lg border border-zinc-200 px-4 py-3 has-[:checked]:border-zinc-900 dark:border-zinc-800 dark:has-[:checked]:border-zinc-100">
+    <label className={choiceCard}>
       <input
         type="radio"
         name={props.name}
         checked={props.checked}
         onChange={props.onChange}
         className="mt-0.5 size-4 shrink-0 accent-zinc-900 dark:accent-zinc-100"
-        aria-label={props.label}
       />
       <span className="flex flex-col gap-1">
         <span className="font-medium">{props.label}</span>
-        <span className="text-zinc-500">{props.detail}</span>
+        <span className={muted}>{props.detail}</span>
       </span>
     </label>
   );
@@ -242,39 +241,36 @@ export function CreateElectionForm() {
         <ScheduleEditor value={schedule} onChange={setSchedule} />
       </Card>
 
-      <details className="rounded-xl border border-zinc-200 px-5 py-4 text-sm dark:border-zinc-800">
-        <summary className="cursor-pointer font-medium">Advanced: the registrar</summary>
-        <div className="mt-3 flex flex-col gap-3">
-          <p className="text-zinc-600 dark:text-zinc-400">
-            The registrar checks voters&apos; email addresses and publishes the voter list. Most
-            elections use this deployment&apos;s own.
-          </p>
-          <Field
-            label="Registrar's address"
-            hint={
-              apiConfig.data
-                ? `Leave empty to use this deployment's registrar, ${apiConfig.data.registrar}.`
-                : undefined
-            }
-          >
-            <Input
-              value={registrar}
-              onChange={(event) => setRegistrar(event.target.value)}
-              placeholder={apiConfig.data?.registrar ?? "0x…"}
-            />
-          </Field>
-        </div>
-      </details>
+      <Disclosure card summary="Advanced: the registrar">
+        <p>
+          The registrar checks voters&apos; email addresses and publishes the voter list. Most
+          elections use this deployment&apos;s own.
+        </p>
+        <Field
+          label="Registrar's address"
+          hint={
+            apiConfig.data
+              ? `Leave empty to use this deployment's registrar, ${apiConfig.data.registrar}.`
+              : undefined
+          }
+        >
+          <Input
+            value={registrar}
+            onChange={(event) => setRegistrar(event.target.value)}
+            placeholder={apiConfig.data?.registrar ?? "0x…"}
+          />
+        </Field>
+      </Disclosure>
 
       {problem && <Notice tone="error">{problem}</Notice>}
-      {step && <Notice>{step}</Notice>}
+      {step && <Notice busy>{step}</Notice>}
       <TransactionStatus state={transaction.state} />
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={!ready || transaction.busy || Boolean(step)}>
           Create election
         </Button>
-        {blocker && <span className="text-sm text-zinc-500">{blocker} to create an election.</span>}
+        {blocker && <span className={`text-sm ${muted}`}>{blocker} to create an election.</span>}
       </div>
     </form>
   );

@@ -10,7 +10,7 @@ import { describeError } from "@/lib/errors";
 import { ipfsUrl } from "@/lib/ipfs";
 import { formatRelative, formatTime } from "@/lib/time";
 
-import { Button, LinkButton, Mono, Notice, Spinner } from "../ui";
+import { Button, ExternalLink, LinkButton, Mono, Notice, Spinner } from "../ui";
 import { ActionButton } from "./action-button";
 import { SkipAhead } from "./skip-ahead";
 
@@ -54,15 +54,7 @@ function VoterList({ election }: { election: OnchainElection }) {
     <p className="text-sm text-zinc-600 dark:text-zinc-400">
       The voter list has {election.voterCount} {election.voterCount === 1 ? "voter" : "voters"}.
       Root <Mono value={election.voterRoot} />,{" "}
-      <a
-        href={ipfsUrl(election.voterListCid)}
-        target="_blank"
-        rel="noreferrer"
-        className="underline"
-      >
-        full list on IPFS
-      </a>
-      .
+      <ExternalLink href={ipfsUrl(election.voterListCid)}>full list on IPFS</ExternalLink>.
     </p>
   );
 }

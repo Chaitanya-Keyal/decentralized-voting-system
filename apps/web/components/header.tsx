@@ -4,13 +4,12 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { useAccount, useSwitchChain } from "wagmi";
 
-import { useWalletForOrganisers, useWalletHidden } from "@/lib/chrome";
-
-import { HeaderConnectButton } from "./wallet-connect";
 import { chain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
+import { useWalletForOrganisers, useWalletHidden } from "@/lib/header-wallet";
 
 import { Button } from "./ui";
+import { HeaderConnectButton } from "./wallet-connect";
 
 /** Shown while the connected wallet is on another network, where nothing DVote sends can go. */
 function WrongNetwork() {
@@ -59,7 +58,7 @@ function WalletButton() {
               <button
                 type="button"
                 onClick={openAccountModal}
-                className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-1.5 font-mono text-xs text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-3 py-1.5 font-mono text-xs text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
               >
                 <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
                 {account.displayName}

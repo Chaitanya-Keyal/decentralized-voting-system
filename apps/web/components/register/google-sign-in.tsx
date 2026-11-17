@@ -5,6 +5,8 @@
 // institute's Google domain. The token proves the email address; it is not kept anywhere.
 import { useEffect, useRef, useState } from "react";
 
+import { Notice } from "../ui";
+
 const SCRIPT = "https://accounts.google.com/gsi/client";
 
 interface GoogleIdentity {
@@ -52,7 +54,7 @@ function loadGoogle(): Promise<GoogleIdentity> {
 }
 
 /** The email address an ID token is for, read without checking it: the registrar checks it. */
-export function emailOfIdToken(token: string): string | undefined {
+function emailOfIdToken(token: string): string | undefined {
   try {
     const payload = token.split(".")[1] ?? "";
     const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
@@ -98,7 +100,10 @@ export function GoogleSignInButton({
           },
         });
         google.accounts.id.renderButton(container.current, {
-          theme: "outline",
+          // Google's dark button on a dark page, its light one otherwise.
+          theme: window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "filled_black"
+            : "outline",
           size: "large",
           text: "signin_with",
           shape: "rectangular",
@@ -116,7 +121,7 @@ export function GoogleSignInButton({
   return (
     <div className="flex flex-col gap-2">
       <div ref={container} className="min-h-10" />
-      {problem && <p className="text-sm text-red-700 dark:text-red-400">{problem}</p>}
+      {problem && <Notice tone="error">{problem}</Notice>}
     </div>
   );
 }

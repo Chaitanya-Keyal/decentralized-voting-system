@@ -3,16 +3,20 @@
 // Registration receipts, kept in this browser so a voter can find theirs again. The receipt is
 // also offered as a download, since browser storage can be cleared.
 import {
-  REGISTRAR_ROLE,
+  identityReceiptTypedData,
+  merkleElectionAbi,
   receiptSchema,
   receiptTypedData,
-  merkleElectionAbi,
+  REGISTRAR_ROLE,
+  type IdentityReceipt,
   type Receipt,
 } from "@dvote/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useSyncExternalStore } from "react";
-import { recoverTypedDataAddress, type Address } from "viem";
+import { isAddressEqual, recoverTypedDataAddress, type Address } from "viem";
 import { usePublicClient } from "wagmi";
+
+import { downloadFile } from "./download";
 
 function storageKey(chainId: number, election: Address, voter: Address): string {
   return `dvote.receipt.${chainId}.${election}.${voter}`.toLowerCase();
@@ -73,37 +77,38 @@ export function useStoredReceipt(
   }, [raw]);
 }
 
-export function downloadReceipt(receipt: Receipt): void {
-  const blob = new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `dvote-receipt-${receipt.election.slice(0, 10)}-${receipt.voter.slice(0, 10)}.json`;
-  link.click();
-  URL.revokeObjectURL(link.href);
+/** Offers a receipt, for a wallet (tier 2) or a voting key (tier 3), as a download. */
+export function downloadReceipt(receipt: Receipt | IdentityReceipt): void {
+  const voter = "voter" in receipt ? `-${receipt.voter.slice(0, 10)}` : "";
+  downloadFile(
+    `dvote-receipt-${receipt.election.slice(0, 10)}${voter}.json`,
+    JSON.stringify(receipt, null, 2),
+    "application/json",
+  );
 }
 
 /**
  * Checks a receipt in the browser: who signed it, and whether that address is the registrar the
  * election contract names. Nothing here trusts the API.
  */
-export function useReceiptCheck(receipt: Receipt | undefined) {
+export function useReceiptCheck(receipt: Receipt | IdentityReceipt | undefined) {
   const client = usePublicClient();
   return useQuery({
     queryKey: ["receipt-check", receipt],
     enabled: Boolean(receipt && client),
     queryFn: async () => {
       if (!receipt || !client) throw new Error("Not ready");
-      const signer = await recoverTypedDataAddress({
-        ...receiptTypedData(receipt),
-        signature: receipt.signature,
-      });
+      const { signature } = receipt;
+      const signer = await ("voter" in receipt
+        ? recoverTypedDataAddress({ ...receiptTypedData(receipt), signature })
+        : recoverTypedDataAddress({ ...identityReceiptTypedData(receipt), signature }));
       const isRegistrar = await client.readContract({
         address: receipt.election,
         abi: merkleElectionAbi,
         functionName: "hasRole",
         args: [REGISTRAR_ROLE, signer],
       });
-      return { signer, valid: isRegistrar && signer === receipt.registrar };
+      return { signer, valid: isRegistrar && isAddressEqual(signer, receipt.registrar) };
     },
   });
 }

@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { fetchFromIpfs, ipfsUrl } from "@/lib/ipfs";
 
+import { ExternalLink, muted } from "../ui";
+
 export function Description({ cid }: { cid: string }) {
   const { data, error } = useQuery({
     queryKey: ["ipfs", cid],
@@ -15,12 +17,9 @@ export function Description({ cid }: { cid: string }) {
   if (!cid) return null;
   if (error) {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className={`text-sm ${muted}`}>
         The description could not be loaded from{" "}
-        <a href={ipfsUrl(cid)} className="underline" target="_blank" rel="noreferrer">
-          IPFS
-        </a>
-        .
+        <ExternalLink href={ipfsUrl(cid)}>IPFS</ExternalLink>.
       </p>
     );
   }

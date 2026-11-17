@@ -3,7 +3,7 @@ import { CountingRule, Phase } from "@dvote/shared";
 import type { OnchainElection } from "@/lib/election";
 import { ipfsUrl } from "@/lib/ipfs";
 
-import { Badge } from "../ui";
+import { Badge, ExternalLink } from "../ui";
 
 /** The candidates and the tally as the contract holds it: it changes only when a ballot is accepted. */
 export function Results({ election }: { election: OnchainElection }) {
@@ -30,14 +30,9 @@ export function Results({ election }: { election: OnchainElection }) {
               </span>
               <span className="flex items-center gap-3 text-zinc-600 dark:text-zinc-400">
                 {candidate.manifestoCid && (
-                  <a
-                    href={ipfsUrl(candidate.manifestoCid)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs underline"
-                  >
-                    Manifesto
-                  </a>
+                  <span className="text-xs">
+                    <ExternalLink href={ipfsUrl(candidate.manifestoCid)}>Manifesto</ExternalLink>
+                  </span>
                 )}
                 {counting &&
                   (approval

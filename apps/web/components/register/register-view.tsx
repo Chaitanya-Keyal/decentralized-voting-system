@@ -10,24 +10,25 @@ import { api } from "@/lib/api";
 import { useElection, type OnchainElection } from "@/lib/election";
 import { chain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
-import { useHideWallet } from "@/lib/chrome";
+import { useHideWallet } from "@/lib/header-wallet";
 import { useStoredIdentity, useStoredIdentityReceipt } from "@/lib/identity";
 import { saveReceipt, useStoredReceipt } from "@/lib/receipts";
 import { formatRelative, formatTime, useChainNow } from "@/lib/time";
 import { useWallet } from "@/lib/wallet";
 
-import { ConnectWallet } from "./wallet-connect";
+import { ElectionHeader } from "../election/election-header";
+import { ElectionPending } from "../election/election-pending";
+import { Card, Notice } from "../ui";
+import { ConnectWallet } from "../wallet-connect";
 import { EmailProof, type EmailProofValue } from "./email-proof";
-import { KeyTransfer } from "./key-transfer";
-import { ElectionHeader } from "./election-header";
 import {
   IdentityReceiptCard,
   IdentityRegistrationForm,
   VotingKeyCard,
 } from "./identity-registration";
+import { KeyTransfer } from "./key-transfer";
 import { IdentityListCheck, ListCheck } from "./list-check";
 import { ReceiptCard } from "./receipt-card";
-import { Card, Notice, Spinner } from "./ui";
 
 function registrationOpen(election: OnchainElection, now: number): boolean {
   return (
@@ -164,17 +165,8 @@ export function RegisterView({ address }: { address: string }) {
   const [fresh, setFresh] = useState<Receipt>();
   const receipt = fresh && account && isAddressEqual(fresh.voter, account) ? fresh : stored;
 
-  if (!valid) return <Notice tone="error">That is not an election address.</Notice>;
-  if (error) return <Notice tone="error">{describeError(error)}</Notice>;
-  if (election === undefined) {
-    return (
-      <p className="flex items-center gap-2 text-sm text-zinc-500">
-        <Spinner /> Reading the election from the chain…
-      </p>
-    );
-  }
-  if (election === null) {
-    return <Notice tone="error">This contract was not created by the election factory.</Notice>;
+  if (!valid || error || !election) {
+    return <ElectionPending valid={valid} error={error} election={election} />;
   }
   if (election.tier === 3) return <AnonymousRegistration election={election} now={now} />;
 

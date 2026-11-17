@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { CreateElectionForm } from "@/components/create-election-form";
+import { CreateElectionForm } from "@/components/election/create-election-form";
+import { Loading } from "@/components/ui";
 
 export const metadata: Metadata = { title: "New election" };
 
@@ -17,7 +18,7 @@ export default function NewElectionPage() {
         </p>
       </div>
       {/* The default schedule starts from the current time, so the form renders per visit. */}
-      <Suspense fallback={<p className="text-sm text-zinc-500">Loading…</p>}>
+      <Suspense fallback={<Loading>Loading…</Loading>}>
         <CreateElectionForm />
       </Suspense>
     </>

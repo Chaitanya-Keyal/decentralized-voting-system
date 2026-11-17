@@ -14,7 +14,17 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={{ lightMode: lightTheme(), darkMode: darkTheme() }}>
+        <RainbowKitProvider
+          // The wallet dialogs in the site's own colours rather than RainbowKit's blue.
+          theme={{
+            lightMode: lightTheme({ accentColor: "#18181b", borderRadius: "medium" }),
+            darkMode: darkTheme({
+              accentColor: "#f4f4f5",
+              accentColorForeground: "#18181b",
+              borderRadius: "medium",
+            }),
+          }}
+        >
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>

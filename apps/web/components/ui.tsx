@@ -1,4 +1,13 @@
-// Small UI building blocks, styled with Tailwind.
+// Small UI building blocks, styled with Tailwind, with icons from lucide-react.
+import {
+  ArrowUpRight,
+  ChevronRight,
+  CircleAlert,
+  CircleCheck,
+  Info,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import type {
   ButtonHTMLAttributes,
@@ -11,6 +20,9 @@ function cx(...classes: (string | false | undefined)[]): string {
   return classes.filter(Boolean).join(" ");
 }
 
+/** Secondary text, readable on both the light and the dark background. */
+export const muted = "text-zinc-500 dark:text-zinc-400";
+
 const buttonStyles = {
   primary:
     "bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300",
@@ -19,17 +31,61 @@ const buttonStyles = {
   danger: "bg-red-600 text-white hover:bg-red-500",
 } as const;
 
+const buttonSizes = { md: "px-4 py-2", sm: "px-3 py-1.5" } as const;
+
+interface ButtonLook {
+  variant?: keyof typeof buttonStyles;
+  size?: keyof typeof buttonSizes;
+}
+
+/** A button's classes, for elements that must look like one, such as a file input's label. */
+export function buttonClass({ variant = "primary", size = "md" }: ButtonLook = {}): string {
+  return cx(
+    "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+    buttonSizes[size],
+    buttonStyles[variant],
+  );
+}
+
 export function Button({
-  variant = "primary",
+  variant,
+  size,
   className,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: keyof typeof buttonStyles }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & ButtonLook) {
+  return (
+    <button type="button" className={cx(buttonClass({ variant, size }), className)} {...props} />
+  );
+}
+
+/** A link that looks like a button. */
+export function LinkButton({
+  href,
+  variant,
+  size,
+  children,
+}: ButtonLook & { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className={cx(buttonClass({ variant, size }), "w-fit")}>
+      {children}
+    </Link>
+  );
+}
+
+/** A button that reads as a link inside a sentence. */
+export function TextButton({
+  tone = "default",
+  className,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { tone?: "default" | "danger" }) {
   return (
     <button
       type="button"
       className={cx(
-        "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-        buttonStyles[variant],
+        "cursor-pointer underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        tone === "danger"
+          ? "text-red-700 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+          : "hover:text-zinc-900 dark:hover:text-zinc-100",
         className,
       )}
       {...props}
@@ -37,28 +93,24 @@ export function Button({
   );
 }
 
-/** A link that looks like a button. */
-export function LinkButton({
-  href,
-  variant = "primary",
-  children,
-}: {
-  href: string;
-  variant?: keyof typeof buttonStyles;
-  children: ReactNode;
-}) {
+/** A link to another site, such as a block explorer, opened in a new tab. */
+export function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link
+    <a
       href={href}
-      className={cx(
-        "inline-flex w-fit items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-        buttonStyles[variant],
-      )}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-100"
     >
       {children}
-    </Link>
+      <ArrowUpRight aria-hidden className="ml-0.5 inline size-3.5 align-[-0.125em]" />
+      <span className="sr-only"> (opens in a new tab)</span>
+    </a>
   );
 }
+
+const cardStyles =
+  "rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950";
 
 export function Card({
   title,
@@ -72,12 +124,7 @@ export function Card({
   className?: string;
 }) {
   return (
-    <section
-      className={cx(
-        "rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950",
-        className,
-      )}
-    >
+    <section className={cx(cardStyles, "p-5", className)}>
       {title && <h2 className="text-base font-semibold">{title}</h2>}
       {description && (
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{description}</p>
@@ -87,8 +134,36 @@ export function Card({
   );
 }
 
+/** Content behind a summary line, open on request. With `card`, it sits in a card of its own. */
+export function Disclosure({
+  summary,
+  card = false,
+  children,
+}: {
+  summary: ReactNode;
+  card?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <details className={cx("group/disclosure text-sm", card && cx(cardStyles, "px-5 py-4"))}>
+      <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 font-medium text-zinc-800 hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white [&::-webkit-details-marker]:hidden">
+        <ChevronRight
+          aria-hidden
+          className="size-4 shrink-0 transition-transform group-open/disclosure:rotate-90 motion-reduce:transition-none"
+        />
+        {summary}
+      </summary>
+      <div className="mt-3 flex flex-col gap-3 text-zinc-600 dark:text-zinc-400">{children}</div>
+    </details>
+  );
+}
+
+/** A card-like option around a radio button or checkbox, marked when chosen. */
+export const choiceCard =
+  "flex cursor-pointer gap-3 rounded-lg border border-zinc-300 px-4 py-3 text-sm transition-colors hover:bg-zinc-50 has-[:checked]:border-zinc-900 has-[:checked]:bg-zinc-100 has-[:checked]:ring-1 has-[:checked]:ring-zinc-900 dark:border-zinc-700 dark:hover:bg-zinc-900 dark:has-[:checked]:border-zinc-100 dark:has-[:checked]:bg-zinc-800 dark:has-[:checked]:ring-zinc-100";
+
 const fieldStyles =
-  "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-800";
+  "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-400 dark:focus:ring-zinc-700";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cx(fieldStyles, className)} {...props} />;
@@ -117,30 +192,60 @@ export function Field({
   );
 }
 
-const noticeStyles = {
-  info: "border-zinc-200 bg-zinc-50 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200",
-  success:
-    "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
-  warning:
-    "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200",
-  error:
-    "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-200",
-} as const;
+const noticeTones = {
+  info: {
+    icon: Info,
+    style:
+      "border-zinc-200 bg-zinc-50 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200",
+  },
+  success: {
+    icon: CircleCheck,
+    style:
+      "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
+  },
+  warning: {
+    icon: TriangleAlert,
+    style:
+      "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200",
+  },
+  error: {
+    icon: CircleAlert,
+    style:
+      "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-200",
+  },
+} satisfies Record<string, { icon: LucideIcon; style: string }>;
 
+/** A message in a box, its tone shown by an icon as well as its colour. `busy` shows a spinner. */
 export function Notice({
   tone = "info",
+  busy = false,
   children,
 }: {
-  tone?: keyof typeof noticeStyles;
+  tone?: keyof typeof noticeTones;
+  busy?: boolean;
   children: ReactNode;
 }) {
+  const { icon: Icon, style } = noticeTones[tone];
   return (
     <div
-      className={cx("rounded-lg border px-4 py-3 text-sm wrap-break-word", noticeStyles[tone])}
+      className={cx("flex gap-2.5 rounded-lg border px-4 py-3 text-sm wrap-break-word", style)}
       role={tone === "error" ? "alert" : "status"}
     >
-      {children}
+      <span className="mt-0.5 flex">
+        {busy ? <Spinner /> : <Icon aria-hidden className="size-4 shrink-0" />}
+      </span>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
+  );
+}
+
+/** A line saying what is loading, with a spinner. */
+export function Loading({ children }: { children: ReactNode }) {
+  return (
+    <p role="status" className={cx("flex items-center gap-2 text-sm", muted)}>
+      <Spinner />
+      {children}
+    </p>
   );
 }
 
@@ -155,7 +260,7 @@ export function Badge({
     neutral: "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200",
     live: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100",
     done: "bg-sky-100 text-sky-900 dark:bg-sky-900 dark:text-sky-100",
-    muted: "bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-500",
+    muted: "bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400",
   };
   return (
     <span className={cx("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", tones[tone])}>
@@ -168,7 +273,7 @@ export function Spinner() {
   return (
     <span
       aria-hidden
-      className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+      className="inline-block size-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
     />
   );
 }

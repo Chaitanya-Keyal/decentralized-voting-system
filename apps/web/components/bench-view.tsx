@@ -4,6 +4,7 @@ import { Identity, identityTree, SNARK_FIELD, voterTreeDepth } from "@dvote/shar
 import { useState } from "react";
 
 import { provingFiles, provingFilesSize } from "@/lib/artifacts";
+import { downloadFile } from "@/lib/download";
 import { proveInBrowser } from "@/lib/prover";
 
 import { Button, Card, Field, Input, Notice, Spinner } from "./ui";
@@ -94,11 +95,7 @@ export function BenchView() {
       "device,roll_size,phase,run,ms",
       ...rows.map((row) => [name, row.roll_size, row.phase, row.run, row.ms.toFixed(1)].join(",")),
     ].join("\n");
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([`${csv}\n`], { type: "text/csv" }));
-    link.download = `timings-${name}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    downloadFile(`timings-${name}.csv`, `${csv}\n`, "text/csv");
   }
 
   const busy = status !== undefined;
@@ -121,6 +118,7 @@ export function BenchView() {
                 <label key={size} className="flex items-center gap-2">
                   <input
                     type="checkbox"
+                    className="accent-zinc-900 dark:accent-zinc-100"
                     checked={sizes.has(size)}
                     onChange={() => {
                       const next = new Set(sizes);
@@ -159,34 +157,36 @@ export function BenchView() {
 
       {measured.length > 0 && (
         <Card title="Results" description="Medians of the runs so far, in milliseconds.">
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs text-zinc-500">
-              <tr>
-                <th className="py-2 pr-4 font-medium">Voters</th>
-                <th className="py-2 pr-4 font-medium">Tree depth</th>
-                <th className="py-2 pr-4 font-medium">Rebuild the tree</th>
-                <th className="py-2 font-medium">Prove</th>
-              </tr>
-            </thead>
-            <tbody>
-              {measured.map((size) => {
-                const of = (phase: Row["phase"]) =>
-                  median(
-                    rows
-                      .filter((row) => row.roll_size === size && row.phase === phase)
-                      .map((row) => row.ms),
-                  ).toFixed(0);
-                return (
-                  <tr key={size} className="border-t border-zinc-100 dark:border-zinc-900">
-                    <td className="py-2 pr-4">{size.toLocaleString()}</td>
-                    <td className="py-2 pr-4">{voterTreeDepth(size)}</td>
-                    <td className="py-2 pr-4">{of("tree_rebuild")}</td>
-                    <td className="py-2">{of("prove")}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs text-zinc-500 dark:text-zinc-400">
+                <tr>
+                  <th className="py-2 pr-4 font-medium">Voters</th>
+                  <th className="py-2 pr-4 font-medium">Tree depth</th>
+                  <th className="py-2 pr-4 font-medium">Rebuild the tree</th>
+                  <th className="py-2 font-medium">Prove</th>
+                </tr>
+              </thead>
+              <tbody>
+                {measured.map((size) => {
+                  const of = (phase: Row["phase"]) =>
+                    median(
+                      rows
+                        .filter((row) => row.roll_size === size && row.phase === phase)
+                        .map((row) => row.ms),
+                    ).toFixed(0);
+                  return (
+                    <tr key={size} className="border-t border-zinc-100 dark:border-zinc-900">
+                      <td className="py-2 pr-4">{size.toLocaleString()}</td>
+                      <td className="py-2 pr-4">{voterTreeDepth(size)}</td>
+                      <td className="py-2 pr-4">{of("tree_rebuild")}</td>
+                      <td className="py-2">{of("prove")}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </Card>
       )}
     </>

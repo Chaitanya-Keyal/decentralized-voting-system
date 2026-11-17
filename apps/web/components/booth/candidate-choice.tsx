@@ -4,6 +4,8 @@ import { approvalChoice, CountingRule } from "@dvote/shared";
 
 import type { OnchainElection } from "@/lib/election";
 
+import { choiceCard } from "../ui";
+
 /** The candidates marked on a ballot. Plurality: one index. Approval: any non-empty set. */
 export type Marks = ReadonlySet<number>;
 
@@ -40,10 +42,7 @@ export function CandidateChoice({
           : "Choose one candidate."}
       </legend>
       {election.candidates.map((candidate, index) => (
-        <label
-          key={index}
-          className="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-300 px-4 py-3 text-sm has-[:checked]:border-2 has-[:checked]:border-zinc-900 has-[:checked]:bg-zinc-100 has-[:checked]:font-medium dark:border-zinc-700 dark:has-[:checked]:border-zinc-100 dark:has-[:checked]:bg-zinc-800"
-        >
+        <label key={index} className={`${choiceCard} items-center has-[:checked]:font-medium`}>
           <input
             type={approval ? "checkbox" : "radio"}
             className="size-5 accent-zinc-900 dark:accent-zinc-100"

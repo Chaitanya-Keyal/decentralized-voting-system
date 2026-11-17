@@ -1,5 +1,9 @@
+import { Check } from "lucide-react";
+
 import type { Schedule } from "@/lib/election";
 import { formatRelative, formatTime } from "@/lib/time";
+
+import { muted } from "../ui";
 
 const STEPS = [
   ["registrationStart", "Registration opens"],
@@ -17,10 +21,14 @@ export function Timeline({ schedule, now }: { schedule: Schedule; now: number })
         const passed = schedule[key] <= now;
         const current = index === next;
         return (
-          <li key={key} className="flex items-start gap-3 text-sm">
+          <li
+            key={key}
+            className="flex items-start gap-3 text-sm"
+            aria-current={current ? "step" : undefined}
+          >
             <span
               aria-hidden
-              className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+              className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full ${
                 passed
                   ? "bg-emerald-500 text-white"
                   : current
@@ -28,21 +36,18 @@ export function Timeline({ schedule, now }: { schedule: Schedule; now: number })
                     : "border border-zinc-300 dark:border-zinc-700"
               }`}
             >
-              {passed ? "✓" : ""}
+              {passed && <Check className="size-3" strokeWidth={3} />}
             </span>
+            {passed && <span className="sr-only">Done: </span>}
             <div>
               <p
                 className={
-                  current
-                    ? "font-medium"
-                    : passed
-                      ? "text-zinc-500"
-                      : "text-zinc-700 dark:text-zinc-300"
+                  current ? "font-medium" : passed ? muted : "text-zinc-700 dark:text-zinc-300"
                 }
               >
                 {label}
               </p>
-              <p className="text-xs text-zinc-500">
+              <p className={`text-xs ${muted}`}>
                 {formatTime(schedule[key])} · {formatRelative(schedule[key], now)}
               </p>
             </div>

@@ -13,6 +13,9 @@ import { fetchFromIpfs } from "@/lib/ipfs";
 import { useTransaction } from "@/lib/transaction";
 import { useWallet } from "@/lib/wallet";
 
+import { TransactionStatus } from "../transaction-status";
+import { Button, Card, Field, Input, Loading, muted, Notice, Textarea } from "../ui";
+import { ActionButton } from "./action-button";
 import {
   candidateDrafts,
   CandidatesEditor,
@@ -24,10 +27,7 @@ import {
   ScheduleEditor,
   type CandidateDraft,
   type ScheduleDraft,
-} from "../election-fields";
-import { TransactionStatus } from "../transaction-status";
-import { Button, Card, Field, Input, Notice, Textarea } from "../ui";
-import { ActionButton } from "./action-button";
+} from "./election-fields";
 
 function EditDetails({ election, onDone }: { election: OnchainElection; onDone: () => void }) {
   const config = useConfig();
@@ -112,6 +112,7 @@ function EditDetails({ election, onDone }: { election: OnchainElection; onDone: 
           Close
         </Button>
       </div>
+      {blocker && <p className={`text-sm ${muted}`}>{blocker}.</p>}
     </div>
   );
 }
@@ -160,7 +161,7 @@ function EditCandidates({ election, onDone }: { election: OnchainElection; onDon
       {candidates ? (
         <CandidatesEditor value={candidates} onChange={setEdited} />
       ) : (
-        <p className="text-sm text-zinc-500">Loading the manifestos…</p>
+        <Loading>Loading the manifestos…</Loading>
       )}
       {problem && <Notice tone="error">{problem}</Notice>}
       <TransactionStatus state={transaction.state} />
@@ -176,6 +177,7 @@ function EditCandidates({ election, onDone }: { election: OnchainElection; onDon
           Close
         </Button>
       </div>
+      {blocker && <p className={`text-sm ${muted}`}>{blocker}.</p>}
     </div>
   );
 }

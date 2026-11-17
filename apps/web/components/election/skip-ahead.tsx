@@ -34,14 +34,14 @@ export function SkipAhead({ to }: { to: number }) {
   }
 
   return (
-    <div className="flex flex-col gap-1 border-t border-dashed border-zinc-300 pt-3 text-xs text-zinc-500 dark:border-zinc-700">
+    <div className="flex flex-col gap-1 border-t border-dashed border-zinc-300 pt-3 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
       <div className="flex flex-wrap items-center gap-2">
         <span>Anvil only:</span>
-        <Button variant="secondary" className="px-2 py-1 text-xs" onClick={() => void skip()}>
+        <Button variant="secondary" size="sm" onClick={() => void skip()}>
           Move the chain&apos;s clock to {formatTime(to)}
         </Button>
       </div>
-      {problem && <span className="text-red-600">{problem}</span>}
+      {problem && <span className="text-red-700 dark:text-red-400">{problem}</span>}
     </div>
   );
 }

@@ -8,7 +8,7 @@ import type { Schedule } from "@/lib/election";
 import { fetchFromIpfs } from "@/lib/ipfs";
 import { fromLocalInput, toLocalInput } from "@/lib/time";
 
-import { Button, Field, Input, Textarea } from "./ui";
+import { Button, Field, Input, Notice, Textarea } from "../ui";
 
 export interface CandidateDraft {
   name: string;
@@ -129,10 +129,10 @@ export function CandidatesEditor({
               aria-label={`Manifesto of candidate ${index + 1}`}
             />
             {candidate.unloadedCid && (
-              <p className="text-xs text-amber-700 dark:text-amber-400">
+              <Notice tone="warning">
                 This manifesto could not be downloaded from IPFS. Saving keeps it as it is, unless
                 you type a new one.
-              </p>
+              </Notice>
             )}
           </li>
         ))}

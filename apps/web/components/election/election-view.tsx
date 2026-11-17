@@ -2,20 +2,20 @@
 
 import { getAddress, isAddress } from "viem";
 
-import { useMarkWalletForOrganisers } from "@/lib/chrome";
 import { useElection } from "@/lib/election";
-import { describeError } from "@/lib/errors";
+import { useMarkWalletForOrganisers } from "@/lib/header-wallet";
 import { useChainNow } from "@/lib/time";
 
-import { Audit } from "./election/audit";
-import { AuthorityPanel } from "./election/authority-panel";
-import { Ballots } from "./election/ballots";
-import { Description } from "./election/description";
-import { NextStep } from "./election/next-step";
-import { Results } from "./election/results";
-import { Timeline } from "./election/timeline";
+import { Card, Mono } from "../ui";
+import { Audit } from "./audit";
+import { AuthorityPanel } from "./authority-panel";
+import { Ballots } from "./ballots";
+import { Description } from "./description";
+import { ElectionPending } from "./election-pending";
+import { NextStep } from "./next-step";
 import { BallotBadges, PhaseBadge } from "./phase";
-import { Card, Mono, Notice, Spinner } from "./ui";
+import { Results } from "./results";
+import { Timeline } from "./timeline";
 
 export function ElectionView({ address }: { address: string }) {
   const valid = isAddress(address);
@@ -23,21 +23,8 @@ export function ElectionView({ address }: { address: string }) {
   const now = useChainNow();
   useMarkWalletForOrganisers(election?.tier === 3);
 
-  if (!valid) return <Notice tone="error">That is not an election address.</Notice>;
-  if (error) return <Notice tone="error">{describeError(error)}</Notice>;
-  if (election === undefined) {
-    return (
-      <p className="flex items-center gap-2 text-sm text-zinc-500">
-        <Spinner /> Reading the election from the chain…
-      </p>
-    );
-  }
-  if (election === null) {
-    return (
-      <Notice tone="error">
-        This contract was not created by the election factory, so it is not a DVote election.
-      </Notice>
-    );
+  if (!valid || error || !election) {
+    return <ElectionPending valid={valid} error={error} election={election} />;
   }
 
   return (
@@ -48,7 +35,7 @@ export function ElectionView({ address }: { address: string }) {
           <PhaseBadge phase={election.phase} window={election.schedule} now={now} />
           <BallotBadges tier={election.tier} countingRule={election.countingRule} />
         </div>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
           Contract <Mono value={election.address} short={false} />
         </p>
         <Description cid={election.metadataCid} />

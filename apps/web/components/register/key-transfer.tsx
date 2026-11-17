@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { renderSVG } from "uqr";
 
+import { downloadFile } from "@/lib/download";
 import type { OnchainElection } from "@/lib/election";
 import { chain } from "@/lib/env";
 import {
@@ -12,13 +13,8 @@ import {
   useStoredIdentity,
 } from "@/lib/identity";
 
-import { Button, Card } from "./ui";
+import { Button, Card, Notice, TextButton } from "../ui";
 
-/**
- * Moving the voting key to the device the voter will vote on. A key lives in one browser, so a
- * voter who registers on a laptop and votes on a phone, or whose link opens in another app's
- * browser, needs it there first. The QR code and the link carry the key itself.
- */
 /** A calendar file reminding the voter when voting opens, with a link to the booth. */
 function downloadReminder(election: OnchainElection) {
   const stamp = (seconds: bigint | number) =>
@@ -44,17 +40,19 @@ function downloadReminder(election: OnchainElection) {
     "END:VEVENT",
     "END:VCALENDAR",
   ];
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(new Blob([lines.join("\r\n")], { type: "text/calendar" }));
-  link.download = "dvote-voting-reminder.ics";
-  link.click();
-  URL.revokeObjectURL(link.href);
+  downloadFile("dvote-voting-reminder.ics", lines.join("\r\n"), "text/calendar");
 }
 
+/**
+ * Moving the voting key to the device the voter will vote on. A key lives in one browser, so a
+ * voter who registers on a laptop and votes on a phone, or whose link opens in another app's
+ * browser, needs it there first. The QR code and the link carry the key itself.
+ */
 export function KeyTransfer({ election }: { election: OnchainElection }) {
   const identity = useStoredIdentity(chain.id, election.address);
   const [shown, setShown] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const link = useMemo(
     () => (identity ? transferLink(election.address, identity) : undefined),
     [identity, election.address],
@@ -85,13 +83,9 @@ export function KeyTransfer({ election }: { election: OnchainElection }) {
             <p className="text-zinc-600 dark:text-zinc-400">
               Nothing more to do. Come back when voting opens.
             </p>
-            <button
-              type="button"
-              className="w-fit underline"
-              onClick={() => downloadReminder(election)}
-            >
+            <TextButton className="w-fit" onClick={() => downloadReminder(election)}>
               Add a reminder to my calendar
-            </button>
+            </TextButton>
           </div>
           <div className="flex flex-col gap-2 rounded-lg border border-zinc-300 p-4 dark:border-zinc-700">
             <p className="font-medium">
@@ -126,34 +120,36 @@ export function KeyTransfer({ election }: { election: OnchainElection }) {
         <p className="text-zinc-600 dark:text-zinc-400">
           Anyone with this code or link can cast your ballot, so send it only to yourself. You can
           also{" "}
-          <button
-            type="button"
-            className="underline"
-            onClick={() => downloadIdentityBackup(chain.id, election.address, identity)}
-          >
+          <TextButton onClick={() => downloadIdentityBackup(chain.id, election.address, identity)}>
             download the key as a file
-          </button>
+          </TextButton>
           .
         </p>
         <p className="text-zinc-600 dark:text-zinc-400">
           On a shared computer? Once the key is on your own device, remove it from this browser and
           delete the downloaded key file.{" "}
-          <button
-            type="button"
-            className="underline"
-            onClick={() => {
-              if (
-                window.confirm(
-                  "Remove the voting key from this browser? Do this only if the key is on your own device: without it you cannot vote.",
-                )
-              ) {
-                forgetIdentity(chain.id, election.address);
-              }
-            }}
-          >
+          <TextButton tone="danger" onClick={() => setConfirmRemove(true)}>
             Remove the key from this browser
-          </button>
+          </TextButton>
         </p>
+        {confirmRemove && (
+          <Notice tone="warning">
+            <div className="flex flex-col gap-3">
+              <span>
+                Remove the voting key from this browser? Do this only if the key is on your own
+                device: without it you cannot vote.
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="danger" onClick={() => forgetIdentity(chain.id, election.address)}>
+                  Yes, remove it
+                </Button>
+                <Button variant="secondary" onClick={() => setConfirmRemove(false)}>
+                  Keep it
+                </Button>
+              </div>
+            </div>
+          </Notice>
+        )}
       </div>
     </Card>
   );
