@@ -1,0 +1,13 @@
+roll_size,phase,runs,median_ms,p95_ms
+16,tree_rebuild,3,3.3,9.8
+16,prove,3,900.9,1393.9
+256,tree_rebuild,3,38.8,44.1
+256,prove,3,1034.5,1046.7
+1024,tree_rebuild,3,131.2,138.1
+1024,prove,3,1227.8,1287.6
+4096,tree_rebuild,3,501.8,521.5
+4096,prove,3,1766.8,1804.0
+16384,tree_rebuild,3,1932.2,1937.3
+16384,prove,3,3241.4,3247.7
+65536,tree_rebuild,3,7740.0,7867.6
+65536,prove,3,9076.1,9174.3

@@ -132,6 +132,12 @@ const laptop = fs.existsSync(path.join(RESULTS, "summary-laptop-core-ultra-7-256
   : [];
 const laptopProve = (roll) =>
   Number(laptop.find((r) => r.phase === "prove" && Number(r.roll_size) === roll)?.median_ms);
+// B2 on a phone: a Nothing Phone (3a), from the same page.
+const phone = fs.existsSync(path.join(RESULTS, "summary-nothing-phone-3a.csv"))
+  ? readCsv(path.join(RESULTS, "summary-nothing-phone-3a.csv"))
+  : [];
+const phoneProve = (roll) =>
+  Number(phone.find((r) => r.phase === "prove" && Number(r.roll_size) === roll)?.median_ms);
 const stats = (values) =>
   values.length
     ? {
@@ -596,14 +602,17 @@ async function main() {
       },
     );
     const last = (series) => series.at(-1);
-    stat(s, s1(prove[0].ms), `to prove a ballot at ${prove[0].roll} voters`, 6.7, 1.2, 2.8);
-    stat(s, s1(last(prove).ms), `at ${n0(last(prove).roll)} voters: proving grows with the tree's depth`, 6.7, 2.45, 2.8);
-    stat(s, s1(last(rebuild).ms), `to rebuild a list of ${n0(last(rebuild).roll)}: linear, the price of not trusting the registrar`, 6.7, 3.7, 2.8, C.amber);
-    text(s, `In a laptop's browser (Intel Core Ultra 7): ${fig(laptopProve(16), "B2 laptop, 16 voters", s1)} to prove at 16 voters, ${fig(laptopProve(65536), "B2 laptop, 65,536 voters", s1)} at 65,536.`, {
-      x: 6.7, y: 4.55, w: 2.8, h: 0.6, fontSize: 11, italic: true, color: C.muted,
+    stat(s, s1(prove[0].ms), `to prove a ballot at ${prove[0].roll} voters`, 6.7, 1.05, 2.8);
+    stat(s, s1(last(prove).ms), `at ${n0(last(prove).roll)} voters: proving grows with the tree's depth`, 6.7, 2.1, 2.8);
+    stat(s, s1(last(rebuild).ms), `to rebuild a list of ${n0(last(rebuild).roll)}: linear, the price of not trusting the registrar`, 6.7, 3.15, 2.8, C.amber);
+    text(s, [
+      { text: `In a browser, to prove at 16 and at 65,536 voters:`, options: { breakLine: true } },
+      { text: `laptop ${fig(laptopProve(16), "B2 laptop, 16 voters", s1)} and ${fig(laptopProve(65536), "B2 laptop, 65,536 voters", s1)}; Android phone ${fig(phoneProve(16), "B2 phone, 16 voters", s1)} and ${fig(phoneProve(65536), "B2 phone, 65,536 voters", s1)}` },
+    ], {
+      x: 6.7, y: 4.62, w: 2.9, h: 0.7, fontSize: 10.5, italic: true, color: C.muted,
     });
     pageNo(s, ++page);
-    s.addNotes("The flat gas line must not hide work moved to the voter. Proving grows only with the tree's depth. Rebuilding the published list to check it against the on-chain root grows with the list; past about eight thousand voters it costs more than proving. One ARM64 core, Node.js 24; the phone figures come from the /bench page.");
+    s.addNotes("The flat gas line must not hide work moved to the voter. Proving grows only with the tree's depth. Rebuilding the published list to check it against the on-chain root grows with the list; past about eight thousand voters it costs more than proving. The chart is one ARM64 core in Node.js 24. B2 ran the booth's own code in a browser from the demo's /bench page: a laptop with an Intel Core Ultra 7 256V, and a Nothing Phone (3a), which takes about twice as long as the laptop but stays under two seconds up to 4,096 voters.");
   }
 
   // 11. B1 and C3 -------------------------------------------------------------

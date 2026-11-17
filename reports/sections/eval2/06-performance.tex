@@ -137,7 +137,7 @@ before and after the relayer change described under C3 are kept apart.
         landed in one block, counted 32.6 to 35.6\,s after the click (median
         33.1\,s). The ten browsers ran on one four-core machine and proved
         their ballots at the same moment, so proving competed for the CPU;
-        how phones would fare awaits B2.
+        B2 below gives the time on a phone.
 \end{itemize}
 
 From the second run on, the test also recorded when the block holding each
@@ -153,29 +153,29 @@ relayer's default (\texttt{RELAYER\_MIN\_PRIORITY\_FEE\_WEI}).
 \paragraph{B2, proof generation by device.}
 The demo's \texttt{/bench} page runs the booth's own code, the same Web Worker
 and proving files, at each size of voter list and saves the times. Table~\ref{tab:b2}
-gives the medians of five runs on a laptop with an Intel Core Ultra~7 256V,
-in Chromium~158, beside the ARM64 baseline in Node.js from C2.
-The same page runs on a phone, but no phone was measured for this report, so
-B2 covers a laptop only.
+gives the medians on a laptop with an Intel Core Ultra~7 256V in Chromium~158
+(five runs at each size) and on a Nothing Phone~(3a), an Android phone, from
+the demo's public address (three runs at each size), beside the ARM64
+baseline in Node.js from C2.
 
 \begin{table}[htbp]
   \centering
   \caption{Time to prove a ballot and to rebuild the voter list (B2), median
-    of five runs. The laptop runs the booth's code in a browser; the baseline
-    runs it in Node.js.}
+    of five runs (three on the phone). The laptop and the phone run the
+    booth's code in a browser; the baseline runs it in Node.js.}
   \label{tab:b2}
   \small
-  \begin{tabular}{@{}R{2.4cm}R{2.6cm}R{2.6cm}R{2.6cm}R{2.6cm}@{}}
+  \begin{tabular}{@{}R{1.6cm}R{1.8cm}R{1.8cm}R{1.8cm}R{1.8cm}R{1.8cm}R{1.8cm}@{}}
     \toprule
-    & \multicolumn{2}{c}{\textbf{Laptop, Chromium}} & \multicolumn{2}{c}{\textbf{ARM64 core, Node.js}} \\
-    \textbf{Voters} & \textbf{Prove} & \textbf{Rebuild} & \textbf{Prove} & \textbf{Rebuild} \\
+    & \multicolumn{2}{c}{\textbf{Laptop}} & \multicolumn{2}{c}{\textbf{Android phone}} & \multicolumn{2}{c}{\textbf{ARM64 core}} \\
+    \textbf{Voters} & \textbf{Prove} & \textbf{Rebuild} & \textbf{Prove} & \textbf{Rebuild} & \textbf{Prove} & \textbf{Rebuild} \\
     \midrule
-    16     & 0.43\,s & 0.001\,s & 0.79\,s & 0.004\,s \\
-    256    & 0.49\,s & 0.02\,s  & 0.96\,s & 0.06\,s \\
-    1,024  & 0.54\,s & 0.06\,s  & 1.05\,s & 0.25\,s \\
-    4,096  & 0.82\,s & 0.25\,s  & 1.31\,s & 1.01\,s \\
-    16,384 & 1.60\,s & 0.97\,s  & 1.41\,s & 3.98\,s \\
-    65,536 & 4.59\,s & 3.88\,s  & 1.52\,s & 15.78\,s \\
+    16     & 0.43\,s & 0.001\,s & 0.90\,s & 0.003\,s & 0.79\,s & 0.004\,s \\
+    256    & 0.49\,s & 0.02\,s  & 1.03\,s & 0.04\,s  & 0.96\,s & 0.06\,s \\
+    1,024  & 0.54\,s & 0.06\,s  & 1.23\,s & 0.13\,s  & 1.05\,s & 0.25\,s \\
+    4,096  & 0.82\,s & 0.25\,s  & 1.77\,s & 0.50\,s  & 1.31\,s & 1.01\,s \\
+    16,384 & 1.60\,s & 0.97\,s  & 3.24\,s & 1.93\,s  & 1.41\,s & 3.98\,s \\
+    65,536 & 4.59\,s & 3.88\,s  & 9.08\,s & 7.74\,s  & 1.52\,s & 15.78\,s \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -186,6 +186,15 @@ faster than Node.js does on the ARM64 core, but its proving time grows faster
 with the tree's depth, so at the largest list the two costs are about equal.
 The first run in the browser is slower (1.7\,s at 16 voters) while the
 proving code is loaded.
+
+The phone takes about twice as long as the laptop at every size. A voter on
+a list of up to 4,096 waits under two and a half seconds for both steps
+together (1.4\,s at 1,024), well inside the 10.7\,s median that B1 measured
+for the chain to count a ballot. At 65,536 voters the phone needs 9.1\,s to
+prove and 7.7\,s to rebuild the list, about 17\,s in all; the booth shows its
+progress while it works. Its runs agree closely: from 1,024 voters up, every
+time is within 6\% of the median; below that, the first proof is slower while
+the code loads (1.4\,s at 16 voters), and rebuilding takes only milliseconds.
 
 \subsubsection{Scalability (C1--C3)}
 
@@ -493,6 +502,7 @@ secrecy against the operator resting on running the relayer apart from the
 registrar. In the simulated usability test, every participant registered
 unaided and was sure their ballot counted in the last round, and two of the ten
 still needed help to vote from a browser other than the one they registered
-in; whether real students do as well is untested. Proving on a phone was not
-measured; a phone may well be slower than the laptop, and the booth shows its
-progress while it proves.
+in; whether real students do as well is untested. On an Android phone
+proving takes about twice as long as on the laptop, still under two seconds
+for lists up to 4,096 voters, so the wait a voter notices is the chain's,
+not the proof's.
