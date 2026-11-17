@@ -1,6 +1,6 @@
-// M1 is done when an election runs end to end from the browser: the authority creates it, five
-// voters register and vote from their own wallets, and the tally is final. This test does exactly
-// that, on Anvil, using its unlocked accounts as wallets and moving its clock between steps.
+// Tier 2 end to end: a wallet election, run from the browser. The authority creates it, five voters
+// register and vote from their own wallets, and the tally is final. It runs on Anvil, using its
+// unlocked accounts as wallets and moving its clock between steps.
 import { expect, test } from "@playwright/test";
 
 import { connect, emailedCode, screenshot, skipAhead } from "./helpers";

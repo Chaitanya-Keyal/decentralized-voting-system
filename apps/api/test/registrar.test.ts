@@ -19,12 +19,12 @@ import {
   verifyVoterList,
   voterProof,
 } from "@dvote/shared";
+import { ensureArtifacts } from "@dvote/shared/semaphore-artifacts";
 import type { FastifyInstance } from "fastify";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { recoverTypedDataAddress, type Address, type Hex } from "viem";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ensureArtifacts } from "../../../packages/shared/scripts/semaphore-artifacts.mjs";
 import { buildApp } from "../src/app";
 import { db } from "../src/db";
 import { publishDueVoterLists } from "../src/registrar";

@@ -22,7 +22,6 @@ export const REGISTRAR = process.env.REGISTRAR_ADDRESS as Address;
 
 const deployment = deploymentFor(anvil.id);
 if (!deployment) throw new Error("contracts/deployments/31337.json is missing");
-export const factory = deployment.electionFactory;
 export const contracts = deployment;
 
 /** Talks to the test node, and can move its clock. */
@@ -36,7 +35,7 @@ export const node = createTestClient({
   .extend(walletActions);
 
 /** The time the next block will have, as the API's `chainNow` sees it. */
-export async function chainTime(): Promise<bigint> {
+async function chainTime(): Promise<bigint> {
   return (await node.getBlock({ blockTag: "pending" })).timestamp;
 }
 

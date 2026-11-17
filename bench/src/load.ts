@@ -19,10 +19,10 @@ import {
   proveBallot,
   rootToBytes32,
 } from "@dvote/shared";
+import { ensureArtifacts } from "@dvote/shared/semaphore-artifacts";
 import type { Hex } from "viem";
 import { anvil } from "viem/chains";
 
-import { ensureArtifacts } from "../../packages/shared/scripts/semaphore-artifacts.mjs";
 import { newElection, node, publishAndOpen } from "./chain";
 import { csv } from "./fill";
 

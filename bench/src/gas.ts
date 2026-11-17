@@ -17,9 +17,9 @@ import {
   voterProof,
   voterTree,
 } from "@dvote/shared";
+import { ensureArtifacts } from "@dvote/shared/semaphore-artifacts";
 import { anvil } from "viem/chains";
 
-import { ensureArtifacts } from "../../packages/shared/scripts/semaphore-artifacts.mjs";
 import { ACCOUNTS, newElection, publishAndOpen, send } from "./chain";
 import { csv, fillAddresses, fillCommitments, rollSizes } from "./fill";
 

@@ -19,7 +19,7 @@ import {
 } from "viem";
 import { anvil } from "viem/chains";
 
-export const RPC_URL = process.env.RPC_URL ?? "http://127.0.0.1:8545";
+const RPC_URL = process.env.RPC_URL ?? "http://127.0.0.1:8545";
 
 /** Anvil's default accounts, which the node unlocks. */
 export const ACCOUNTS = {
@@ -34,7 +34,7 @@ export const node = createTestClient({ chain: anvil, mode: "anvil", transport: h
 
 const found = deploymentFor(anvil.id);
 if (!found) throw new Error("Run `pnpm deploy:local` against a fresh Anvil first");
-export const deployment: Deployment = found;
+const deployment: Deployment = found;
 
 export async function send(request: {
   address: Address;
@@ -52,7 +52,7 @@ export async function send(request: {
 }
 
 /** Moves Anvil's clock forward to `timestamp`; if it is already past it, just mines a block. */
-export async function warpTo(timestamp: bigint) {
+async function warpTo(timestamp: bigint) {
   const { timestamp: latest } = await node.getBlock();
   if (timestamp > latest) await node.setNextBlockTimestamp({ timestamp });
   await node.mine({ blocks: 1 });

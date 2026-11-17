@@ -7,9 +7,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 
 import { Identity, identityTree, proveBallot } from "@dvote/shared";
+import { ensureArtifacts } from "@dvote/shared/semaphore-artifacts";
 import type { Address } from "viem";
 
-import { ensureArtifacts } from "../../packages/shared/scripts/semaphore-artifacts.mjs";
 import { csv, fillCommitments, rollSizes } from "./fill";
 
 const ARTIFACTS = new URL("../.cache/semaphore-artifacts/", import.meta.url).pathname;

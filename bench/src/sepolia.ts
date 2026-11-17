@@ -30,6 +30,7 @@ import {
   voterTree,
   type AnonymousBallot,
 } from "@dvote/shared";
+import { ensureArtifacts } from "@dvote/shared/semaphore-artifacts";
 import {
   createPublicClient,
   createWalletClient,
@@ -44,7 +45,6 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
 
-import { ensureArtifacts } from "../../packages/shared/scripts/semaphore-artifacts.mjs";
 import { csv, fillAddresses, fillCommitments } from "./fill";
 
 const ARTIFACTS = new URL("../.cache/semaphore-artifacts/", import.meta.url).pathname;
