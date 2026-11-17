@@ -15,6 +15,11 @@ Evaluation 1 has been submitted. The exact files we handed in are kept in
 an `eval1` target, and the slide generator writes to `slides/build/` (ignored
 by git) and refuses to write into `submitted/`.
 
+The Evaluation 2 slides are generated, not drawn: from `reports/`, with
+pptxgenjs, react, react-dom, react-icons and sharp on `NODE_PATH`, run
+`node slides/build-deck-eval2.js` and copy `slides/build/eval2-slides.pptx`
+here. The build stops if any figure on the slides has not been measured yet.
+
 Needs a TeX distribution with `latexmk` and `biber`. On Debian/Ubuntu:
 
 ```bash
@@ -37,6 +42,9 @@ sudo apt install texlive-latex-recommended texlive-latex-extra latexmk biber
 | `figures/system-model.tex` | System model diagram (TikZ) |
 | `figures/lifecycle.tex` | Election lifecycle (TikZ) |
 | `slides/build-deck.js` | Generator for the Evaluation 1 slides (pptxgenjs) |
+| `slides/build-deck-eval2.js` | Generator for the Evaluation 2 slides; reads every number from `bench/results` and the gas snapshots |
+| `eval2-slides.pptx` | The Evaluation 2 slides as last generated |
+| `figures/architecture.tex`, `figures/lifecycle-final.tex` | The final architecture and lifecycle (TikZ) |
 | `figures/bits-logo.png` | Institute logo, extracted from the `.docx` templates |
 
 ## Working on the report
