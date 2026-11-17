@@ -76,8 +76,10 @@ Sepolia, with voters casting one at a time, a ballot was counted a median of
 10.7\,s after the voter pressed Cast (16 ballots; slowest 18.4\,s). A load test
 found that the relayer let through only one ballot per block; after the fix,
 64 simultaneous voters were all counted in the next block.
-\note{Proving time on phones (B2) and the usability test with real
-participants (E3): one sentence each once measured.}
+In a simulated usability test, ten participants played by language models
+went through every step in three rounds, with the interface improved after
+each; in the last, all ten registered and voted, two of them with help.
+\note{Proving time on a phone (B2): one sentence once measured.}
 
 The contracts pass all 92 Foundry tests, with 98.9\% of lines and every branch
 covered, and Slither reports no findings once its timestamp

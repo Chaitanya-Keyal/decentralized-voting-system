@@ -403,18 +403,63 @@ QR code, scanning it, and confirming the key on the new device.
 held ETH or a wallet; the relayer paid for every ballot.
 
 \paragraph{E3, task success.}
-\note{pending: real participants.} Before testing with people, three simulated
-participants, each played by a language model briefed on a persona, walked
-through screenshots of every step. This is a cognitive walkthrough, not a
-user study, and is reported as one. A first-year student on a phone completed
-the task in one browser but would have failed had the link opened in another
-app's browser. A student wary of online voting completed it with doubts: the
-privacy claim was asserted rather than explained. A student who registered on
-a library computer and voted from a phone failed at the booth, because nothing
-had told them, while they still could, to move their voting key. Each finding led
-to a change: a QR code and private link to carry the key to another device,
-with a confirmation step; one plain explanation of what the registrar can and
-cannot see; and a ballot ID the voter can find in the public list.
+E3 was run as a simulation rather than with people. Ten participants, each
+played by an independent language model briefed on the profile of a student
+who does not use cryptocurrency, walked through screenshots of every step,
+taken from the browser test on a phone or a desktop as their profile
+dictated. The profiles were: a first-year who skims, a student with low vision
+using large text, a non-native English speaker whose voting link opens inside
+WhatsApp, a sceptical computer science student, a student who registers in a
+library and votes on a phone, one worried that voting will cost money, a PhD
+scholar who rarely uses web apps, one who clears their browser data before
+checking, a busy student, and a student-council member judging whether to
+trust the system. Each scored three tasks: registering, voting, and being
+satisfied that the ballot was counted and kept secret. After each round the
+interface was changed and the round repeated with the same profiles
+(\texttt{bench/results/e3-simulated.csv}). This is a cognitive walkthrough, not
+a user study: a model playing a student is not a student, so the results show
+where the interface confuses a careful reader, not how often real voters
+fail. Table~\ref{tab:e3} gives the three rounds.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Simulated usability test (E3): ten participants per round, the same
+    profiles each time, with the interface changed between rounds.}
+  \label{tab:e3}
+  \small
+  \begin{tabular}{@{}L{1.6cm}R{2.6cm}R{2.4cm}R{2.4cm}R{2.4cm}R{2.6cm}@{}}
+    \toprule
+    \textbf{Round} & \textbf{Registered unaided} & \textbf{Voted unaided} & \textbf{Voted with help} & \textbf{Could not vote} & \textbf{Sure it counted} \\
+    \midrule
+    1 & 8 & 8 & 2 & 0 & 4 \\
+    2 & 9 & 8 & 1 & 1 & 6 \\
+    3 & 10 & 8 & 2 & 0 & 10 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+In the first round nobody could find their own ballot afterwards, and the
+privacy explanation read as an assertion. The changes were: registration as
+three numbered steps that say it is free and needs no wallet, the secrecy
+explanation folded under a question, the ballot ID shown after voting in the
+same form as the public list (which marks the voter's own ballot ``yours''),
+and numbered steps for bringing the key to another browser. The second round
+found a regression we had caused: a line saying ``if you will vote in this same
+browser, there is nothing more to do'' led the student who registered in a
+library to leave without moving the key, and they then could not vote on
+their phone. The page now asks where the voter will vote, with this browser
+and another device as equal choices. In the third round every participant
+registered unaided and was sure their ballot counted, having found it marked
+``yours''. Two still needed help to bring the key to another browser: the
+student whose link opened inside WhatsApp, and the one who moved from the
+library to a phone. A last change, not yet tested by a further round, tells
+a voter in an app's browser to open the page in the browser they registered
+in, with a button that copies its address. No participant was fully convinced
+that their ballot was secret. All ten said ``partly'', most because the example
+election has three voters and the page now says plainly that a small list
+hides each ballot less well; that is a fair reading, and it is the anonymity
+set reported under D3. An earlier walkthrough with three profiles, before
+these rounds, is what led to carrying the key between devices by QR code.
 
 \subsection{Discussion}
 
@@ -444,5 +489,8 @@ checking, far below the chain's capacity.
 
 The security parameters held in every test that tried to break them, with
 secrecy against the operator resting on running the relayer apart from the
-registrar. \note{B2: how phones compare with the ARM64 baseline. E3: what the
-test with real participants showed.}
+registrar. In the simulated usability test, every participant registered
+unaided and was sure their ballot counted in the last round, and two of the ten
+still needed help to vote from a browser other than the one they registered
+in; whether real students do as well is untested. \note{B2: how a phone
+compares with the laptop and the ARM64 baseline.}

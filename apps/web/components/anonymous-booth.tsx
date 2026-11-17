@@ -259,6 +259,38 @@ function AnonymousBallotForm({
   );
 }
 
+/** Copies this page's address, to open it in another browser. */
+function CopyAddress() {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className="underline"
+      onClick={() => {
+        void navigator.clipboard.writeText(window.location.href).then(() => setCopied(true));
+      }}
+    >
+      {copied ? "address copied; paste it there" : "copy this page's address"}
+    </button>
+  );
+}
+
+/** Copies the full ballot ID, which the page shows shortened. */
+function CopyBallotId({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className="underline"
+      onClick={() => {
+        void navigator.clipboard.writeText(id).then(() => setCopied(true));
+      }}
+    >
+      {copied ? "Copied" : "Copy the ballot ID"}
+    </button>
+  );
+}
+
 function CastBallotCard({ election, ballot }: { election: OnchainElection; ballot: CastBallot }) {
   const link = ballot.txHash ? explorerTx(ballot.txHash) : undefined;
   return (
@@ -270,7 +302,8 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
       <p className="text-sm text-zinc-700 dark:text-zinc-300">
         Your ballot ID is <Mono value={pad(toHex(BigInt(ballot.nullifier)))} />. On the
         election&apos;s page, this browser marks your ballot &ldquo;yours&rdquo;; note the ID if you
-        want to find it from another device. Nobody can connect the ID to your name.
+        want to find it from another device. Nobody can connect the ID to your name.{" "}
+        <CopyBallotId id={pad(toHex(BigInt(ballot.nullifier)))} />
       </p>
       <details className="text-sm text-zinc-600 dark:text-zinc-400">
         <summary className="cursor-pointer">Details</summary>
@@ -388,7 +421,12 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
           <p className="font-medium">To bring your key here, do one of these:</p>
           <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-zinc-700 dark:text-zinc-300">
             <li>
-              Open the link you sent yourself when you registered. It opens this page with your key.
+              Registered on this phone or computer, but this page opened inside WhatsApp or another
+              app? Open it in the browser you registered in instead: <CopyAddress />
+            </li>
+            <li>
+              Or open the link you sent yourself when you registered. It opens this page with your
+              key.
             </li>
             <li>
               Or, on the device you registered on, open this election&apos;s registration page and

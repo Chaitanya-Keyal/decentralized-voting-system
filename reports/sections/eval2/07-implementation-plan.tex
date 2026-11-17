@@ -20,8 +20,8 @@ contingencies were used. Table~\ref{tab:plan-executed} summarises it.
     \midrule
     1 (M1)         & Tier 2 end to end on a local node; first gas snapshot          & Done on 25 October: the lifecycle, factory, registrar, indexer, admin console and booth, with a browser test and the tier 2 snapshot. Merged into \texttt{main} on 17 November \\
     2 (M2)         & Tier 3 anonymous and gasless voting on Sepolia                 & Done, late: built and deployed on 17 November, three weeks after M1. A complete anonymous election has since passed end to end on Sepolia in real time \\
-    3 (freeze)     & Approval voting if time allowed, Slither, reorgs, audit with the backend off, usability test & Approval voting, Slither, coverage, reorg handling and the audit panel are done. \note{The usability test with real people is not; a simulated walkthrough stands in for now} \\
-    4 (measure)    & Every parameter measured                                       & A1, B1, C1, C2, C3 and the D3 linking attempt measured; C3 found the relayer's one-ballot-per-block limit, now fixed. \note{B2 on a phone and E3 with real users outstanding} \\
+    3 (freeze)     & Approval voting if time allowed, Slither, reorgs, audit with the backend off, usability test & Approval voting, Slither, coverage, reorg handling and the audit panel are done. The usability test was run as a simulation, in three rounds of ten participants played by language models, with the interface improved after each \\
+    4 (measure)    & Every parameter measured                                       & A1, B1, C1, C2, C3 and the D3 linking attempt measured; C3 found the relayer's one-ballot-per-block limit, now fixed. E3 run as a simulation (Section~6). \note{B2 on a phone outstanding} \\
     5 (rehearse)   & Three rehearsals on Sepolia, a backup video                   & The demo script is written (\texttt{docs/demo.md}), and a backup video is recorded from a scripted run on a local chain. \note{The rehearsals are still to do, in the days before the evaluation} \\
     \bottomrule
   \end{tabular}
@@ -101,8 +101,7 @@ planned, and the two fallbacks were never needed:
 
 \subsection{What remains}
 
-\note{Before the evaluation: B2 on a named phone, the E3 test with real
-participants, and the rehearsals.}
+\note{Before the evaluation: B2 on a named phone, and the rehearsals.}
 
 Beyond this project, six pieces of work would matter most:
 

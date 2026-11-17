@@ -81,7 +81,7 @@ export function KeyTransfer({ election }: { election: OnchainElection }) {
       <div className="flex flex-col gap-4 text-sm">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-2 rounded-lg border border-zinc-300 p-4 dark:border-zinc-700">
-            <p className="font-medium">Here, in this browser</p>
+            <p className="font-medium">Here, on this device and in this browser</p>
             <p className="text-zinc-600 dark:text-zinc-400">
               Nothing more to do. Come back when voting opens.
             </p>
@@ -95,7 +95,8 @@ export function KeyTransfer({ election }: { election: OnchainElection }) {
           </div>
           <div className="flex flex-col gap-2 rounded-lg border border-zinc-300 p-4 dark:border-zinc-700">
             <p className="font-medium">
-              On my phone, in another browser, or from a link opened in WhatsApp or another app
+              Somewhere else: another phone or computer, another browser, or a link opened inside
+              WhatsApp or another app
             </p>
             <p className="text-zinc-600 dark:text-zinc-400">
               Your voting key is in this browser only. Move it there now; it cannot be recovered

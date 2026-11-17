@@ -668,33 +668,41 @@ async function main() {
   // 13. Usability --------------------------------------------------------------
   {
     const s = pres.addSlide();
-    title(s, "What the walkthrough changed", "Usability (E1–E3)");
-    const personas = [
-      ["A first-year on a phone", "Votes fine in one browser; would be stuck if the link opened in another app's browser."],
-      ["A privacy sceptic", "Finishes, with doubts: the privacy claim was stated, not explained."],
-      ["Registers in a library, votes on a phone", "Fails: nothing said, in time, to move the voting key."],
-    ];
-    personas.forEach(([h, b], i) => {
-      const y = 1.1 + i * 1.12;
-      card(s, 0.5, y, 4.4, 0.98);
-      text(s, h, { x: 0.7, y: y + 0.1, w: 4.0, h: 0.35, fontFace: HEAD, fontSize: 14, bold: true, color: i === 2 ? C.red : C.navy });
-      text(s, b, { x: 0.7, y: y + 0.45, w: 4.0, h: 0.5, fontSize: 12, color: C.muted });
+    title(s, "A simulated usability test, three rounds", "Usability (E1–E3)");
+    const e3 = readCsv(path.join(RESULTS, "e3-simulated.csv"));
+    const rounds = [...new Set(e3.map((r) => r.round))];
+    if (!rounds.length) missing.push("E3 rounds");
+    const count = (round, key, value) => e3.filter((r) => r.round === round && r[key] === value).length;
+    const head = (t) => ({ text: t, options: { bold: true, color: C.muted, align: "center" } });
+    const rows = [[head("Round"), head("Registered unaided"), head("Voted unaided"), head("Sure it counted")]];
+    for (const round of rounds) {
+      const size = e3.filter((r) => r.round === round).length;
+      rows.push([
+        { text: round, options: { align: "center", bold: true } },
+        { text: `${count(round, "register", "completed")} of ${size}`, options: { align: "center" } },
+        { text: `${count(round, "vote", "completed")} of ${size}`, options: { align: "center" } },
+        { text: `${count(round, "trust_counted", "yes")} of ${size}`, options: { align: "center", bold: round === rounds.at(-1), color: round === rounds.at(-1) ? C.teal : C.ink } },
+      ]);
+    }
+    s.addTable(rows, { x: 0.5, y: 1.15, w: 4.6, colW: [0.8, 1.3, 1.25, 1.25], rowH: 0.42, fontFace: BODY, fontSize: 13, color: C.ink, border: { type: "solid", pt: 0.5, color: C.line }, valign: "middle" });
+    text(s, "Ten AI-played students who don't use cryptocurrency, on the real screens: low vision, a WhatsApp link, a library computer then a phone, a worry about cost, and more. A walkthrough, not a user study.", {
+      x: 0.5, y: 3.35, w: 4.6, h: 0.8, fontSize: 11.5, italic: true, color: C.muted,
     });
-    card(s, 5.2, 1.1, 4.3, 3.22, C.tealTint);
-    text(s, "Changes", { x: 5.4, y: 1.22, w: 3.9, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.teal });
+    text(s, "Still hard in round 3: moving the key into WhatsApp's own browser, and from a library computer to a phone (both voted, with help).", {
+      x: 0.5, y: 4.2, w: 4.6, h: 0.7, fontSize: 11.5, color: C.ink,
+    });
+    card(s, 5.4, 1.15, 4.1, 3.3, C.tealTint);
+    text(s, "What changed", { x: 5.6, y: 1.27, w: 3.7, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.teal });
     text(s, [
-      "A QR code and private link carry the key to another device, and ask before using it",
-      "One plain explanation of what the registrar can and cannot see",
-      "Each voter finds their own ballot, marked “yours”",
-      "Audit checks in plain words; no wallet button for anonymous voters",
+      "Registration in three plain steps: free, no wallet",
+      "After voting, the ballot ID, marked \u201cyours\u201d in the public list",
+      "\u201cWhere will you vote?\u201d: this browser, or move the key by QR code or link",
+      "Round 2's regression, \u201cnothing more to do\u201d, which stranded a library voter, undone in round 3",
     ].map((t, i, a) => ({ text: t, options: { bullet: true, breakLine: i < a.length - 1 } })), {
-      x: 5.4, y: 1.65, w: 3.95, h: 2.6, fontSize: 12.5, paraSpaceAfter: 6,
-    });
-    text(s, "Three simulated participants walked through every screen. This is a cognitive walkthrough, not a user study; the test with real students is reported separately.", {
-      x: 0.5, y: 4.5, w: 9.0, h: 0.6, fontSize: 11.5, italic: true, color: C.muted,
+      x: 5.6, y: 1.7, w: 3.75, h: 2.7, fontSize: 12.5, paraSpaceAfter: 6,
     });
     pageNo(s, ++page);
-    s.addNotes("E1: five actions to register with Google, three to vote. E2: no anonymous voter needs ETH or a wallet. E3: say what the real-participant test found, or that it is still to come.");
+    s.addNotes("E1: five actions to register with Google, three to vote. E2: no anonymous voter needs ETH or a wallet. E3 was run as a simulation, as the team decided: ten participants played by language models, the same profiles each round, the interface fixed between rounds. Nobody was fully convinced of secrecy, mostly because the example election had three voters, which the page now says plainly. The two who still needed help were moving the key into WhatsApp's browser and from a library computer to a phone.");
   }
 
   // 14. Demo -------------------------------------------------------------------
