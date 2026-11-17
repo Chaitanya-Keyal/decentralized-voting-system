@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <style>
+    .tile { fill: #18181b; }
+    .box { stroke: #fafafa; }
+    .tick { stroke: #34d399; }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #fafafa; }
+      .box { stroke: #18181b; }
+      .tick { stroke: #059669; }
+    }
+  </style>
+  <rect class="tile" width="512" height="512" rx="112"/>
+  <rect class="box" x="120" y="136" width="256" height="256" rx="44" fill="none" stroke-width="52"/>
+  <path class="tick" d="M178 262 L240 324 L396 146" fill="none" stroke-width="68" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

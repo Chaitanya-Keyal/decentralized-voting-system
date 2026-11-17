@@ -136,7 +136,7 @@ export function Notice({
 }) {
   return (
     <div
-      className={cx("rounded-lg border px-4 py-3 text-sm", noticeStyles[tone])}
+      className={cx("rounded-lg border px-4 py-3 text-sm wrap-break-word", noticeStyles[tone])}
       role={tone === "error" ? "alert" : "status"}
     >
       {children}

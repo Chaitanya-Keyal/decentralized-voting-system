@@ -56,14 +56,14 @@ export function Audit({ election }: { election: OnchainElection }) {
               <span className="mt-0.5">
                 <Mark status={step.status} />
               </span>
-              <span className="flex flex-col gap-0.5">
+              <span className="flex min-w-0 flex-col gap-0.5">
                 <span>{step.title}</span>
                 {step.detail && (
                   <span
                     className={
                       step.status === "fail"
-                        ? "text-xs text-red-700 dark:text-red-400"
-                        : "text-xs text-zinc-500"
+                        ? "text-xs wrap-anywhere text-red-700 dark:text-red-400"
+                        : "text-xs wrap-anywhere text-zinc-500"
                     }
                   >
                     {step.detail}
