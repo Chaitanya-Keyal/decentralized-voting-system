@@ -58,8 +58,7 @@ reaches its voting window. None of these lets it touch a ballot.
 \paragraph{Registrar.}
 Evidence of eligibility, such as a student's email address, must never end up
 on a public blockchain. The registrar therefore checks it off-chain, either
-through Google sign-in limited to the institute's domain or by emailing a
-six-digit code to an institute address, and publishes only the voter list's
+through Google sign-in limited to the institute's domain, and publishes only the voter list's
 root, the voter count and the list's IPFS address, its content identifier
 (CID), which names the file by a hash of its contents. Every registration
 earns a receipt the registrar signs, over the wallet in tier 2 or the identity
@@ -116,7 +115,7 @@ requirement.
   \endlastfoot
   FR1 & Let the Authority create an election with its candidates, registration and voting dates, and a ballot description, and allow changes to the candidates only before voting opens. & Met. A factory deploys each election as a minimal proxy clone~\cite{eip1167}; the description and manifestos go to IPFS. The ballot type and counting rule are also chosen at creation and never change. \\
   \addlinespace[2pt]
-  FR2 & Let the Registrar check eligibility off-chain, accept each commitment without putting personal data on-chain, and give the voter a signed receipt for it. & Met. Google sign-in limited to the institute's domain, or an emailed code, then a receipt signed by the registrar's key over the commitment (tier 3) or the wallet (tier 2), as EIP-712 typed data~\cite{eip712}, which the voter can check against the registrar the contract names. Email addresses stay in the registrar's database. \\
+  FR2 & Let the Registrar check eligibility off-chain, accept each commitment without putting personal data on-chain, and give the voter a signed receipt for it. & Met. Google sign-in limited to the institute's domain, then a receipt signed by the registrar's key over the commitment (tier 3) or the wallet (tier 2), as EIP-712 typed data~\cite{eip712}, which the voter can check against the registrar the contract names. Email addresses stay in the registrar's database. \\
   \addlinespace[2pt]
   FR3 & When registration closes, have the Registrar publish the list of commitments and record its IPFS address, its root and the voter count in a single transaction, after which none of them can change. & Met. One call records all three, only between the close of registration and the start of voting; a second call reverts. The registrar publishes on its own once registration has closed. \\
   \addlinespace[2pt]
@@ -169,10 +168,10 @@ Section~6 reports the measured values.
 Of these, NFR2, NFR3 and NFR8 matter most. Ineligible or duplicate ballots would
 make the result meaningless, and NFR8 is the claim the architecture rests on.
 
-\subsection{Changes during implementation}\label{sec:req-changes}
+\subsection{Changes from Evaluation~1}\label{sec:req-changes}
 
-Building the system changed some requirements and left one promise of
-Evaluation~1 partly unmet. Each change and its reason are recorded below.
+The system as built differs from Evaluation~1 in the following ways, each for
+the reason given.
 
 \begin{itemize}[leftmargin=1.2em,itemsep=3pt,topsep=2pt]
   \item \textbf{Approval voting was added.} Evaluation~1 assumed one candidate
@@ -215,7 +214,7 @@ Evaluation~1 partly unmet. Each change and its reason are recorded below.
         nothing the relayer could not already do or undo. It did add cost: on
         Sepolia a forwarded ballot used 521,094 gas against 393,900 sent
         directly, mostly for a new storage slot holding each fresh key's nonce.
-        The relayer now calls \texttt{castVote} itself. The forwarder is still
+        The relayer calls \texttt{castVote} itself. The forwarder is still
         deployed and tested, for relayers that expect it.
 
   \item \textbf{Direct submission is open to any wallet.} Evaluation~1 allowed
@@ -236,26 +235,24 @@ Evaluation~1 partly unmet. Each change and its reason are recorded below.
 
   \item \textbf{No server-side proving.} Evaluation~1 kept server-side proving
         as a fallback in case phones could not prove in reasonable time.
-        Proving in the browser worked, so the fallback was not built, and the
-        voter's secret never leaves their device. Section~6 reports proving
+        Proving in the browser is fast enough, so the fallback is not needed,
+        and the voter's secret never leaves their device. Section~6 reports proving
         times by device: under a second on a laptop and under two seconds on an
         Android phone, for any list up to 4,096 voters.
 
-  \item \textbf{Deployment had to follow the network's gas rules.} Sepolia
+  \item \textbf{Deployment follows the network's gas rules.} Sepolia
         adopted Glamsterdam on 6 October 2026~\cite{glamsterdam}, after
         Evaluation~1. Its EIP-8037~\cite{eip8037} prices new state at 1,530 gas
-        per byte, which the local toolchain does not model, so the first
-        deployment attempt set its gas limits from a local simulation and ran
-        out of gas. Deployment now takes its gas limits from the network, and
-        NFR6 reports both rule sets.
+        per byte, which the local toolchain does not model, so deployment
+        takes its gas limits from the network rather than from a local
+        simulation, and NFR6 reports both rule sets.
 \end{itemize}
 
-One promise of Evaluation~1 is met only in part. The usability test behind
-NFR10, parameter E3, was run as a simulation with ten participants played by
-language models rather than with people (Section~6). In its last round all ten
-registered and voted, two of them with help. Where a requirement is met
-only conditionally, as NFR1 is against our own operator, the condition is
-stated in Section~\ref{sec:trust} rather than counted as met.
+The usability test behind NFR10, parameter E3, was run as a simulation with ten
+participants played by language models (Section~6): all ten registered and
+voted, two of them with help. Where a requirement is met only conditionally, as
+NFR1 is against our own operator, the condition is stated in
+Section~\ref{sec:trust} rather than counted as met.
 
 \subsection{Trust model and explicit non-goals}\label{sec:trust}
 

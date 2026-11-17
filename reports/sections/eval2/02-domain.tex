@@ -169,9 +169,8 @@ proved in zero knowledge against a voter list stored on-chain as a single
 public data. The cost claim is about each operation: a tier 3 ballot should cost
 the same gas whether the voter list is small or large, even though the total
 cost of an election still grows with the number of ballots cast. Section~6
-tests this claim (parameter C1). Implementation added a qualification the
-Evaluation~1 analysis did not anticipate: the gas an operation costs is set by
-the network's rules as well as by the design. Sepolia's adoption of
+tests this claim (parameter C1). One qualification applies: the gas an
+operation costs is set by the network's rules as well as by the design. Sepolia's adoption of
 EIP-8037~\cite{eip8037}, which prices every new byte of state at 1,530 gas,
 multiplies the cost of creating elections and of each ballot's new storage
 without changing the code, so the same contracts have two gas profiles, one

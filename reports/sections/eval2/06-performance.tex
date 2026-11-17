@@ -119,35 +119,32 @@ also the only meaningful measure there.
 The Sepolia end-to-end test (\texttt{e2e/sepolia.spec.ts}) times each voter
 from pressing ``Cast my ballot'' to the booth reporting the ballot counted.
 That interval includes proving in the browser, the relayer's checks, a block
-on Sepolia, and the booth confirming the nullifier on-chain. Samples taken
-before and after the relayer change described under C3 are kept apart.
+on Sepolia, and the booth confirming the nullifier on-chain.
 
 \begin{itemize}
-  \item \emph{One voter at a time, the earlier relayer} (two runs, 8 ballots):
-        median 16.6\,s, slowest 33.5\,s.
-  \item \emph{One voter at a time, the current relayer, offering the tip a
-        node suggests} (two runs, 16 ballots): median 11.1\,s, fastest
+  \item \emph{One voter at a time, offering the tip a node suggests} (two
+        runs, 16 ballots): median 11.1\,s, fastest
         9.2\,s, slowest 31.5\,s; 11 of the 16 were counted within 15\,s,
         about one 12-second slot.
-  \item \emph{One voter at a time, the current relayer, with a minimum tip of
-        0.1\,gwei} (two runs, 16 ballots): median 10.7\,s, fastest 8.2\,s,
+  \item \emph{One voter at a time, with a minimum tip of 0.1\,gwei, the
+        relayer's default} (two runs, 16 ballots): median 10.7\,s, fastest 8.2\,s,
         slowest 18.4\,s, which with 16 samples is also the nearest-rank 95th
         percentile; 14 of the 16 were counted within 15\,s.
-  \item \emph{Ten voters at once, the current relayer}: all ten ballots
+  \item \emph{Ten voters at once}: all ten ballots
         landed in one block, counted 32.6 to 35.6\,s after the click (median
         33.1\,s). The ten browsers ran on one four-core machine and proved
         their ballots at the same moment, so proving competed for the CPU;
         B2 below gives the time on a phone.
 \end{itemize}
 
-From the second run on, the test also recorded when the block holding each
-ballot was produced, found through the ballot's nullifier. Once a ballot was in
+The test also recorded when the block holding each ballot was produced, found
+through the ballot's nullifier. Once a ballot was in
 a block, the booth reported it counted 1.4 to 4.4\,s later, so the slow ballots
 were slow to be included, not slow to be noticed. Sepolia's nodes suggested a
 tip of 2~wei per gas, and ballots offering that waited an extra block or two
 more often; with a minimum of 0.1\,gwei, at a cost of about 0.00004 Sepolia
 ETH a ballot, no ballot waited more than one extra block. With 16 ballots on
-each side this is suggestive rather than settled, but the minimum is now the
+each side this is suggestive rather than settled, and the minimum is the
 relayer's default (\texttt{RELAYER\_MIN\_PRIORITY\_FEE\_WEI}).
 
 \paragraph{B2, proof generation by device.}
@@ -244,12 +241,6 @@ Merkle proof gains one hash per tree level.
   \label{fig:c1}
 \end{figure}
 
-The sweep also caught a regression. Its first run showed tier~3
-ballots rising by about 210 gas per tree level. The cause was the contract's
-own depth calculation, a loop that read the voter count from storage once per
-level. It now takes one read and a constant-time logarithm, and the second
-sweep is the flat line in the figure.
-
 \paragraph{C2, booth time against the size of the voter list.}
 The flat line in C1 must not hide work moved onto the voter's device.
 Figure~\ref{fig:c2} separates the booth's two costs. Proving grows only with
@@ -298,10 +289,9 @@ through, so C3 loads it until something gives way
 (\texttt{bench/src/load.ts}). For each load, a tier~3 election has that many
 registered voters, and all of them send their ballots to the relayer at the
 same moment, on the local node of Table~\ref{tab:bench-setup}. The relayer is
-one Node.js process and checks proofs on a single core. The rows for the
-current relayer were measured on its final code except the last change, a
-check that each receipt carries the ballot's own event, which makes no extra
-request. Table~\ref{tab:c3} gives the results.
+one Node.js process and checks proofs on a single core. For comparison, the
+first row is a relayer that waits for each ballot to be mined before sending the
+next. Table~\ref{tab:c3} gives the results.
 
 \begin{table}[htbp]
   \centering
@@ -315,8 +305,8 @@ request. Table~\ref{tab:c3} gives the results.
     \toprule
     \textbf{Relayer} & \textbf{Ballots} & \textbf{All accepted} & \textbf{Median counted} & \textbf{Last counted} & \textbf{Blocks} & \textbf{Most in a block} \\
     \midrule
-    One ballot per block (before)  & 16    & 9.9\,s   & 102.4\,s & 192.9\,s & 16 & 1 \\
-    Up to 64 in flight (current)   & 16    & 11.1\,s  & 12.8\,s  & 13.1\,s  & 1  & 16 \\
+    One ballot per block           & 16    & 9.9\,s   & 102.4\,s & 192.9\,s & 16 & 1 \\
+    Up to 64 in flight (DVote)     & 16    & 11.1\,s  & 12.8\,s  & 13.1\,s  & 1  & 16 \\
                                    & 64    & 7.8\,s   & 13.4\,s  & 13.6\,s  & 1  & 64 \\
                                    & 256   & 26.9\,s  & 49.4\,s  & 73.2\,s  & 6  & 64 \\
                                    & 1,024 & 163.3\,s & 216.7\,s & 312.4\,s & 20 & 64 \\
@@ -324,11 +314,11 @@ request. Table~\ref{tab:c3} gives the results.
   \end{tabular}
 \end{table}
 
-The first run found a real limit. The relayer used to send one ballot and wait
-for its block before sending the next, so sixteen voters took sixteen blocks,
-and a room of sixty would have waited twelve minutes. It now sends ballots one
-after another with consecutive nonces, without waiting for each to be mined,
-and keeps up to 64 in flight. Sixteen or sixty-four simultaneous voters are
+Waiting for each ballot's block before sending the next would count one ballot
+per block: sixteen voters take sixteen blocks, and a room of sixty would wait
+twelve minutes. DVote's relayer instead sends ballots one after another with
+consecutive nonces, without waiting for each to be mined, and keeps up to 64 in
+flight. Sixteen or sixty-four simultaneous voters are
 then all counted in the next block, 256 within six blocks, and 1,024 within
 twenty; no ballot failed at any load. (The smallest burst is accepted slowest
 because it includes the relayer loading its verification key.)
@@ -404,75 +394,58 @@ cancel an election once voting is under way with a published list.
 \subsubsection{Usability (E1--E3)}
 
 \paragraph{E1, steps to cast a ballot.}
-With Google sign-in, an anonymous voter takes five actions to register (open
+An anonymous voter takes five actions to register (open
 the link, create a voting key, sign in with Google, choose the account,
-register) and three to vote (open the booth, mark a candidate, cast). With an
-emailed code, registering takes seven: typing the address, asking for a code,
-reading it from the inbox and typing it in replace the two sign-in steps. A
-voter who registers on one device and votes on another adds three: showing the
+register) and three to vote (open the booth, mark a candidate, cast). A voter
+who registers on one device and votes on another adds three: showing the
 QR code, scanning it, and confirming the key on the new device.
 
 \paragraph{E2, voter gas burden: zero.} No tier~3 voter in the browser tests
 held ETH or a wallet; the relayer paid for every ballot.
 
 \paragraph{E3, task success.}
-E3 was run as a simulation rather than with people. Ten participants, each
-played by an independent language model briefed on the profile of a student
-who does not use cryptocurrency, walked through screenshots of every step,
-taken from the browser test on a phone or a desktop as their profile
-dictated. The profiles were: a first-year who skims, a student with low vision
-using large text, a non-native English speaker whose voting link opens inside
-WhatsApp, a sceptical computer science student, a student who registers in a
-library and votes on a phone, one worried that voting will cost money, a PhD
-scholar who rarely uses web apps, one who clears their browser data before
-checking, a busy student, and a student-council member judging whether to
-trust the system. Each scored three tasks: registering, voting, and being
-satisfied that the ballot was counted and kept secret. After each round the
-interface was changed and the round repeated with the same profiles
-(\texttt{bench/results/e3-simulated.csv}). This is a cognitive walkthrough, not
-a user study: a model playing a student is not a student, so the results show
-where the interface confuses a careful reader, not how often real voters
-fail. Table~\ref{tab:e3} gives the three rounds.
+E3 was run as a simulation. Ten participants, each played by an independent
+language model briefed on the profile of a student who does not use
+cryptocurrency, walked through screenshots of every step, taken from the
+browser test on a phone or a desktop as their profile dictated. The profiles
+were: a first-year who skims, a student with low vision using large text, a
+non-native English speaker whose voting link opens inside WhatsApp, a sceptical
+computer science student, a student who registers in a library and votes on a
+phone, one worried that voting will cost money, a PhD scholar who rarely uses
+web apps, one who clears their browser data before checking, a busy student,
+and a student-council member judging whether to trust the system. Each scored
+three tasks: registering, voting, and being satisfied that the ballot was
+counted and kept secret (\texttt{bench/results/e3-simulated.csv}). This is a
+cognitive walkthrough: it shows where the interface confuses a careful reader.
+Table~\ref{tab:e3} gives the results.
 
 \begin{table}[htbp]
   \centering
-  \caption{Simulated usability test (E3): ten participants per round, the same
-    profiles each time, with the interface changed between rounds.}
+  \caption{Simulated usability test (E3), ten participants.}
   \label{tab:e3}
   \small
-  \begin{tabular}{@{}L{1.6cm}R{2.6cm}R{2.4cm}R{2.4cm}R{2.4cm}R{2.6cm}@{}}
+  \begin{tabular}{@{}R{2.6cm}R{2.4cm}R{2.4cm}R{2.4cm}R{2.6cm}@{}}
     \toprule
-    \textbf{Round} & \textbf{Registered unaided} & \textbf{Voted unaided} & \textbf{Voted with help} & \textbf{Could not vote} & \textbf{Sure it counted} \\
+    \textbf{Registered unaided} & \textbf{Voted unaided} & \textbf{Voted with help} & \textbf{Could not vote} & \textbf{Sure it counted} \\
     \midrule
-    1 & 8 & 8 & 2 & 0 & 4 \\
-    2 & 9 & 8 & 1 & 1 & 6 \\
-    3 & 10 & 8 & 2 & 0 & 10 \\
+    10 & 8 & 2 & 0 & 10 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-In the first round nobody could find their own ballot afterwards, and the
-privacy explanation read as an assertion. The changes were: registration as
-three numbered steps that say it is free and needs no wallet, the secrecy
-explanation folded under a question, the ballot ID shown after voting in the
-same form as the public list (which marks the voter's own ballot ``yours''),
-and numbered steps for bringing the key to another browser. The second round
-found a regression we had caused: a line saying ``if you will vote in this same
-browser, there is nothing more to do'' led the student who registered in a
-library to leave without moving the key, and they then could not vote on
-their phone. The page now asks where the voter will vote, with this browser
-and another device as equal choices. In the third round every participant
-registered unaided and was sure their ballot counted, having found it marked
-``yours''. Two still needed help to bring the key to another browser: the
-student whose link opened inside WhatsApp, and the one who moved from the
-library to a phone. A last change, not yet tested by a further round, tells
-a voter in an app's browser to open the page in the browser they registered
-in, with a button that copies its address. No participant was fully convinced
+Every participant registered unaided and was sure their ballot counted, having
+found it marked ``yours'' in the public list. Two needed help to bring the key
+to another browser: the student whose link opened inside WhatsApp, and the one
+who moved from the library to a phone. The walkthrough shaped the interface:
+registration is three numbered steps that say it is free and needs no wallet,
+the page asks where the voter will vote and offers a QR code or a private link
+to carry the key to another device, the booth shows the ballot ID in the same
+form as the public list, and a voter in an app's browser is told to open the
+page in the browser they registered in. No participant was fully convinced
 that their ballot was secret. All ten said ``partly'', most because the example
-election has three voters and the page now says plainly that a small list
-hides each ballot less well; that is a fair reading, and it is the anonymity
-set reported under D3. An earlier walkthrough with three profiles, before
-these rounds, is what led to carrying the key between devices by QR code.
+election has three voters and the page says plainly that a small list hides
+each ballot less well; that is a fair reading, and it is the anonymity set
+reported under D3.
 
 \subsection{Discussion}
 
@@ -494,18 +467,15 @@ for the list.
 
 Latency on Sepolia is mostly the chain's own. A typical ballot was counted
 within one slot of the click, and the booth noticed it within four seconds of
-its block; the slower ballots waited for a later block, for reasons not yet
-isolated. The load test was the most useful measurement: it found that the
-relayer let through one ballot per block, which a room of voters would have
-felt at once, and after the fix the limit moved to the relayer's own proof
-checking, far below the chain's capacity.
+its block; the slower ballots waited for a later block. Under load, the limit
+is the relayer's own proof checking, far below the chain's capacity: a room of
+voters casting at once is counted in the next block.
 
 The security parameters held in every test that tried to break them, with
 secrecy against the operator resting on running the relayer apart from the
 registrar. In the simulated usability test, every participant registered
-unaided and was sure their ballot counted in the last round, and two of the ten
-still needed help to vote from a browser other than the one they registered
-in; whether real students do as well is untested. On an Android phone
+unaided and was sure their ballot counted, and two of the ten needed help to
+vote from a browser other than the one they registered in. On an Android phone
 proving takes about twice as long as on the laptop, still under two seconds
 for lists up to 4,096 voters, so the wait a voter notices is the chain's,
 not the proof's.

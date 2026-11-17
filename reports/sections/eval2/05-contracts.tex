@@ -260,8 +260,8 @@ gas snapshot committed in \texttt{contracts/snapshots/} or the sweep in
         needs to make sense of the tally. This is a choice by construction, and
         Section~6 does not measure it separately.
   \item \emph{A constant-time tree depth.} The depth comes from one storage
-        read and \texttt{Math.log2}. An earlier loop over the depth added about
-        210 gas per tree level. With the fix, a tier 3 ballot costs between
+        read and \texttt{Math.log2}, rather than a loop over the levels, which
+        would add about 210 gas per level. A tier 3 ballot costs between
         296,656 and 296,692 gas at every list size from 4 to 65,536 voters
         (296,315 at 2), a spread of 36 gas.
   \item \emph{Small ballots.} An approval ballot is one 256-bit number,

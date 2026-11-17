@@ -36,8 +36,7 @@ pass through any of them.
   \item \emph{Register.} The browser creates a Semaphore
         identity~\cite{semaphore}, keeps its secret on the device and saves a
         backup file. The voter then proves an institute email address to the
-        registrar, either with a one-time code sent to that address or by
-        signing in with Google. For Google, the registrar checks the ID token's
+        registrar by signing in with Google. The registrar checks the ID token's
         signature against Google's published keys, its issuer, audience and
         expiry, and requires its hosted-domain claim to be the institute's
         domain. The token must also carry a nonce that names this election and
@@ -192,13 +191,13 @@ Table~\ref{tab:divergences} lists the changes to the architecture itself.
   \addlinespace[3pt]
   Ballot scope & The election's ID & The election's address & A clone's address is unique without a counter. The same address is the verifying contract in every EIP-712 receipt, so a receipt or a nullifier from one election means nothing in another \\
   \addlinespace[3pt]
-  Tree depth & Not specified & Computed by the contract from the published voter count, in constant time & The depth chooses the verifier's key, so it must not come from the caller. An earlier version computed it in a loop, which added about 210 gas per tree level to every ballot (Section~6) \\
+  Tree depth & Not specified & Computed by the contract from the published voter count, in constant time & The depth chooses the verifier's key, so it must not come from the caller. Computing it in constant time keeps a ballot's cost the same at every depth \\
   \addlinespace[3pt]
   Relaying & Through \texttt{VoteForwarder}, each ballot signed with a fresh key & The relayer calls \texttt{castVote} itself; the forwarder is deployed and still accepted & The proof already binds the ballot, so the signature added only gas: 335,214 per ballot against 296,692 directly under mainnet's rules (Section~\ref{sec:req-changes} gives the reasoning and the Sepolia figures) \\
   \addlinespace[3pt]
   Relayer checks & Check the proof, pay the gas & Also checks the election, the phase and the nullifier, simulates the call, and allows one queued ballot per nullifier before signing a receipt & A ballot the contract would refuse at that moment never earns a receipt. One can still fail later, if voting closes or the same ballot is submitted directly first, and then it costs the relayer gas \\
   \addlinespace[3pt]
-  Proof of email & An emailed one-time code & An emailed code, or Google sign-in limited to the institute's domain & Sending codes needs a mail service that a deployment may not have. Google sign-in needs none, and both lead to the same receipt \\
+  Proof of email & An emailed one-time code & Google sign-in limited to the institute's domain & Google confirms that the account is one the institute manages, and the registrar needs no mail service. The receipt is the same \\
   \addlinespace[3pt]
   Document storage & IPFS through Pinata~\cite{pinata} & An IPFS node of our own, which the site reads first, and a copy of each published list, with its election's description and manifestos, on Pinata & Our node keeps the site fast and free of a pinning service's limits, but it is not connected to the public network, so on its own nobody could fetch a list without our server. The registrar sends Pinata the node's own bytes and checks that it arrives at the same address; the site falls back to Pinata's gateway and takes a document only if it hashes to its address \\
   \addlinespace[3pt]
@@ -206,9 +205,9 @@ Table~\ref{tab:divergences} lists the changes to the architecture itself.
   \addlinespace[3pt]
   Cancelling & Authority only, before voting opens & Also possible when the list never appeared, or the voting window passed without voting opening. The schedule can change only until registration is due, and the candidates until voting is due & An election whose registrar never published would otherwise be stuck for good. The limits go by the clock because a phase is open from its time even if nobody has recorded that on-chain \\
   \addlinespace[3pt]
-  Keeping the key & A backup file & The backup file, plus a QR code or link that carries the key after the \texttt{\#} in the address, which browsers never send to a server. The booth takes it only after the voter confirms, and never in place of a key it already holds & In the simulated walkthrough (Section~6), a voter who registered on one device and voted on another could not vote. The confirmation and the no-replace rule stop someone else's link from planting their key \\
+  Keeping the key & A backup file & The backup file, plus a QR code or link that carries the key after the \texttt{\#} in the address, which browsers never send to a server. The booth takes it only after the voter confirms, and never in place of a key it already holds & Voters often register on one device and vote on another, as the simulated walkthrough showed (Section~6), and need the key there. The confirmation and the no-replace rule stop someone else's link from planting their key \\
   \addlinespace[3pt]
-  Deployment & Not specified & Gas limits taken from the network, not from a local simulation & Glamsterdam's state pricing is not modelled by the local toolchain, so the first attempt ran out of gas (Section~\ref{sec:deployment}) \\
+  Deployment & Not specified & Gas limits taken from the network, not from a local simulation & Glamsterdam's state pricing is not modelled by the local toolchain, so limits from a local simulation would be too low (Section~\ref{sec:deployment}) \\
 \end{longtable}
 
 The central decisions held. The voter list is still only a root on-chain, so

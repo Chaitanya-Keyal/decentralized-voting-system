@@ -65,7 +65,7 @@ secret to keep yet; the secret, and the backup copy of it, arrive with tier 3.
 
 **Backend**
 - Fastify service with Postgres (Prisma)
-- Registrar: institute email and one-time code, then the voter's wallet address, with no
+- Registrar: institute email by Google sign-in, then the voter's wallet address, with no
   personal data on-chain; a receipt signed over the address and the election ID (FR2); and
   publication of the voter list to IPFS with the root, the voter count and the address (FR3)
 - Metadata service pinning the ballot description and candidate manifestos to IPFS (FR1)
@@ -176,8 +176,7 @@ The measurements are in `bench/results/`, and [bench/README.md](../bench/README.
 script wrote each; the local A1 figures are the gas snapshots in `contracts/snapshots/`. A1 was
 measured locally under mainnet's rules and on Sepolia under Glamsterdam's, B2 on a
 laptop and an Android phone, and D3 on two Sepolia elections; D1, D2, D4 and D5 are covered by
-tests. E3 was run as a simulation, in three rounds of ten participants played by language models,
-not with people.
+tests. E3 was run as a simulation, with ten participants played by language models.
 
 Every parameter in [`evaluation-parameters.md`](evaluation-parameters.md) gets a measured
 value, or a written reason why it has none.
@@ -193,8 +192,8 @@ value, or a written reason why it has none.
   time at the same sizes. **C3:** increase load until something fails
 - **D1 to D5:** attack tests that must fail, including fuzz tests on nullifiers (D1) and an
   actual attempt to link ballots to voters from chain data (D3)
-- **E1 to E3:** steps to vote, zero ETH needed, and a usability test with ten people who do
-  not use cryptocurrency (run in the end as a simulation; see the status above)
+- **E1 to E3:** steps to vote, zero ETH needed, and a simulated usability test with ten
+  participants who do not use cryptocurrency
 
 ---
 

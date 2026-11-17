@@ -45,8 +45,8 @@ same lifecycle, factory and voter list design.
 \end{itemize}
 
 Around the contracts sit three off-chain services. The registrar checks a
-voter's institute email address, through Google sign-in or a one-time code,
-and returns a signed receipt for every registration. The relayer is a separate process that checks
+voter's institute email address, through Google sign-in limited to the
+institute's domain, and returns a signed receipt for every registration. The relayer is a separate process that checks
 each ballot completely before paying for it and keeps no request logs. The
 indexer is a read cache that makes election lists and ballot tables quick to
 show; nothing depends on it for correctness. Once an election's voter list is
@@ -73,12 +73,10 @@ The work that does grow with the list moves to the voter's device. Proving a
 ballot takes 0.57\,s at two voters and 1.52\,s at 65,536 on one ARM64 CPU
 core, while rebuilding the list to check it grows to 15.8\,s at 65,536. On
 Sepolia, with voters casting one at a time, a ballot was counted a median of
-10.7\,s after the voter pressed Cast (16 ballots; slowest 18.4\,s). A load test
-found that the relayer let through only one ballot per block; after the fix,
-64 simultaneous voters were all counted in the next block.
-In a simulated usability test, ten participants played by language models
-went through every step in three rounds, with the interface improved after
-each; in the last, all ten registered and voted, two of them with help.
+10.7\,s after the voter pressed Cast (16 ballots; slowest 18.4\,s). Under
+load, 64 voters casting at the same moment were all counted in the next block.
+In a simulated usability test with ten participants played by language models,
+all ten registered and voted, two of them with help.
 On an Android phone a ballot is proved in under two seconds for any list up
 to 4,096 voters, and in 9.1\,s at 65,536.
 

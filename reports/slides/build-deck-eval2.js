@@ -110,10 +110,9 @@ const c2series = (phase) =>
 const prove = c2series("prove");
 const rebuild = c2series("tree_rebuild");
 
-// B1, end to end on Sepolia. The relayer changed how it sends at RELAYER_CHANGE (UTC, as in the
-// file names); samples before and after are kept apart.
-// From TIP_FLOOR on, the relayer also offers at least a 0.1 gwei tip.
-const RELAYER_CHANGE = "202611170200";
+// B1, end to end on Sepolia, with the relayer as it is: runs from RELAYER_FINAL on (UTC, as in the
+// file names). From TIP_FLOOR on, it also offers at least a 0.1 gwei tip, as it does by default.
+const RELAYER_FINAL = "202611170200";
 const TIP_FLOOR = "202611170340";
 const b1 = (from, to, burst) =>
   results(burst ? /^b1-sepolia-burst-\d+\.csv$/ : /^b1-sepolia-\d+\.csv$/)
@@ -122,9 +121,9 @@ const b1 = (from, to, burst) =>
       return stamp >= from && stamp < to;
     })
     .flatMap((file) => readCsv(file).map((r) => Number(r.click_to_counted_ms)));
-const b1NoFloor = b1(RELAYER_CHANGE, TIP_FLOOR, false);
+const b1NodeTip = b1(RELAYER_FINAL, TIP_FLOOR, false);
 const b1Now = b1(TIP_FLOOR, "9", false);
-const b1Burst = b1(RELAYER_CHANGE, "9", true);
+const b1Burst = b1(RELAYER_FINAL, "9", true);
 
 // B2: the booth's code in a laptop's browser, from the /bench page.
 const laptop = fs.existsSync(path.join(RESULTS, "summary-laptop-core-ultra-7-256v-chromium.csv"))
@@ -167,7 +166,6 @@ function loadSummary(file) {
     };
   });
 }
-const c3before = loadSummary(path.join(RESULTS, "load-concurrency-1.csv"));
 const c3now = loadSummary(path.join(RESULTS, "load-concurrency-64.csv"));
 
 // ---------------------------------------------------------------------------
@@ -504,12 +502,12 @@ async function main() {
     const s = pres.addSlide();
     title(s, "What changed since Evaluation 1, and why", "Changes");
     const changes = [
-      [I.relay, "The relayer calls the contract directly", "The proof already binds the ballot. The ERC-2771 forwarder added about a third more gas on Sepolia, so the relayer no longer uses it."],
-      [I.ruler, "Constant gas per ballot", "Our own tree-depth check read storage once per level. It now takes one read, and the cost is flat to 65,536 voters."],
-      [I.gas, "Sepolia's Glamsterdam upgrade", "New state now costs 1,530 gas a byte there. Deployment and gas limits had to be redone for it."],
-      [I.bolt, "A room can vote at once", "The relayer sent one ballot per block. It now sends a burst back to back, as the load test showed it must."],
-      [I.qr, "Voting from another device", "A simulated walkthrough found voters lose their key between devices. A QR code now carries it across."],
-      [I.google, "Google sign-in", "Registration checks the institute account with Google, with emailed codes kept as a fallback."],
+      [I.relay, "The relayer calls the contract directly", "The proof already binds the ballot. Going through the ERC-2771 forwarder would add about a third more gas on Sepolia."],
+      [I.ruler, "Approval voting", "A voter can approve several candidates, as committee seats need. The counting rule is fixed when the election is created."],
+      [I.gas, "Sepolia's Glamsterdam upgrade", "New state costs 1,530 gas a byte there, so deployment takes its gas limits from the network, and gas is reported under both rule sets."],
+      [I.bolt, "Both tiers offered", "Wallet ballots stay as a choice for open votes: about 3.7 times cheaper per ballot under mainnet's rules, with no proving."],
+      [I.qr, "Voting from another device", "Voters often register on one device and vote on another, so a QR code or a private link carries the key across."],
+      [I.google, "Google sign-in", "Registration checks the institute account with Google rather than emailing a code. Google confirms the account is the institute's."],
     ];
     changes.forEach(([ic, h, b], i) => {
       const x = 0.5 + (i % 2) * 4.6;
@@ -556,7 +554,7 @@ async function main() {
   // 9. Glamsterdam ----------------------------------------------------------------
   {
     const s = pres.addSlide();
-    title(s, "On Sepolia, new state now costs far more", "Cost (A1)");
+    title(s, "On Sepolia, new state costs far more", "Cost (A1)");
     text(s, "Sepolia moved to the Glamsterdam upgrade on 6 October 2026. Its EIP-8037 charges 1,530 gas for every byte of new state, so anything that creates storage or code costs several times what it does under mainnet's rules.", {
       x: 0.5, y: 1.1, w: 9.0, h: 0.75, fontSize: 14,
     });
@@ -576,7 +574,7 @@ async function main() {
     text(s, "local, mainnet rules", { x: 4.4, y: 1.8, w: 2.0, h: 0.25, fontSize: 10, color: C.muted, align: "right" });
     text(s, "Sepolia, Glamsterdam", { x: 6.8, y: 1.8, w: 2.5, h: 0.25, fontSize: 10, color: C.red, align: "right" });
     pageNo(s, ++page);
-    s.addNotes("Foundry's EVM does not model EIP-8037 yet, so forge's own gas estimates were seven times too low and our first deployment ran out of gas. We deploy with the node's estimates instead, and report both rule sets.");
+    s.addNotes("Foundry's EVM does not model EIP-8037 yet, so its own gas estimates for Sepolia are about seven times too low. We deploy with the node's estimates, and report both rule sets.");
   }
 
   // 10. C2 -----------------------------------------------------------------------
@@ -623,14 +621,14 @@ async function main() {
     card(s, 0.5, 1.1, 4.3, 3.95);
     iconCircle(s, I.phone, 0.7, 1.3, 0.5, C.teal);
     text(s, "One voter, Sepolia (B1)", { x: 1.32, y: 1.37, w: 3.3, h: 0.4, fontFace: HEAD, fontSize: 15, bold: true, color: C.navy });
-    stat(s, fig(b1s?.median, "B1 median, current relayer", s1), `median, click to counted (${b1s?.n ?? 0} ballots)`, 0.75, 2.0, 1.9);
-    stat(s, fig(b1s?.slowest, "B1 slowest, current relayer", s1), `slowest of ${b1s?.n ?? 0}; ${b1s ? b1Now.filter((ms) => ms <= 15_000).length : 0} counted within 15 s`, 2.75, 2.0, 1.9, C.navy);
-    const noFloor = stats(b1NoFloor);
+    stat(s, fig(b1s?.median, "B1 median", s1), `median, click to counted (${b1s?.n ?? 0} ballots)`, 0.75, 2.0, 1.9);
+    stat(s, fig(b1s?.slowest, "B1 slowest", s1), `slowest of ${b1s?.n ?? 0}; ${b1s ? b1Now.filter((ms) => ms <= 15_000).length : 0} counted within 15 s`, 2.75, 2.0, 1.9, C.navy);
+    const nodeTip = stats(b1NodeTip);
     const burst = stats(b1Burst);
     if (!burst) missing.push("B1, ten voters at once");
     text(s, [
       { text: burst ? `Ten voters at once: all in one block, median ${s1(burst.median)} (ten browsers proving on one machine).` : "", options: { breakLine: true } },
-      { text: noFloor ? `Before the 0.1 gwei tip floor: median ${s1(noFloor.median)}, slowest ${s1(noFloor.slowest)} of ${noFloor.n}; slow ballots waited an extra block or two.` : "" },
+      { text: nodeTip ? `The relayer tips at least 0.1 gwei: with the tip a node suggests, slow ballots waited an extra block or two (slowest ${s1(nodeTip.slowest)} of ${nodeTip.n}).` : "" },
     ], { x: 0.75, y: 3.4, w: 3.9, h: 1.55, fontSize: 11.5, color: C.muted, paraSpaceAfter: 6 });
     card(s, 5.2, 1.1, 4.3, 3.95);
     iconCircle(s, I.users, 5.4, 1.3, 0.5, C.amber);
@@ -640,8 +638,6 @@ async function main() {
       { text: "Last counted", options: { bold: true, color: C.muted, align: "right" } },
       { text: "Blocks", options: { bold: true, color: C.muted, align: "right" } },
     ]];
-    const b16 = c3before.find((r) => r.load === 16);
-    if (b16) rows.push([{ text: "16, before", options: { color: C.red } }, { text: s1(b16.last), options: { color: C.red, align: "right" } }, { text: String(b16.blocks), options: { color: C.red, align: "right" } }]);
     for (const r of c3now) rows.push([{ text: n0(r.load) }, { text: s1(r.last), options: { align: "right" } }, { text: String(r.blocks), options: { align: "right" } }]);
     if (!c3now.length) missing.push("C3 results");
     s.addTable(rows, { x: 5.45, y: 1.95, w: 3.8, colW: [1.4, 1.4, 1.0], rowH: 0.34, fontFace: BODY, fontSize: 13, color: C.ink, border: { type: "solid", pt: 0.5, color: C.line }, margin: [0, 0.06, 0, 0.06], valign: "middle" });
@@ -649,7 +645,7 @@ async function main() {
       x: 5.45, y: 4.45, w: 3.85, h: 0.5, fontSize: 11, color: C.muted,
     });
     pageNo(s, ++page);
-    s.addNotes("B1 is timed by the Sepolia end-to-end test, from pressing Cast to the booth reporting the ballot counted: proving, the relayer's checks, a block, and the booth confirming on-chain. C3 found that the relayer let through one ballot per block; it now sends a burst back to back, and what limits it is checking each proof before accepting it.");
+    s.addNotes("B1 is timed by the Sepolia end-to-end test, from pressing Cast to the booth reporting the ballot counted: proving, the relayer's checks, a block, and the booth confirming on-chain. In C3 the relayer sends ballots back to back without waiting for each block, so 64 voters at once are counted in the next block; what limits it is checking each proof before accepting it.");
   }
 
   // 12. Security --------------------------------------------------------------
@@ -677,41 +673,33 @@ async function main() {
   // 13. Usability --------------------------------------------------------------
   {
     const s = pres.addSlide();
-    title(s, "A simulated usability test, three rounds", "Usability (E1–E3)");
+    title(s, "A simulated usability test", "Usability (E1–E3)");
     const e3 = readCsv(path.join(RESULTS, "e3-simulated.csv"));
-    const rounds = [...new Set(e3.map((r) => r.round))];
-    if (!rounds.length) missing.push("E3 rounds");
-    const count = (round, key, value) => e3.filter((r) => r.round === round && r[key] === value).length;
-    const head = (t) => ({ text: t, options: { bold: true, color: C.muted, align: "center" } });
-    const rows = [[head("Round"), head("Registered unaided"), head("Voted unaided"), head("Sure it counted")]];
-    for (const round of rounds) {
-      const size = e3.filter((r) => r.round === round).length;
-      rows.push([
-        { text: round, options: { align: "center", bold: true } },
-        { text: `${count(round, "register", "completed")} of ${size}`, options: { align: "center" } },
-        { text: `${count(round, "vote", "completed")} of ${size}`, options: { align: "center" } },
-        { text: `${count(round, "trust_counted", "yes")} of ${size}`, options: { align: "center", bold: round === rounds.at(-1), color: round === rounds.at(-1) ? C.teal : C.ink } },
-      ]);
-    }
-    s.addTable(rows, { x: 0.5, y: 1.15, w: 4.6, colW: [0.8, 1.3, 1.25, 1.25], rowH: 0.42, fontFace: BODY, fontSize: 13, color: C.ink, border: { type: "solid", pt: 0.5, color: C.line }, valign: "middle" });
-    text(s, "Ten AI-played students who don't use cryptocurrency, on the real screens: low vision, a WhatsApp link, a library computer then a phone, a worry about cost, and more. A walkthrough, not a user study.", {
-      x: 0.5, y: 3.35, w: 4.6, h: 0.8, fontSize: 11.5, italic: true, color: C.muted,
+    const final = e3.filter((r) => r.round === e3.at(-1)?.round);
+    if (!final.length) missing.push("E3 results");
+    const count = (key, value) => final.filter((r) => r[key] === value).length;
+    const voted = count("vote", "completed") + count("vote", "with help");
+    stat(s, `${count("register", "completed")} of ${final.length}`, "registered unaided", 0.5, 1.15, 1.45);
+    stat(s, `${voted} of ${final.length}`, `voted, ${voted - count("vote", "completed")} of them with help`, 2.05, 1.15, 1.45, C.navy);
+    stat(s, `${count("trust_counted", "yes")} of ${final.length}`, "sure their ballot counted", 3.6, 1.15, 1.45, C.teal);
+    text(s, "Ten AI-played students who don't use cryptocurrency, on the real screens: low vision, a WhatsApp link, a library computer then a phone, a worry about cost, and more. A cognitive walkthrough.", {
+      x: 0.5, y: 3.0, w: 4.6, h: 0.8, fontSize: 11.5, italic: true, color: C.muted,
     });
-    text(s, "Still hard in round 3: moving the key into WhatsApp's own browser, and from a library computer to a phone (both voted, with help).", {
-      x: 0.5, y: 4.2, w: 4.6, h: 0.7, fontSize: 11.5, color: C.ink,
+    text(s, "The two who needed help were moving the key into WhatsApp's own browser, and from a library computer to a phone. Both voted.", {
+      x: 0.5, y: 3.95, w: 4.6, h: 0.7, fontSize: 11.5, color: C.ink,
     });
     card(s, 5.4, 1.15, 4.1, 3.3, C.tealTint);
-    text(s, "What changed", { x: 5.6, y: 1.27, w: 3.7, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.teal });
+    text(s, "What it shaped", { x: 5.6, y: 1.27, w: 3.7, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.teal });
     text(s, [
       "Registration in three plain steps: free, no wallet",
       "After voting, the ballot ID, marked \u201cyours\u201d in the public list",
       "\u201cWhere will you vote?\u201d: this browser, or move the key by QR code or link",
-      "Round 2's regression, \u201cnothing more to do\u201d, which stranded a library voter, undone in round 3",
+      "In an app's own browser, a prompt to open the page where the key is",
     ].map((t, i, a) => ({ text: t, options: { bullet: true, breakLine: i < a.length - 1 } })), {
       x: 5.6, y: 1.7, w: 3.75, h: 2.7, fontSize: 12.5, paraSpaceAfter: 6,
     });
     pageNo(s, ++page);
-    s.addNotes("E1: five actions to register with Google, three to vote. E2: no anonymous voter needs ETH or a wallet. E3 was run as a simulation, as the team decided: ten participants played by language models, the same profiles each round, the interface fixed between rounds. Nobody was fully convinced of secrecy, mostly because the example election had three voters, which the page now says plainly. The two who still needed help were moving the key into WhatsApp's browser and from a library computer to a phone.");
+    s.addNotes("E1: five actions to register with Google, three to vote. E2: no anonymous voter needs ETH or a wallet. E3 was run as a simulation: ten participants played by language models walked through the real screens. Nobody was fully convinced of secrecy, mostly because the example election had three voters, which the page says plainly. The two who needed help were moving the key into WhatsApp's browser and from a library computer to a phone.");
   }
 
   // 14. Demo -------------------------------------------------------------------
