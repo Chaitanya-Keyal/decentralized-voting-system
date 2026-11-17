@@ -52,7 +52,8 @@ finished wallet election makes a useful comparison: its ballots table shows who 
 
 **Rehearsals.** Rehearse three times on the presentation laptop and the room's network, timing
 each step. A backup video, [demo-backup.mp4](demo-backup.mp4), tells the whole story in under
-two minutes: a scripted run on a local chain, in dark mode, narrated, with a caption for each step.
+two and a half minutes: a scripted run on a local chain, in dark mode, narrated, with a caption and
+a visible pointer for each step.
 `E2E_VIDEO=1 E2E_VIDEO_OUT=<file> pnpm e2e --grep "backup video"` records it again after a change;
 the comment at the top of `e2e/video.spec.ts` says how the narration is laid over it.
 A recording of a live rehearsal on Sepolia is a better backup still, if there is time.

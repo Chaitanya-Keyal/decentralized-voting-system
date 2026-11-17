@@ -14,15 +14,101 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
-import { connect, emailedCode, skipAhead } from "./helpers";
+import { emailedCode, skipAhead } from "./helpers";
 
-test.use({ launchOptions: { slowMo: 120 } });
+// Each action in the recorded browser waits, so a viewer can follow the pointer to it. The other
+// voters use a browser of their own, without the wait.
+test.use({ launchOptions: { slowMo: 800 } });
 
 // Full HD, with every page zoomed to twice its size: laid out as on a 960-pixel screen, so text is
 // large, and drawn at full resolution, so it is sharp. (Playwright records at the page's size in
 // CSS pixels, whatever the device's pixel density.)
 const SIZE = { width: 1920, height: 1080 };
-const ZOOM = "2";
+
+/**
+ * Runs in every page of the recorded browser before its own scripts: zooms the body, and draws a
+ * pointer that glides to wherever the mouse goes, with a ripple on each click. The pointer sits
+ * outside the zoomed body, where mouse coordinates apply as they are.
+ */
+function stage() {
+  const pointer = document.createElement("div");
+  Object.assign(pointer.style, {
+    position: "fixed",
+    left: "0",
+    top: "0",
+    width: "34px",
+    height: "34px",
+    margin: "-17px 0 0 -17px",
+    borderRadius: "50%",
+    background: "rgba(255, 255, 255, 0.92)",
+    border: "3px solid #10b981",
+    boxShadow: "0 2px 14px rgba(0, 0, 0, 0.6)",
+    zIndex: "2147483647",
+    pointerEvents: "none",
+    transform: "translate(-80px, -80px)",
+    transition: "transform 420ms cubic-bezier(0.3, 0.7, 0.4, 1)",
+  });
+  const ripple = (x: number, y: number) => {
+    const ring = document.createElement("div");
+    Object.assign(ring.style, {
+      position: "fixed",
+      left: `${x}px`,
+      top: `${y}px`,
+      width: "34px",
+      height: "34px",
+      margin: "-17px 0 0 -17px",
+      borderRadius: "50%",
+      border: "4px solid #10b981",
+      zIndex: "2147483647",
+      pointerEvents: "none",
+    });
+    document.documentElement.appendChild(ring);
+    ring
+      .animate(
+        [
+          { transform: "scale(1)", opacity: 1 },
+          { transform: "scale(2.6)", opacity: 0 },
+        ],
+        { duration: 650, easing: "ease-out" },
+      )
+      .finished.then(
+        () => ring.remove(),
+        () => ring.remove(),
+      );
+  };
+  const ready = () => {
+    document.body.style.setProperty("zoom", "2");
+    document.documentElement.appendChild(pointer);
+  };
+  if (document.body) ready();
+  else document.addEventListener("DOMContentLoaded", ready);
+  document.addEventListener(
+    "mousemove",
+    (event) => (pointer.style.transform = `translate(${event.clientX}px, ${event.clientY}px)`),
+    true,
+  );
+  document.addEventListener("mousedown", (event) => ripple(event.clientX, event.clientY), true);
+}
+
+/** A pause for the viewer to take in what just changed. */
+const beat = (page: Page, ms = 1_000) => page.waitForTimeout(ms);
+
+/** Connects Anvil's account `index`, leaving the wallet dialog open long enough to read. */
+async function connect(page: Page, index: number) {
+  const header = page.locator("header");
+  await header.getByRole("button", { name: /Connect wallet/ }).click();
+  await beat(page, 1_500);
+  await page.getByText(`Anvil account ${index} (`).click();
+  await expect(header.getByRole("button", { name: /Connect wallet/ })).toHaveCount(0);
+  await beat(page);
+}
+
+/** Types into a field a character at a time, as a person would. */
+async function type(page: Page, label: string, text: string) {
+  const field = page.getByLabel(label, { exact: true });
+  await field.click();
+  await field.pressSequentially(text, { delay: 70 });
+}
 
 const lines = JSON.parse(readFileSync(new URL("narration.json", import.meta.url), "utf8")) as {
   id: string;
@@ -112,15 +198,23 @@ async function card(page: Page, shown: boolean) {
   }, shown);
 }
 
-async function register(page: Page, election: string, email: string) {
+async function register(page: Page, election: string, email: string, slowly = false) {
   await page.goto(`${election}/register`);
   await page.getByRole("button", { name: "Create my voting key" }).click();
   await expect(page.getByText("This browser holds your voting key")).toBeVisible();
-  await page.getByLabel("Institute email address").fill(email);
+  if (slowly) {
+    await beat(page);
+    await type(page, "Institute email address", email);
+  } else await page.getByLabel("Institute email address").fill(email);
   await page.getByRole("button", { name: "Send me a code" }).click();
-  await page.getByLabel("Code").fill(await emailedCode(email));
+  const code = await emailedCode(email);
+  if (slowly) {
+    await beat(page);
+    await type(page, "Code", code);
+  } else await page.getByLabel("Code").fill(code);
   await page.getByRole("button", { name: "Register my voting key" }).click();
   await expect(page.getByText("You're registered")).toBeVisible();
+  if (slowly) await beat(page, 1_500);
 }
 
 /** Marks a candidate and casts the ballot through the relayer, without waiting for it. */
@@ -132,6 +226,7 @@ async function cast(page: Page, election: string, candidate: string) {
     .getByText("Your anonymous ballot")
     .evaluate((title) => title.scrollIntoView({ block: "center" }));
   await page.getByLabel(candidate, { exact: true }).check();
+  await beat(page);
   await page.getByRole("button", { name: /Cast my ballot, no wallet needed/ }).click();
 }
 
@@ -159,21 +254,12 @@ test("the backup video of the demo", async ({ browser }) => {
     recordVideo: { dir: "test-results/video", size: SIZE },
     acceptDownloads: true,
   });
-  await context.addInitScript((zoom) => {
-    const apply = () => document.documentElement.style.setProperty("zoom", zoom);
-    if (document.documentElement) apply();
-    else {
-      new MutationObserver((_, observer) => {
-        if (!document.documentElement) return;
-        apply();
-        observer.disconnect();
-      }).observe(document, { childList: true });
-    }
-  }, ZOOM);
+  await context.addInitScript(stage);
   const page = await context.newPage();
   const { say, timeline } = narrator(page, Date.now());
   const run = Date.now();
-  const others = [await otherVoter(browser), await otherVoter(browser)];
+  const fast = await browser.browserType().launch();
+  const others = [await otherVoter(fast), await otherVoter(fast)];
   let election = "";
 
   await page.goto("/");
@@ -184,10 +270,11 @@ test("the backup video of the demo", async ({ browser }) => {
   await say("create", async () => {
     await connect(page, 0);
     await page.goto("/elections/new");
-    await page.getByLabel("Title", { exact: true }).fill("Library committee");
-    await page.getByLabel("Name of candidate 1").fill("Asha");
-    await page.getByLabel("Name of candidate 2").fill("Ravi");
+    await type(page, "Title", "Library committee");
+    await type(page, "Name of candidate 1", "Asha");
+    await type(page, "Name of candidate 2", "Ravi");
     await expect(page.getByLabel("Anonymous ballots")).toBeChecked();
+    await beat(page);
     await page.getByRole("button", { name: "Create election" }).click();
     await page.waitForURL(/\/elections\/0x[0-9a-fA-F]{40}$/);
     election = new URL(page.url()).pathname;
@@ -200,7 +287,7 @@ test("the backup video of the demo", async ({ browser }) => {
 
   await say("register", async () => {
     await disconnect(page);
-    await register(page, election, `demo0.${run}@hyderabad.bits-pilani.ac.in`);
+    await register(page, election, `demo0.${run}@hyderabad.bits-pilani.ac.in`, true);
   });
   await say("key", async () => {
     for (const [index, other] of others.entries()) {
@@ -240,6 +327,7 @@ test("the backup video of the demo", async ({ browser }) => {
     await skipAhead(page);
     await connect(page, 2);
     await page.getByRole("button", { name: "Close voting" }).click();
+    await beat(page, 1_500);
     await page.getByRole("button", { name: "Finalize the result" }).click();
     await expect(page.getByText("The result is final")).toBeVisible();
   });
@@ -259,6 +347,7 @@ test("the backup video of the demo", async ({ browser }) => {
   const video = page.video();
   await context.close();
   for (const other of others) await other.context.close();
+  await fast.close();
   const out = process.env.E2E_VIDEO_OUT;
   if (video && out) {
     await video.saveAs(out);
