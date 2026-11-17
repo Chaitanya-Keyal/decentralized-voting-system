@@ -35,7 +35,11 @@ const schema = z
     ),
     /** On Anvil, an account the node has unlocked, used instead of a key. */
     REGISTRAR_ADDRESS: optional(addressSchema),
-    /** Comma-separated authorities whose elections the registrar serves; empty serves any. */
+    /**
+     * Comma-separated authorities whose elections the registrar serves. Empty serves any, which is
+     * allowed only on Anvil: anyone can create an election naming this registrar, and it pays to
+     * publish each one's list.
+     */
     AUTHORITIES: z
       .string()
       .default("")
@@ -52,7 +56,15 @@ const schema = z
     GOOGLE_CLIENT_ID: optional(z.string()),
     GOOGLE_JWKS_URL: z.url().default("https://www.googleapis.com/oauth2/v3/certs"),
     MAIL_FROM: optional(z.string()).default("DVote <no-reply@dvote.local>"),
+    /**
+     * How many proxies sit in front of the API and set X-Forwarded-For, so that its limits see each
+     * client's address rather than the proxy's. 0 when clients connect directly.
+     */
+    API_TRUSTED_PROXIES: z.coerce.number().int().min(0).default(0),
+    /** Multiplies every per-client limit; the test suite, all from one address, raises it. */
+    API_RATE_LIMIT_FACTOR: z.coerce.number().positive().default(1),
   })
+
   .refine((env) => env.REGISTRAR_PRIVATE_KEY ?? env.REGISTRAR_ADDRESS, {
     message: "Set REGISTRAR_PRIVATE_KEY, or REGISTRAR_ADDRESS for an account Anvil has unlocked",
   });

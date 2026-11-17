@@ -4,6 +4,7 @@
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 
 import {
+  googleNonce,
   buildIdentityList,
   buildVoterList,
   identityReceiptTypedData,
@@ -53,8 +54,12 @@ import { sendCode as emailCode } from "./mailer";
 const CODE_VALID_MINUTES = 10;
 const CODE_RESEND_SECONDS = 60;
 const MAX_CODE_ATTEMPTS = 5;
-/** With five tries a code, guessing gets 25 tries a day per address and election. */
-const MAX_CODES_PER_DAY = 5;
+/**
+ * With five tries a code, guessing gets 100 tries a day per address and election, against a million
+ * codes. Enough codes that someone requesting them for a voter's address cannot easily use up the
+ * voter's own; the per-client limits in app.ts make that harder still.
+ */
+const MAX_CODES_PER_DAY = 20;
 
 /**
  * How long to wait for a transaction to be mined. After that it is left to a later attempt, which
@@ -175,9 +180,14 @@ async function proveEmail(
   election: Address,
   email: string,
   proof: { code?: string; googleIdToken?: string },
+  /** The wallet or commitment being registered, which a Google sign-in must have been made for. */
+  subject: string,
 ) {
   if (proof.googleIdToken !== undefined) {
-    const signedIn = await verifyGoogleIdToken(proof.googleIdToken);
+    const signedIn = await verifyGoogleIdToken(
+      proof.googleIdToken,
+      googleNonce(chain.id, election, subject),
+    );
     if (signedIn !== email) {
       throw new HttpError(400, `Google signed you in as ${signedIn}, not ${email}.`);
     }
@@ -233,7 +243,7 @@ export async function register(
     throw new HttpError(400, "This election registers identities, not wallets.");
   }
   await requireRegistrationOpen(state);
-  await proveEmail(election, email, request);
+  await proveEmail(election, email, request, voter);
 
   const signedByVoter = await publicClient.verifyTypedData({
     address: voter,
@@ -312,7 +322,7 @@ export async function registerIdentity(
     throw new HttpError(400, "This election registers wallets, not identities.");
   }
   await requireRegistrationOpen(state);
-  await proveEmail(election, email, request);
+  await proveEmail(election, email, request, commitment);
 
   const issuedAt = Number(await chainNow());
   const receipt: IdentityReceipt = {

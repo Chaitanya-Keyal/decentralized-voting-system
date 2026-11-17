@@ -179,6 +179,7 @@ export function IdentityRegistrationForm({ election }: { election: OnchainElecti
       <div className="flex flex-col gap-4">
         <EmailProof
           election={election}
+          subject={identity.commitment.toString()}
           submitLabel="Register my voting key"
           busy={busy}
           onSubmit={(proof) => void register(proof)}

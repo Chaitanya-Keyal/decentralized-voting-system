@@ -188,7 +188,12 @@ function readLinkKey(): string | undefined {
   if (typeof window === "undefined" || !window.location.hash.startsWith(LINK_PREFIX)) {
     return undefined;
   }
-  return decodeURIComponent(window.location.hash.slice(LINK_PREFIX.length));
+  try {
+    return decodeURIComponent(window.location.hash.slice(LINK_PREFIX.length));
+  } catch {
+    // A damaged link carries no usable key.
+    return undefined;
+  }
 }
 
 /**

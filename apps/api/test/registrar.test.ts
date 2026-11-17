@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 
 import {
+  googleNonce,
   Identity,
   identityReceiptSchema,
   identityReceiptTypedData,
@@ -20,7 +21,7 @@ import {
 } from "@dvote/shared";
 import type { FastifyInstance } from "fastify";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { recoverTypedDataAddress, type Address } from "viem";
+import { recoverTypedDataAddress, type Address, type Hex } from "viem";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ensureArtifacts } from "../../../packages/shared/scripts/semaphore-artifacts.mjs";
@@ -204,17 +205,17 @@ describe("registration", () => {
     await requestCode(test.election, email);
   });
 
-  it("sends at most five codes a day to an address", async () => {
+  it("sends at most twenty codes a day to an address", async () => {
     const email = newEmail();
     try {
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 20; i++) {
         vi.useFakeTimers({ now: Date.now() + (i * 61 + 1) * 1000, toFake: ["Date"] });
         await requestCode(test.election, email);
       }
       vi.useFakeTimers({ now: Date.now() + 61_000, toFake: ["Date"] });
-      const sixth = await post(`/elections/${test.election}/codes`, { email });
-      expect(sixth.statusCode).toBe(429);
-      expect(sixth.json<{ message: string }>().message).toMatch(/today/);
+      const extra = await post(`/elections/${test.election}/codes`, { email });
+      expect(extra.statusCode).toBe(429);
+      expect(extra.json<{ message: string }>().message).toMatch(/today/);
     } finally {
       vi.useRealTimers();
     }
@@ -680,22 +681,25 @@ describe("Google sign-in", () => {
   /** An ID token as Google would issue it, with any claim overridden. */
   function idToken(
     email: string,
-    claims: Record<string, unknown> = {},
-    audience = CLIENT_ID,
-    expiresAt: number | string = "1h",
+    options: {
+      claims?: Record<string, unknown>;
+      audience?: string;
+      expiresAt?: number | string;
+      issuedAt?: number;
+    } = {},
   ) {
     return new SignJWT({
       email,
       email_verified: true,
       hd: "hyderabad.bits-pilani.ac.in",
-      ...claims,
+      ...options.claims,
     })
       .setProtectedHeader({ alg: "RS256", kid: "test-key" })
       .setIssuer("https://accounts.google.com")
-      .setAudience(audience)
+      .setAudience(options.audience ?? CLIENT_ID)
       .setSubject("1234567890")
-      .setIssuedAt()
-      .setExpirationTime(expiresAt)
+      .setIssuedAt(options.issuedAt)
+      .setExpirationTime(options.expiresAt ?? "1h")
       .sign(signingKey);
   }
 
@@ -705,16 +709,25 @@ describe("Google sign-in", () => {
     await warpTo(test.schedule.registrationStart);
   });
 
-  const registerWith = async (email: string, googleIdToken: string) =>
-    post(`/elections/${test.election}/registrations`, {
+  /**
+   * Registers a new voting key, signed in with the token `token` makes from the nonce the web app
+   * would have given Google for that key and election.
+   */
+  const registerWith = async (
+    email: string,
+    token: (nonce: Hex, commitment: string) => Promise<string>,
+  ) => {
+    const commitment = new Identity().commitment.toString();
+    return post(`/elections/${test.election}/registrations`, {
       email,
-      googleIdToken,
-      commitment: new Identity().commitment.toString(),
+      googleIdToken: await token(googleNonce(31337, test.election, commitment), commitment),
+      commitment,
     });
+  };
 
   it("registers a voter signed in with an institute Google account, without a code", async () => {
     const email = newEmail();
-    const response = await registerWith(email, await idToken(email));
+    const response = await registerWith(email, (nonce) => idToken(email, { claims: { nonce } }));
     expect(response.statusCode, response.body).toBe(200);
     expect(identityReceiptSchema.parse(response.json()).registrar).toBe(REGISTRAR);
   });
@@ -724,56 +737,88 @@ describe("Google sign-in", () => {
     await warpTo(wallets.schedule.registrationStart);
     const email = newEmail();
     const voter = newVoter();
+    const nonce = googleNonce(31337, wallets.election, voter.address);
     const response = await post(`/elections/${wallets.election}/registrations`, {
       email,
-      googleIdToken: await idToken(email),
+      googleIdToken: await idToken(email, { claims: { nonce } }),
       voter: voter.address,
       signature: await signRegistration(voter, wallets.election, email),
     });
     expect(response.statusCode, response.body).toBe(200);
   });
 
+  it("refuses a sign-in made for another voting key, or another election", async () => {
+    const email = newEmail();
+    const otherKey = googleNonce(31337, test.election, new Identity().commitment.toString());
+    expect(
+      (await registerWith(email, () => idToken(email, { claims: { nonce: otherKey } }))).statusCode,
+    ).toBe(400);
+    const other = await createElection("Another election", { tier: 3 });
+    // The same voting key, but the nonce of another election.
+    const response = await registerWith(email, (_, commitment) =>
+      idToken(email, { claims: { nonce: googleNonce(31337, other.election, commitment) } }),
+    );
+    expect(response.statusCode).toBe(400);
+    expect(
+      (await registerWith(email, () => idToken(email))).statusCode,
+      "a token without a nonce",
+    ).toBe(400);
+  });
+
   it("refuses an account outside the institute's Google domain, whatever its address", async () => {
     const email = newEmail();
-    const response = await registerWith(email, await idToken(email, { hd: undefined }));
+    const response = await registerWith(email, (nonce) =>
+      idToken(email, { claims: { nonce, hd: undefined } }),
+    );
     expect(response.statusCode).toBe(403);
   });
 
   it("refuses a sign-in for another address, another app, or one that has expired", async () => {
     const email = newEmail();
-    expect((await registerWith(email, await idToken(newEmail()))).statusCode).toBe(400);
+    expect(
+      (await registerWith(email, (nonce) => idToken(newEmail(), { claims: { nonce } }))).statusCode,
+    ).toBe(400);
     expect(
       (
-        await registerWith(
-          email,
-          await idToken(email, {}, "someone-else.apps.googleusercontent.com"),
+        await registerWith(email, (nonce) =>
+          idToken(email, {
+            claims: { nonce },
+            audience: "someone-else.apps.googleusercontent.com",
+          }),
         )
       ).statusCode,
     ).toBe(400);
     expect(
       (
-        await registerWith(
-          email,
-          await idToken(email, {}, CLIENT_ID, Math.floor(Date.now() / 1000) - 600),
+        await registerWith(email, (nonce) =>
+          idToken(email, { claims: { nonce }, expiresAt: Math.floor(Date.now() / 1000) - 600 }),
         )
       ).statusCode,
     ).toBe(400);
   });
 
+  it("refuses a sign-in more than ten minutes old, even if Google's token has not expired", async () => {
+    const email = newEmail();
+    const issuedAt = Math.floor(Date.now() / 1000) - 11 * 60;
+    const response = await registerWith(email, (nonce) =>
+      idToken(email, { claims: { nonce }, issuedAt, expiresAt: issuedAt + 3600 }),
+    );
+    expect(response.statusCode).toBe(400);
+  });
+
   it("refuses a token signed by anyone but Google", async () => {
     const email = newEmail();
     const { privateKey } = await generateKeyPair("RS256");
-    const forged = await new SignJWT({
-      email,
-      email_verified: true,
-      hd: "hyderabad.bits-pilani.ac.in",
-    })
-      .setProtectedHeader({ alg: "RS256", kid: "test-key" })
-      .setIssuer("https://accounts.google.com")
-      .setAudience(CLIENT_ID)
-      .setExpirationTime("1h")
-      .sign(privateKey);
-    expect((await registerWith(email, forged)).statusCode).toBe(400);
+    const response = await registerWith(email, (nonce) =>
+      new SignJWT({ email, email_verified: true, hd: "hyderabad.bits-pilani.ac.in", nonce })
+        .setProtectedHeader({ alg: "RS256", kid: "test-key" })
+        .setIssuer("https://accounts.google.com")
+        .setAudience(CLIENT_ID)
+        .setIssuedAt()
+        .setExpirationTime("1h")
+        .sign(privateKey),
+    );
+    expect(response.statusCode).toBe(400);
   });
 
   it("takes either a code or a Google sign-in, not both", async () => {

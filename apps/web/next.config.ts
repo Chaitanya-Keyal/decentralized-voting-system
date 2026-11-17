@@ -11,6 +11,20 @@ const nextConfig: NextConfig = {
   // The shared package is TypeScript source, compiled as part of the app.
   transpilePackages: ["@dvote/shared"],
   partialPrefetching: true,
+  // The pages hold a voting key in the browser: they send no referrer, are not to be framed by
+  // another site, and are not reinterpreted as another content type.
+  headers() {
+    return Promise.resolve([
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
+    ]);
+  },
   turbopack: {
     rules: {
       "*.css": {

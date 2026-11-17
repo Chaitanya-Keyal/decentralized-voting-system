@@ -11,12 +11,22 @@ import { clientError, parse } from "./http";
 import { loggable } from "./redact";
 import { getElection, indexerStatus, listBallots, listElections } from "./indexer/queries";
 import { pinJson } from "./ipfs";
+import { perClient, perDay } from "./limits";
 import { publishVoterList, registerVoter, registrationCount, sendCode } from "./registrar";
 
 const electionParams = z.object({ election: addressSchema });
 
+/** A per-client limit, scaled by API_RATE_LIMIT_FACTOR. */
+const limit = (kind: string, max: number) =>
+  perClient(kind, Math.ceil(max * env.API_RATE_LIMIT_FACTOR));
+
 export async function buildApp(options: { logger?: boolean } = {}): Promise<FastifyInstance> {
-  const app = Fastify({ logger: options.logger ?? true });
+  const app = Fastify({
+    logger: options.logger ?? true,
+    // The client's address, for the limits below, as the proxies in front of the API saw it. Never
+    // more proxies than there really are, or a client could choose its own address.
+    trustProxy: (_address: string, hop: number) => hop < env.API_TRUSTED_PROXIES,
+  });
   await app.register(cors, { origin: env.WEB_ORIGIN.split(",") });
 
   // Only messages written for clients reach them. Anything else, such as a failed request to the
@@ -51,29 +61,42 @@ export async function buildApp(options: { logger?: boolean } = {}): Promise<Fast
 
   // Registrar
 
-  app.post("/elections/:election/codes", async (request) => {
+  // Generous per client, since a classroom may share one network address.
+  app.post("/elections/:election/codes", { preHandler: limit("codes", 120) }, async (request) => {
     const { election } = parse(electionParams, request.params);
     const { email } = parse(codeRequestSchema, request.body);
     return sendCode(election, email, request.log);
   });
 
-  app.post("/elections/:election/registrations", async (request) => {
-    const { election } = parse(electionParams, request.params);
-    return registerVoter(election, request.body);
-  });
+  app.post(
+    "/elections/:election/registrations",
+    { preHandler: limit("registrations", 120) },
+    async (request) => {
+      const { election } = parse(electionParams, request.params);
+      return registerVoter(election, request.body);
+    },
+  );
 
-  app.get("/elections/:election/registrations/count", async (request) => {
-    const { election } = parse(electionParams, request.params);
-    return registrationCount(election);
-  });
+  app.get(
+    "/elections/:election/registrations/count",
+    { preHandler: limit("count", 240) },
+    async (request) => {
+      const { election } = parse(electionParams, request.params);
+      return registrationCount(election);
+    },
+  );
 
   // The registrar publishes each list by itself once registration closes (see publisher.ts).
   // Anyone may also ask, as with the phase changes: it only happens once registration has
   // closed, and what is published does not depend on who asked.
-  app.post("/elections/:election/voter-list", async (request) => {
-    const { election } = parse(electionParams, request.params);
-    return publishVoterList(election, request.log);
-  });
+  app.post(
+    "/elections/:election/voter-list",
+    { preHandler: limit("voter-list", 60) },
+    async (request) => {
+      const { election } = parse(electionParams, request.params);
+      return publishVoterList(election, request.log);
+    },
+  );
 
   // Indexer: a read cache of the chain, for pages that list elections and ballots. Anything shown
   // from here can be checked against the chain itself.
@@ -94,10 +117,15 @@ export async function buildApp(options: { logger?: boolean } = {}): Promise<Fast
 
   // Metadata: ballot descriptions and manifestos, pinned to IPFS (FR1).
 
-  app.post("/metadata", { bodyLimit: 64 * 1024 }, async (request) => {
-    const document = parse(metadataSchema, request.body);
-    return { cid: await pinJson(document, `${document.format}.json`) };
-  });
+  // Every document pinned stays on the IPFS node, so the number per day is capped as well.
+  app.post(
+    "/metadata",
+    { bodyLimit: 64 * 1024, preHandler: [limit("metadata", 20), perDay("metadata", 2_000)] },
+    async (request) => {
+      const document = parse(metadataSchema, request.body);
+      return { cid: await pinJson(document, `${document.format}.json`) };
+    },
+  );
 
   return app;
 }

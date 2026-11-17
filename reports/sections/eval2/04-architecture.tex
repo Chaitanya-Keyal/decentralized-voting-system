@@ -40,7 +40,9 @@ pass through any of them.
         signing in with Google. For Google, the registrar checks the ID token's
         signature against Google's published keys, its issuer, audience and
         expiry, and requires its hosted-domain claim to be the institute's
-        domain. The registrar stores the address against the identity's
+        domain. The token must also carry a nonce that names this election and
+        this commitment, and be at most ten minutes old, so a token that leaked
+        could not register another key under the voter's address. The registrar stores the address against the identity's
         commitment, which is all it ever receives, and returns a receipt
         signed with EIP-712~\cite{eip712} over that commitment and this
         election. In a wallet election the voter's wallet signs a message

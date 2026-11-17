@@ -411,7 +411,10 @@ Not a source of truth; it is a convenience and liveness layer. Four services:
 - **Registrar**: off-chain eligibility check: the voter proves an institute email address with
   a one-time code emailed to it, or with Google sign-in, where the registrar checks the ID token's
   signature against Google's published keys, its issuer, audience and expiry, and requires its
-  `hd` (hosted domain) claim to be the institute's domain. It builds the Semaphore group (in tier
+  `hd` (hosted domain) claim to be the institute's domain. The token must also carry the nonce the
+  web app gave Google for this election and this commitment or wallet, and be at most ten minutes
+  old, so a token that leaked could not register someone else's key under the voter's address.
+  Per-client limits guard the routes that send email, register, publish and pin. It builds the Semaphore group (in tier
   2, the list of registered wallet addresses), returns a signed receipt over each accepted
   commitment and the election, binds an email address to one commitment or wallet for good,
   and at the close of registration publishes the root, the roll size and the leaf-set CID in one

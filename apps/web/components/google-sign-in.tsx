@@ -12,6 +12,7 @@ interface GoogleIdentity {
     id: {
       initialize(options: {
         client_id: string;
+        nonce?: string;
         callback: (response: { credential: string }) => void;
         auto_select?: boolean;
         cancel_on_tap_outside?: boolean;
@@ -65,9 +66,12 @@ export function emailOfIdToken(token: string): string | undefined {
 /** Google's own sign-in button. `onSignedIn` receives the ID token and its email address. */
 export function GoogleSignInButton({
   clientId,
+  nonce,
   onSignedIn,
 }: {
   clientId: string;
+  /** Put into the token Google signs, tying it to one registration (see googleNonce). */
+  nonce: string;
   onSignedIn: (signedIn: { email: string; idToken: string }) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
@@ -84,6 +88,7 @@ export function GoogleSignInButton({
         if (cancelled || !container.current) return;
         google.accounts.id.initialize({
           client_id: clientId,
+          nonce,
           auto_select: false,
           cancel_on_tap_outside: true,
           callback: ({ credential }) => {
@@ -106,7 +111,7 @@ export function GoogleSignInButton({
     return () => {
       cancelled = true;
     };
-  }, [clientId]);
+  }, [clientId, nonce]);
 
   return (
     <div className="flex flex-col gap-2">

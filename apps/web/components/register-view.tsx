@@ -106,6 +106,7 @@ function RegistrationForm({
       <div className="flex flex-col gap-4">
         <EmailProof
           election={election}
+          subject={account}
           submitLabel="Sign with my wallet and register"
           busy={busy}
           disabled={ready ? undefined : `${blocker ?? "Connect your wallet"} to register`}

@@ -1,11 +1,12 @@
 "use client";
 
+import { googleNonce } from "@dvote/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
 import { api } from "@/lib/api";
 import type { OnchainElection } from "@/lib/election";
-import { isLocalChain } from "@/lib/env";
+import { chain, isLocalChain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 
 import { GoogleSignInButton } from "./google-sign-in";
@@ -22,6 +23,7 @@ export type EmailProofValue =
  */
 export function EmailProof({
   election,
+  subject,
   submitLabel,
   busy,
   disabled,
@@ -29,6 +31,11 @@ export function EmailProof({
   children,
 }: {
   election: OnchainElection;
+  /**
+   * What is being registered: the wallet address or the voting key's commitment. A Google sign-in
+   * is made for it alone, so it is needed before one is offered.
+   */
+  subject: string | undefined;
   submitLabel: string;
   busy: boolean;
   /** Why the voter cannot register yet, for example a wallet still to connect. */
@@ -119,7 +126,15 @@ export function EmailProof({
         <p className="text-zinc-600 dark:text-zinc-400">
           Sign in with your @{emailDomain} Google account to show you are a student here.
         </p>
-        <GoogleSignInButton clientId={googleClientId} onSignedIn={setGoogle} />
+        {subject ? (
+          <GoogleSignInButton
+            clientId={googleClientId}
+            nonce={googleNonce(chain.id, election.address, subject)}
+            onSignedIn={setGoogle}
+          />
+        ) : (
+          <p className="text-zinc-500">{disabled ?? "Make your voting key first."}</p>
+        )}
         {emailCodes && (
           <button
             type="button"

@@ -5,6 +5,7 @@ export * from "./deployment";
 export * from "./eip712";
 export * from "./election";
 export * from "./generated";
+export * from "./google";
 export * from "./semaphore";
 export * from "./semaphore-artifacts";
 export * from "./voter-list";

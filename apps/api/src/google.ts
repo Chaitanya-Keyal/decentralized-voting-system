@@ -10,8 +10,11 @@ import { HttpError } from "./http";
 
 let keys: ReturnType<typeof createRemoteJWKSet> | undefined;
 
-/** The verified institute address the token speaks for, in lower case. */
-export async function verifyGoogleIdToken(token: string): Promise<string> {
+/**
+ * The verified institute address the token speaks for, in lower case. The token must have been
+ * made for this registration (`nonce`, see googleNonce) and within the last ten minutes.
+ */
+export async function verifyGoogleIdToken(token: string, nonce: string): Promise<string> {
   if (!env.GOOGLE_CLIENT_ID) throw new HttpError(400, "Google sign-in is not set up here.");
   keys ??= createRemoteJWKSet(new URL(env.GOOGLE_JWKS_URL));
   let payload;
@@ -19,15 +22,21 @@ export async function verifyGoogleIdToken(token: string): Promise<string> {
     ({ payload } = await jwtVerify(token, keys, {
       issuer: ["accounts.google.com", "https://accounts.google.com"],
       audience: env.GOOGLE_CLIENT_ID,
+      requiredClaims: ["exp", "iat", "nonce"],
+      maxTokenAge: "10m",
     }));
   } catch {
     throw new HttpError(400, "Google sign-in did not check out. Sign in again.");
   }
-  if (payload.hd !== env.EMAIL_DOMAIN) {
+  if (payload.nonce !== nonce) {
+    throw new HttpError(400, "That Google sign-in was for another registration. Sign in again.");
+  }
+  const domain = env.EMAIL_DOMAIN.toLowerCase();
+  if (payload.hd !== domain) {
     throw new HttpError(403, `Sign in with your @${env.EMAIL_DOMAIN} Google account.`);
   }
   const email = typeof payload.email === "string" ? payload.email.toLowerCase() : undefined;
-  if (!email || payload.email_verified !== true || !email.endsWith(`@${env.EMAIL_DOMAIN}`)) {
+  if (!email || payload.email_verified !== true || !email.endsWith(`@${domain}`)) {
     throw new HttpError(403, `Sign in with your @${env.EMAIL_DOMAIN} Google account.`);
   }
   return email;
