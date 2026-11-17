@@ -43,6 +43,8 @@ export async function send(request: {
   args?: readonly unknown[];
   account: Address;
 }): Promise<{ hash: Hash; gasUsed: bigint }> {
+  // Simulated first, so a call the contract would reject fails with the contract's reason.
+  await node.simulateContract({ ...request, chain: anvil } as never);
   const hash = await node.writeContract({ ...request, chain: anvil } as never);
   const receipt = await node.waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") throw new Error(`${request.functionName} reverted`);
@@ -56,13 +58,17 @@ export async function warpTo(timestamp: bigint) {
   await node.mine({ blocks: 1 });
 }
 
-/** Creates an election with the authority as its registrar, and opens its registration. */
-export async function newElection(tier: 2 | 3, title: string) {
+/**
+ * Creates an election with the authority as its registrar, and opens its registration. Its phases
+ * are `step` seconds apart; Anvil's clock is moved to each, but it also runs on in real time, so
+ * a run that does slow work between phases needs a longer step.
+ */
+export async function newElection(tier: 2 | 3, title: string, step = 10n) {
   const now = (await node.getBlock()).timestamp;
   const schedule = {
-    registrationStart: now + 10n,
-    registrationEnd: now + 20n,
-    votingStart: now + 30n,
+    registrationStart: now + step,
+    registrationEnd: now + 2n * step,
+    votingStart: now + 3n * step,
     votingEnd: now + 100_000n,
   };
   const candidates = [

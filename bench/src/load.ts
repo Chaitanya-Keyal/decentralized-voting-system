@@ -50,11 +50,13 @@ await ensureArtifacts(ARTIFACTS, [...new Set(loads.map(depthFor))]);
 
 for (const load of loads) {
   const voters = Array.from({ length: load }, (_, i) => new Identity(`dvote load ${load} ${i}`));
-  const { election, schedule } = await newElection(3, `Load ${load}`);
+  const commitments = voters.map((voter) => voter.commitment);
+  // Building a large list takes a while, so the phases are ten minutes apart.
+  const { election, schedule } = await newElection(3, `Load ${load}`, 600n);
   const list = buildIdentityList({
     chainId: anvil.id,
     election,
-    commitments: voters.map((voter) => voter.commitment),
+    commitments,
   });
   const tree = identityTree(list.commitments);
   await publishAndOpen(election, schedule, rootToBytes32(tree.root), load);

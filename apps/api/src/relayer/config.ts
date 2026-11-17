@@ -55,6 +55,11 @@ const schema = z
      * 1 waits for each ballot's block before sending the next.
      */
     RELAYER_CONCURRENCY: z.coerce.number().int().positive().default(64),
+    /**
+     * How long to wait for a ballot's transaction before sending it again at the same nonce with
+     * higher fees.
+     */
+    RELAYER_RECEIPT_TIMEOUT_MS: z.coerce.number().int().positive().default(180_000),
   })
   .refine((env) => env.RELAYER_PRIVATE_KEY ?? env.RELAYER_ADDRESS, {
     message: "Set RELAYER_PRIVATE_KEY, or RELAYER_ADDRESS for an account Anvil has unlocked",

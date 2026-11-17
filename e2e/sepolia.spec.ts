@@ -30,6 +30,8 @@ const API = process.env.E2E_API_URL ?? "http://127.0.0.1:4000";
 const RESULTS = new URL("../bench/results/", import.meta.url).pathname;
 /** Voters to register and vote; each ballot is one B1 sample. */
 const VOTERS = Number(process.env.E2E_SEPOLIA_VOTERS ?? 2);
+/** With E2E_SEPOLIA_BURST=1, every voter presses Cast at the same moment, as a room would. */
+const BURST = Boolean(process.env.E2E_SEPOLIA_BURST);
 
 async function voterBrowser(browser: Browser, errors: string[]) {
   const context = await browser.newContext({ acceptDownloads: true });
@@ -162,24 +164,37 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
     await step(election, "openVoting");
   });
 
-  for (const [index, voter] of voters.entries()) {
-    await test.step(`voter ${index + 1} votes through the relayer`, async () => {
-      await voter.page.goto(`/elections/${election}/vote`);
-      await expect(voter.page.getByText("on the voter list, checked in this browser")).toBeVisible({
-        timeout: 120_000,
-      });
-      await voter.page.getByLabel(index % 2 === 0 ? "Asha" : "Ravi", { exact: true }).check();
-      const started = Date.now();
-      await voter.page.getByRole("button", { name: /Cast my ballot, no wallet needed/ }).click();
-      await expect(voter.page.getByText("You have voted")).toBeVisible({ timeout: 5 * 60_000 });
-      timings.push({ voter: index + 1, ms: Date.now() - started });
+  const ready = async (voter: (typeof voters)[number], index: number) => {
+    await voter.page.goto(`/elections/${election}/vote`);
+    await expect(voter.page.getByText("on the voter list, checked in this browser")).toBeVisible({
+      timeout: 120_000,
     });
+    await voter.page.getByLabel(index % 2 === 0 ? "Asha" : "Ravi", { exact: true }).check();
+  };
+  const cast = async (voter: (typeof voters)[number], index: number) => {
+    const started = Date.now();
+    await voter.page.getByRole("button", { name: /Cast my ballot, no wallet needed/ }).click();
+    await expect(voter.page.getByText("You have voted")).toBeVisible({ timeout: 5 * 60_000 });
+    timings.push({ voter: index + 1, ms: Date.now() - started });
+  };
+  if (BURST) {
+    await test.step(`${VOTERS} voters cast their ballots at the same moment`, async () => {
+      for (const [index, voter] of voters.entries()) await ready(voter, index);
+      await Promise.all(voters.map((voter, index) => cast(voter, index)));
+    });
+  } else {
+    for (const [index, voter] of voters.entries()) {
+      await test.step(`voter ${index + 1} votes through the relayer`, async () => {
+        await ready(voter, index);
+        await cast(voter, index);
+      });
+    }
   }
 
   // Saved now, so a later failure does not lose them.
   await mkdir(RESULTS, { recursive: true });
   await writeFile(
-    `${RESULTS}b1-sepolia-${new Date(run).toISOString().slice(0, 16).replace(/[-:T]/g, "")}.csv`,
+    `${RESULTS}b1-sepolia-${BURST ? "burst-" : ""}${new Date(run).toISOString().slice(0, 16).replace(/[-:T]/g, "")}.csv`,
     ["voter,election,click_to_counted_ms", ...timings.map((t) => `${t.voter},${election},${t.ms}`)]
       .join("\n")
       .concat("\n"),

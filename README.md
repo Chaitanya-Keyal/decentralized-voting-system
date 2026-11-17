@@ -55,6 +55,8 @@ Ethereum Sepolia and verified on Sourcify; their addresses are in
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): setup, commands and code style
 - [docs/architecture.md](docs/architecture.md): how it works, and what it does not guarantee
+- [docs/auditing.md](docs/auditing.md): how anyone can check an election, and keep their own copy
+  of its voter list
 - [docs/roadmap.md](docs/roadmap.md): what gets built, milestone by milestone
 - [Issue #2](https://github.com/Chaitanya-Keyal/decentralized-voting-system/issues/2): the
   checklist of everything left, kept up to date

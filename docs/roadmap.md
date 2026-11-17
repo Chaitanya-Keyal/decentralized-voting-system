@@ -143,8 +143,9 @@ Commit the second gas snapshot here. The difference from M1's is the cost of ano
 
 **Status: mostly done.** Approval voting, Slither (no findings, one detector excluded) and
 coverage (97.8% of lines, every branch), reorg handling and the rebuild, the edge cases, and the
-audit panel are built, and the end-to-end tests run the audit. Still open: written instructions
-for auditors to pin their own copy of the lists, and the relayer reachable from a phone.
+audit panel are built, and the end-to-end tests run the audit. Auditors' instructions, including
+how to keep their own copy of the lists, are in [auditing.md](auditing.md). The relayer is
+reachable from a phone on the public demo.
 
 - Approval voting in `TallyLib`
 - A clean Slither report and good test coverage

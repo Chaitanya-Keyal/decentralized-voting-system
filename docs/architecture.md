@@ -255,7 +255,7 @@ security boundary here and a relayer can simply submit the ballot itself, with t
 The plan was to use it anyway, for a request deadline and the audited implementation, but
 measurement settled it the other way. Under mainnet's current rules a ballot through the
 forwarder costs 335,214 gas against 296,692 submitted directly. On Sepolia, which runs
-Glamsterdam, the gap was about 127,000 gas per ballot (522,535 against 395,413), most of it the
+Glamsterdam, the gap was about 127,000 gas per ballot (521,094 against 393,900), most of it the
 forwarder's nonce slot for the fresh signing key each ballot used, which EIP-8037 prices as new
 state. So the relayer submits `castVote` itself and the booth signs nothing; the forwarder stays
 deployed and accepted for any ERC-2771 relayer that wants it.

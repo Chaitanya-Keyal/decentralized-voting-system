@@ -25,6 +25,8 @@ export default defineConfig({
       RELAYER_PRIVATE_KEY: "",
       RELAYER_PREFIX: `dvote-relayer-test-${Date.now()}`,
       RELAYER_RATE_LIMIT: "100",
+      // Short, so a test can see a stuck ballot sent again.
+      RELAYER_RECEIPT_TIMEOUT_MS: "3000",
     },
     // The test files share one chain and one database.
     fileParallelism: false,

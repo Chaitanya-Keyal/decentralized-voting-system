@@ -24,7 +24,16 @@ import {
 } from "@dvote/shared";
 import { Queue, Worker, type Job } from "bullmq";
 import { Redis } from "ioredis";
-import { BaseError, ContractFunctionRevertedError, pad, toHex, type Address, type Hex } from "viem";
+import {
+  BaseError,
+  ContractFunctionRevertedError,
+  pad,
+  parseEventLogs,
+  toHex,
+  WaitForTransactionReceiptTimeoutError,
+  type Address,
+  type Hex,
+} from "viem";
 
 import { HttpError } from "../http";
 import { loggable } from "../redact";
@@ -141,17 +150,23 @@ export async function acceptBallot(
   await relay.redis.del(key("failed", id));
   // Jobs are deleted when they finish, so the queue holds a ballot only while it is pending; what
   // is kept afterwards is the outcome alone.
-  await relay.queue.add(
-    "ballot",
-    { ballot: request },
-    {
-      jobId: id,
-      attempts: 3,
-      backoff: { type: "exponential", delay: 2_000 },
-      removeOnComplete: true,
-      removeOnFail: true,
-    },
-  );
+  try {
+    await relay.queue.add(
+      "ballot",
+      { ballot: request },
+      {
+        jobId: id,
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5_000 },
+        removeOnComplete: true,
+        removeOnFail: true,
+      },
+    );
+  } catch (error) {
+    // Not queued, so the ballot may be sent again.
+    await relay.redis.del(key("nullifier", id));
+    throw error;
+  }
 
   const acceptedAt = Number(block.timestamp);
   const receipt: RelayReceipt = {
@@ -193,37 +208,93 @@ export async function ballotStatus(relay: Relayer, id: string): Promise<RelaySta
 /**
  * Sends the relayer's transactions one after another with consecutive nonces, without waiting for
  * any to be mined. Everything else a send needs is worked out before it joins the line, so the
- * line holds only the send itself. The nonce is counted here rather than asked of the node each
- * time, because a node behind a load balancer may not yet count the transaction just sent. After a
- * failed send, or one not mined in time that may have been dropped, it is read from the node
- * again, so a gap left by a lost nonce gets filled.
+ * line holds only the send itself.
+ *
+ * The nonce is counted here, because a node behind a load balancer may not yet count the
+ * transactions just sent. It is read from the node only at the start and when a node says a nonce
+ * is already used, and then never lowered: a lower count from a lagging node would give a later
+ * ballot the nonce of one still waiting to be mined, and replace it.
  */
 function createSender() {
   let next: number | undefined;
   let line: Promise<unknown> = Promise.resolve();
-  const forget = () => {
-    next = undefined;
-  };
-  const send = (request: Parameters<typeof relayer.writeContract>[0]): Promise<Hex> => {
+  const nodeCount = () =>
+    publicClient.getTransactionCount({ address: relayer.account.address, blockTag: "pending" });
+  return (request: Parameters<typeof relayer.writeContract>[0]) => {
     const sent = line.then(async () => {
+      next ??= await nodeCount();
+      const nonce = next;
       try {
-        next ??= await publicClient.getTransactionCount({
-          address: relayer.account.address,
-          blockTag: "pending",
-        });
-        const nonce = next;
         const hash = await relayer.writeContract({ ...request, nonce });
         next = nonce + 1;
-        return hash;
+        return { hash, nonce };
       } catch (error) {
-        next = undefined;
+        // Any other failure leaves the count, so the next send takes this nonce, still unused.
+        if (usedNonce(error)) next = Math.max(nonce + 1, await nodeCount().catch(() => 0));
         throw error;
       }
     });
     line = sent.catch(() => undefined);
     return sent;
   };
-  return { send, forget };
+}
+
+function usedNonce(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /nonce too low|already known|replacement transaction underpriced|nonce has already been used/i.test(
+    message,
+  );
+}
+
+/**
+ * Waits for a ballot's transaction. One not mined within RELAYER_RECEIPT_TIMEOUT_MS, stuck behind
+ * low fees or dropped, is sent again at the same nonce with twice the fees: that replaces it, or
+ * fills the gap it left, and the ballots sent after it keep their nonces. Both are the same ballot,
+ * so whichever is mined counts it.
+ *
+ * A receipt is matched to the transaction by its nonce alone, so the ballot's own VoteCast event
+ * is looked for in it: only that shows this ballot was counted.
+ */
+async function confirm(
+  request: Parameters<typeof relayer.writeContract>[0] & {
+    maxFeePerGas: bigint;
+    maxPriorityFeePerGas: bigint;
+  },
+  sent: { hash: Hex; nonce: number },
+  ballot: { election: Address; nullifier: bigint },
+): Promise<Hex> {
+  let hash = sent.hash;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash,
+        timeout: config.RELAYER_RECEIPT_TIMEOUT_MS,
+      });
+      if (receipt.status !== "success") {
+        throw new Error(`Transaction ${receipt.transactionHash} reverted`);
+      }
+      const key = pad(toHex(ballot.nullifier));
+      const counted = parseEventLogs({
+        abi: semaphoreElectionAbi,
+        eventName: "VoteCast",
+        logs: receipt.logs,
+      }).some(
+        (log) =>
+          log.address.toLowerCase() === ballot.election.toLowerCase() && log.args.key === key,
+      );
+      if (!counted) throw new Error(`Transaction ${receipt.transactionHash} did not count it`);
+      return receipt.transactionHash;
+    } catch (error) {
+      if (!(error instanceof WaitForTransactionReceiptTimeoutError) || attempt === 2) throw error;
+    }
+    // At least one more wei of tip, so a node takes it as a replacement even when the tip was 0.
+    hash = await relayer.writeContract({
+      ...request,
+      nonce: sent.nonce,
+      maxFeePerGas: request.maxFeePerGas * 2n + 1n,
+      maxPriorityFeePerGas: request.maxPriorityFeePerGas * 2n + 1n,
+    });
+  }
 }
 
 /**
@@ -231,7 +302,7 @@ function createSender() {
  * themselves go out one at a time.
  */
 export function startWorker(relay: Relayer) {
-  const sender = createSender();
+  const send = createSender();
   return new Worker<BallotJob>(
     "ballots",
     async (job: Job<BallotJob>) => {
@@ -249,25 +320,24 @@ export function startWorker(relay: Relayer) {
       // here, with the election's reason, before anything is paid. It is estimated against the
       // latest block rather than at send time with a nonce some ballots ahead: ballots queued ahead
       // only make the election's first writes cheaper, and a fifth more covers a change of block.
-      const [gas, fees] = await Promise.all([
+      const [gas, block, tip] = await Promise.all([
         publicClient.estimateContractGas({ ...simulateAt, ...call }),
-        publicClient.estimateFeesPerGas(),
+        publicClient.getBlock(),
+        publicClient.estimateMaxPriorityFeePerGas(),
       ]);
-      const txHash = await sender.send({
+      // Twice the base fee: it rises by at most an eighth a block, so a burst of ballots cannot
+      // leave one priced below it for several blocks.
+      const request = {
         ...call,
         chain,
         gas: (gas * 6n) / 5n,
-        maxFeePerGas: fees.maxFeePerGas,
-        maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+        maxFeePerGas: (block.baseFeePerGas ?? 0n) * 2n + tip,
+        maxPriorityFeePerGas: tip,
+      };
+      const txHash = await confirm(request, await send(request), {
+        election,
+        nullifier: ballot.nullifier,
       });
-      let receipt;
-      try {
-        receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 180_000 });
-      } catch (error) {
-        sender.forget();
-        throw new Error(`Transaction ${txHash} was not mined in time`, { cause: error });
-      }
-      if (receipt.status !== "success") throw new Error(`Transaction ${txHash} reverted`);
       await relay.redis.set(key("mined", job.id ?? ""), txHash, "EX", 7 * 24 * 3600);
     },
     {
@@ -279,11 +349,12 @@ export function startWorker(relay: Relayer) {
     // Only once the retries are spent. The ballot may then be sent again, through the relayer or
     // directly, so its nullifier is released.
     if (!job?.id || job.attemptsMade < (job.opts.attempts ?? 1)) return;
-    void relay.redis
+    relay.redis
       .multi()
       .set(key("failed", job.id), loggable(error).message.slice(0, 300), "EX", 3600)
       .del(key("nullifier", job.id))
-      .exec();
+      .exec()
+      .catch(() => undefined);
   });
 }
 

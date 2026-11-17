@@ -88,8 +88,8 @@ function submit(body: object) {
   return relayer.inject({ method: "POST", url: "/ballots", payload: body });
 }
 
-async function waitUntilMined(id: string) {
-  for (let i = 0; i < 100; i++) {
+async function waitUntilMined(id: string, timeoutMs = 10_000) {
+  for (let i = 0; i < timeoutMs / 100; i++) {
     const status = relayStatusSchema.parse((await relayer.inject(`/ballots/${id}`)).json());
     if (status.status === "mined" || status.status === "failed") return status;
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -149,6 +149,59 @@ describe("relayer", () => {
       expect(status.status, status.error).toBe("mined");
     }
     expect(await node.readContract({ ...contract, functionName: "ballotsCast" })).toBe(3n);
+  }, 90_000);
+
+  it("recovers when another sender used the relayer's next nonce", async () => {
+    const { election, voters, tree, contract } = await votingElection("Sports council");
+    const first = await ballotFor(voters[0]!, tree, election, 0n);
+    const second = await ballotFor(voters[1]!, tree, election, 1n);
+    const accepted = relayAcceptedSchema.parse(
+      (await submit(ballotRequest(election, first))).json(),
+    );
+    expect((await waitUntilMined(accepted.id)).status).toBe("mined");
+
+    // As a second process with the same key would: the relayer's count of its nonce is now behind.
+    await node.waitForTransactionReceipt({
+      hash: await node.sendTransaction({ account: RELAYER, to: RELAYER, value: 0n }),
+    });
+    const response = await submit(ballotRequest(election, second));
+    expect(response.statusCode, response.body).toBe(200);
+    const status = await waitUntilMined(relayAcceptedSchema.parse(response.json()).id, 30_000);
+    expect(status.status, status.error).toBe("mined");
+    expect(await node.readContract({ ...contract, functionName: "ballotsCast" })).toBe(2n);
+  }, 90_000);
+
+  it("sends a ballot again at the same nonce, with higher fees, when it is not mined in time", async () => {
+    const { election, voters, tree, contract } = await votingElection("Cultural council");
+    const ballot = await ballotFor(voters[2]!, tree, election, 1n);
+    const pooled = async () => {
+      const { pending } = await node.getTxpoolContent();
+      return Object.entries(pending)
+        .filter(([address]) => address.toLowerCase() === RELAYER.toLowerCase())
+        .flatMap(([, byNonce]) => Object.values(byNonce));
+    };
+    let id = "";
+    await node.setAutomine(false);
+    try {
+      const response = await submit(ballotRequest(election, ballot));
+      expect(response.statusCode, response.body).toBe(200);
+      id = relayAcceptedSchema.parse(response.json()).id;
+      await expect.poll(async () => (await pooled()).length, { timeout: 20_000 }).toBe(1);
+      const [original] = await pooled();
+      // The receipt timeout is 3 s in the tests.
+      await expect
+        .poll(async () => (await pooled())[0]?.hash, { timeout: 20_000 })
+        .not.toBe(original!.hash);
+      const [replacement] = await pooled();
+      expect(replacement!.nonce).toBe(original!.nonce);
+      expect(replacement!.maxFeePerGas! > original!.maxFeePerGas!).toBe(true);
+      await node.mine({ blocks: 1 });
+    } finally {
+      await node.setAutomine(true);
+    }
+    const status = await waitUntilMined(id, 30_000);
+    expect(status.status, status.error).toBe("mined");
+    expect(await node.readContract({ ...contract, functionName: "tally" })).toEqual([0n, 1n]);
   }, 90_000);
 
   it("refuses the same ballot twice, before paying for it", async () => {
