@@ -25,11 +25,21 @@ export const isLocalChain = chain.id === anvil.id;
  */
 export const simulateAt = isLocalChain ? ({ blockTag: "pending" } as const) : {};
 
-/** The node the browser reads from, which Anvil's development wallets also send through. */
-export const rpcUrl: string =
+/**
+ * The nodes the browser reads from, in order of preference; NEXT_PUBLIC_RPC_URL may list several,
+ * separated by commas, and a request that fails on one is tried on the next.
+ */
+export const rpcUrls: string[] = (
   setting(process.env.NEXT_PUBLIC_RPC_URL) ??
   chain.rpcUrls.default.http[0] ??
-  "http://127.0.0.1:8545";
+  "http://127.0.0.1:8545"
+)
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
+/** The first of them, which Anvil's development wallets also send through. */
+export const rpcUrl: string = rpcUrls[0] ?? "http://127.0.0.1:8545";
 
 export const apiUrl = setting(process.env.NEXT_PUBLIC_API_URL) ?? "http://127.0.0.1:4000";
 

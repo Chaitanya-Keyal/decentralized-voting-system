@@ -4,6 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { useAccount, useSwitchChain } from "wagmi";
 
+import { useWalletHidden } from "@/lib/chrome";
 import { chain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 
@@ -41,11 +42,14 @@ function WrongNetwork() {
  * wallet at all. RainbowKit still provides the dialogs behind it.
  */
 function WalletButton() {
+  const hidden = useWalletHidden();
   return (
     <ConnectButton.Custom>
       {({ account, chain: connected, mounted, openAccountModal, openConnectModal }) => {
         const ready = mounted;
         const shown = ready && account && connected;
+        // Voters in anonymous elections need no wallet; an organiser who is connected still sees it.
+        if (hidden && !shown) return null;
         return (
           <div aria-hidden={!ready} className={ready ? undefined : "pointer-events-none opacity-0"}>
             {shown ? (

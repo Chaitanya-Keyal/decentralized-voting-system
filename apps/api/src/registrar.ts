@@ -472,11 +472,16 @@ async function publish(election: Address, log: FastifyBaseLogger): Promise<Publi
     });
     await confirm(await registrar.writeContract(request));
   }
-  const { request } = await publicClient.simulateContract({
-    ...contract,
-    ...simulateAt,
-    functionName: "publishVoterList",
-    args: [root, BigInt(count), cid],
+  // Right after openRegistration, a node behind a load balancer may not have its block yet and
+  // would report the old phase, so the simulation is tried again a few times, a block apart.
+  const request = await retryWhileLagging(async () => {
+    const simulated = await publicClient.simulateContract({
+      ...contract,
+      ...simulateAt,
+      functionName: "publishVoterList",
+      args: [root, BigInt(count), cid],
+    });
+    return simulated.request;
   });
   const txHash = await registrar.writeContract(request);
   // Recorded before waiting, so that a later attempt checks on this transaction rather than
@@ -570,6 +575,18 @@ export async function publishDueVoterLists(log: FastifyBaseLogger): Promise<void
         watched.finished.add(election);
       }
       log.warn({ err: loggable(error), election }, "Could not publish the voter list");
+    }
+  }
+}
+
+async function retryWhileLagging<T>(task: () => Promise<T>): Promise<T> {
+  const attempts = chain.id === anvil.id ? 1 : 4;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await task();
+    } catch (error) {
+      if (attempt >= attempts) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 6_000));
     }
   }
 }

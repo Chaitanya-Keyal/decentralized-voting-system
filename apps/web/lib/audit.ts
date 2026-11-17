@@ -45,31 +45,31 @@ export function auditSteps(election: OnchainElection): AuditStep[] {
   const steps: AuditStep[] = [
     {
       id: "list",
-      title: "The published voter list rebuilds the root recorded on-chain",
+      title: "The published voter list is the one locked into the contract",
       status: "waiting",
     },
     {
       id: "ballots",
-      title: "Every ballot is read from the chain's event log, and none repeats",
+      title: "Every ballot is read straight from the blockchain, and none appears twice",
       status: "waiting",
     },
     {
       id: "eligibility",
       title: anonymous
-        ? "Every ballot's zero-knowledge proof checks out against the list, in this browser"
+        ? "Every ballot comes from someone on the list, without saying who"
         : "Every ballot came from a wallet on the list",
       status: "waiting",
     },
     {
       id: "tally",
-      title: "Recounting those ballots gives the contract's count",
+      title: "Adding up the ballots gives the contract's totals",
       status: "waiting",
     },
   ];
   if (election.phase === Phase.Finalized) {
     steps.push({
       id: "result",
-      title: "The recount gives the winners the contract declared",
+      title: "The winners follow from those totals",
       status: "waiting",
     });
   }
@@ -206,7 +206,7 @@ export async function runAudit(
         checked++;
         report("eligibility", "running", `${checked} of ${ballots.length} proofs checked`);
       }
-      return `${checked} proofs checked; none says who cast it`;
+      return `${checked} zero-knowledge proofs checked in this browser`;
     }
     for (const ballot of ballots) {
       const voter = slice(ballot.key, 12).toLowerCase();

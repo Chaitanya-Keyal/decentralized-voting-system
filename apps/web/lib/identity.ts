@@ -9,7 +9,7 @@ import {
   type IdentityReceipt,
   type RelayReceipt,
 } from "@dvote/shared";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { Address } from "viem";
 
 const CHANGE_EVENT = "dvote-identities";
@@ -171,4 +171,31 @@ export function useCastBallot(chainId: number, election: Address | undefined) {
       return undefined;
     }
   }, [raw]);
+}
+
+const LINK_PREFIX = "#key=";
+
+/**
+ * A private link that opens the booth on another device with this voting key. The key travels in
+ * the fragment, after `#`, which browsers never send to the server.
+ */
+export function transferLink(election: Address, identity: Identity): string {
+  return `${window.location.origin}/elections/${election}/vote${LINK_PREFIX}${encodeURIComponent(identity.export())}`;
+}
+
+/**
+ * Takes a voting key from a transfer link, keeps it in this browser, and removes it from the
+ * address bar so it is not left in the history or shared by accident.
+ */
+export function useKeyFromLink(chainId: number, election: Address | undefined) {
+  useEffect(() => {
+    if (!election || !window.location.hash.startsWith(LINK_PREFIX)) return;
+    try {
+      const exported = decodeURIComponent(window.location.hash.slice(LINK_PREFIX.length));
+      saveIdentity(chainId, election, Identity.import(exported));
+    } catch {
+      // A damaged link: the booth then offers to restore the key another way.
+    }
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  }, [chainId, election]);
 }

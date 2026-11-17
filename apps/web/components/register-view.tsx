@@ -11,12 +11,14 @@ import { api } from "@/lib/api";
 import { useElection, type OnchainElection } from "@/lib/election";
 import { chain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
-import { useStoredIdentity, useStoredIdentityReceipt } from "@/lib/identity";
+import { useHideWallet } from "@/lib/chrome";
+import { useKeyFromLink, useStoredIdentity, useStoredIdentityReceipt } from "@/lib/identity";
 import { saveReceipt, useStoredReceipt } from "@/lib/receipts";
 import { formatRelative, formatTime, useChainNow } from "@/lib/time";
 import { useWallet } from "@/lib/wallet";
 
 import { EmailProof, type EmailProofValue } from "./email-proof";
+import { KeyTransfer } from "./key-transfer";
 import { ElectionHeader } from "./election-header";
 import {
   IdentityReceiptCard,
@@ -126,6 +128,8 @@ function registrationStatus(election: OnchainElection, now: number): string | un
 
 /** Tier 3: a voting key made on this device, registered by its public fingerprint. */
 function AnonymousRegistration({ election, now }: { election: OnchainElection; now: number }) {
+  useHideWallet();
+  useKeyFromLink(chain.id, election.address);
   const receipt = useStoredIdentityReceipt(chain.id, election.address);
   const identity = useStoredIdentity(chain.id, election.address);
   const open = registrationOpen(election, now);
@@ -143,6 +147,7 @@ function AnonymousRegistration({ election, now }: { election: OnchainElection; n
       {identity && election.voterListCid !== "" && (
         <IdentityListCheck election={election} commitment={identity.commitment.toString()} />
       )}
+      {receipt && now < election.schedule.votingEnd && <KeyTransfer election={election} />}
       {(open || identity) && <VotingKeyCard election={election} compact={Boolean(receipt)} />}
       {open && !receipt && <IdentityRegistrationForm election={election} />}
       {receipt && <IdentityReceiptCard receipt={receipt} />}

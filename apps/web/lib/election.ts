@@ -10,7 +10,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { Address, Hex } from "viem";
 import { useBlockNumber, usePublicClient, useReadContract } from "wagmi";
 
-import { chain } from "./env";
+import { chain, isLocalChain } from "./env";
 
 /** The contracts on the chain the app is configured for, or undefined if none are deployed. */
 export const deployment = deploymentFor(chain.id);
@@ -64,6 +64,8 @@ export function useElection(address: Address | undefined) {
     queryKey: ["election", address, block?.toString()],
     enabled: Boolean(client && address),
     placeholderData: keepPreviousData,
+    // Also on a timer: if watching for new blocks stalls, the page still moves on.
+    refetchInterval: isLocalChain ? false : 12_000,
     queryFn: async (): Promise<OnchainElection | null> => {
       if (!deployment) throw new Error(`DVote's contracts are not deployed on ${chain.name} yet.`);
       if (!client || !address) throw new Error("Not ready");

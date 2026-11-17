@@ -10,7 +10,10 @@ import { connect, emailedCode, screenshot, skipAhead } from "./helpers";
 
 /** A browser of the voter's own: its storage, and so its voting key, belongs to that voter. */
 async function voterBrowser(browser: Browser, errors: string[]) {
-  const context = await browser.newContext({ acceptDownloads: true });
+  const context = await browser.newContext({
+    acceptDownloads: true,
+    permissions: ["clipboard-read", "clipboard-write"],
+  });
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
   return { context, page };
@@ -74,6 +77,8 @@ test("an anonymous approval election runs end to end without voter wallets", asy
       if (index === 0) await screenshot(voter.page, "07-register-code-sent");
       await voter.page.getByLabel("Code").fill(await emailedCode(email));
       await voter.page.getByRole("button", { name: "Register my voting key" }).click();
+      await expect(voter.page.getByText("You're registered")).toBeVisible();
+      await voter.page.getByText("Proof of registration").click();
       await expect(
         voter.page.getByText("The receipt is signed by this election's registrar"),
       ).toBeVisible();
@@ -99,7 +104,7 @@ test("an anonymous approval election runs end to end without voter wallets", asy
     const moved = await voterBrowser(browser, errors);
     await voters[2]!.context.close();
     await moved.page.goto(`${election}/vote`);
-    await expect(moved.page.getByText("does not hold a voting key")).toBeVisible();
+    await expect(moved.page.getByText("doesn't have your voting key yet")).toBeVisible();
     await screenshot(moved.page, "11-booth-no-key");
     await moved.page.getByLabel("Restore from a backup").setInputFiles({
       name: "backup.json",
@@ -107,6 +112,21 @@ test("an anonymous approval election runs end to end without voter wallets", asy
       buffer: Buffer.from(voters[2]!.backup ?? ""),
     });
     voters[2] = { ...moved, backup: voters[2]!.backup };
+  });
+
+  await test.step("the second voter moves to a new browser with the private link", async () => {
+    const { page: source } = voters[1]!;
+    await source.goto(`${election}/register`);
+    await source.getByRole("button", { name: "Send the link to yourself" }).click();
+    await expect(source.getByRole("button", { name: "Link copied" })).toBeVisible();
+    const link = await source.evaluate(() => navigator.clipboard.readText());
+    expect(link).toContain("#key=");
+    const moved = await voterBrowser(browser, errors);
+    await voters[1]!.context.close();
+    await moved.page.goto(link);
+    // The key is taken in and removed from the address bar.
+    await expect(moved.page).not.toHaveURL(/#key=/);
+    voters[1] = { ...moved, backup: voters[1]!.backup };
   });
 
   for (const [index, marks] of ballots.entries()) {

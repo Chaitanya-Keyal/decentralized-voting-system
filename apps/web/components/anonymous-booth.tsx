@@ -11,7 +11,14 @@ import { simulateContract, writeContract } from "wagmi/actions";
 import type { OnchainElection } from "@/lib/election";
 import { chain, explorerTx, simulateAt } from "@/lib/env";
 import { describeError } from "@/lib/errors";
-import { saveCastBallot, useCastBallot, useStoredIdentity, type CastBallot } from "@/lib/identity";
+import { useHideWallet } from "@/lib/chrome";
+import {
+  saveCastBallot,
+  useCastBallot,
+  useKeyFromLink,
+  useStoredIdentity,
+  type CastBallot,
+} from "@/lib/identity";
 import { proveInBrowser, type ProvingStage } from "@/lib/prover";
 import { relayBallot, relayerApi } from "@/lib/relayer";
 import { formatRelative, formatTime, useChainNow } from "@/lib/time";
@@ -256,7 +263,9 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
   const link = ballot.txHash ? explorerTx(ballot.txHash) : undefined;
   return (
     <>
-      <Notice tone="success">You have voted. Your ballot is counted.</Notice>
+      <Notice tone="success">
+        You have voted. Your ballot is recorded on the blockchain and included in the count.
+      </Notice>
       <details className="text-sm text-zinc-600 dark:text-zinc-400">
         <summary className="cursor-pointer">Details</summary>
         <div className="mt-2 flex flex-col gap-1.5">
@@ -292,6 +301,8 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
 
 /** Tier 3's booth: proves membership of the published list without saying which member. */
 export function AnonymousBooth({ election }: { election: OnchainElection }) {
+  useHideWallet();
+  useKeyFromLink(chain.id, election.address);
   const now = useChainNow();
   const identity = useStoredIdentity(chain.id, election.address);
   const cast = useCastBallot(chain.id, election.address);
@@ -342,8 +353,11 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
     return (
       <>
         <Notice>
-          This browser does not hold a voting key for this election. Restore yours from the backup
-          you downloaded when you registered.
+          This browser doesn&apos;t have your voting key yet. On the device you registered on, open
+          this election&apos;s registration page and scan its QR code with this phone, or send
+          yourself its link. Or restore the key file you downloaded (named dvote-voting-key-…json,
+          usually in Downloads). Keys can&apos;t be recovered, by design: without yours, you
+          can&apos;t vote.
         </Notice>
         <VotingKeyCard election={election} restoreOnly />
       </>

@@ -1,9 +1,9 @@
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import { injectedWallet } from "@rainbow-me/rainbowkit/wallets";
-import { createConfig, http } from "wagmi";
+import { createConfig, fallback, http } from "wagmi";
 
 import { anvilWallets } from "./anvil-wallet";
-import { chain, isLocalChain, rpcUrl } from "./env";
+import { chain, isLocalChain, rpcUrls } from "./env";
 
 const connectors = connectorsForWallets(
   [
@@ -18,7 +18,10 @@ const connectors = connectorsForWallets(
 export const wagmiConfig = createConfig({
   chains: [chain],
   connectors,
-  transports: { [chain.id]: http(rpcUrl) },
+  transports: { [chain.id]: fallback(rpcUrls.map((url) => http(url))) },
+  // A page reads many values from each election; one multicall per block keeps public nodes from
+  // rate-limiting it.
+  batch: { multicall: true },
   // Anvil mines each transaction at once, so receipts can be polled often.
   pollingInterval: isLocalChain ? 250 : 4_000,
   ssr: true,

@@ -83,7 +83,11 @@ export function VotingKeyCard({
   return (
     <Card
       title="Your voting key"
-      description="This election's ballots are anonymous. Your browser makes a secret voting key; only a fingerprint of it goes to the registrar, so nobody, the registrar included, can tell which ballot is yours."
+      description={
+        restoreOnly
+          ? undefined
+          : "Votes here are anonymous. Your browser makes a voting key that only you hold. The registrar sees your email and a public code made from the key; when you vote, your browser proves the ballot comes from one of the registered codes without saying which. So nobody, the registrar included, can tell which ballot is yours."
+      }
     >
       <div className="flex flex-col gap-3 text-sm">
         {identity ? (
@@ -216,11 +220,13 @@ export function IdentityReceiptCard({ receipt }: { receipt: IdentityReceipt }) {
   };
   const valid = check.data;
   return (
-    <Card
-      title="Your registration receipt"
-      description="Keep a copy. If your key's fingerprint is missing from the published list, the receipt shows that the registrar accepted it."
-    >
-      <div className="flex flex-col gap-3 text-sm">
+    <details className="rounded-xl border border-zinc-200 px-5 py-4 text-sm dark:border-zinc-800">
+      <summary className="cursor-pointer font-medium">Proof of registration</summary>
+      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+        Optional. If your voting key were missing from the published list, this receipt would show
+        that the registrar accepted it. It names your key&apos;s public code, not your ballot.
+      </p>
+      <div className="mt-3 flex flex-col gap-3">
         <p>
           Voting key <Mono value={receipt.commitment} /> was registered on{" "}
           {formatTime(receipt.issuedAt)}.
@@ -239,6 +245,6 @@ export function IdentityReceiptCard({ receipt }: { receipt: IdentityReceipt }) {
           </Button>
         </div>
       </div>
-    </Card>
+    </details>
   );
 }
