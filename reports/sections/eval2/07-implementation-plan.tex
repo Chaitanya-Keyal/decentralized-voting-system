@@ -21,8 +21,8 @@ contingencies were used. Table~\ref{tab:plan-executed} summarises it.
     1 (M1)         & Tier 2 end to end on a local node; first gas snapshot          & Done on 25 October: the lifecycle, factory, registrar, indexer, admin console and booth, with a browser test and the tier 2 snapshot. Merged into \texttt{main} on 17 November \\
     2 (M2)         & Tier 3 anonymous and gasless voting on Sepolia                 & Done, late: built and deployed on 17 November, three weeks after M1. A complete anonymous election has since passed end to end on Sepolia in real time \\
     3 (freeze)     & Approval voting if time allowed, Slither, reorgs, audit with the backend off, usability test & Approval voting, Slither, coverage, reorg handling and the audit panel are done. \note{The usability test with real people is not; a simulated walkthrough stands in for now} \\
-    4 (measure)    & Every parameter measured                                       & \note{A1, C1 and C2 measured; B1 under way; B2 on a phone, C3, the D3 linking attempt and E3 with real users outstanding} \\
-    5 (rehearse)   & Three rehearsals on Sepolia, a backup video                   & \note{Still to do, in the days before the evaluation; the demo script is written} \\
+    4 (measure)    & Every parameter measured                                       & A1, B1, C1, C2, C3 and the D3 linking attempt measured; C3 found the relayer's one-ballot-per-block limit, now fixed. \note{B2 on a phone and E3 with real users outstanding} \\
+    5 (rehearse)   & Three rehearsals on Sepolia, a backup video                   & The demo script is written (\texttt{docs/demo.md}), and a backup video is recorded from a scripted run on a local chain. \note{The rehearsals are still to do, in the days before the evaluation} \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -33,11 +33,12 @@ The largest slip is in time, not scope. M1 was ready on 25 October, but tier 3
 was not built until three weeks later, in the final days before the
 evaluation. As a result Phases 2 to 4 overlapped instead of running in
 order, and the go/no-go decision on proving in phones, planned for one week
-after M1, was not taken on that date. It was settled by measurement instead.
-Proving a ballot takes 0.57\,s at two voters and 1.52\,s at 65,536 on one
-ARM64 core in Node.js, which is fast enough that the server-side fallback was
-never needed. \note{Phones have still to be measured (B2), so for now this
-decision rests on a server core, not a phone.}
+after M1, was not taken on that date. It was settled provisionally, by
+measurement on a computer's CPU rather than a phone: proving a ballot takes
+0.57\,s at two voters and 1.52\,s at 65,536 on one ARM64 CPU core in Node.js,
+fast enough that the server-side fallback was not built. \note{Phones have
+still to be measured (B2), so for now this decision rests on an ARM64 CPU
+core, not a phone.}
 
 Some items were built differently from the plan:
 
@@ -45,11 +46,9 @@ Some items were built differently from the plan:
   \item \textbf{The relayer's path.} The plan had the booth sign each ballot
         with a fresh key and send it through an ERC-2771~\cite{erc2771}
         forwarder. This was built, tested and measured, and then dropped as
-        the relayer's path. The proof already binds the choice and the
-        election, so the signature added no protection. It did add about
-        \note{127,000} gas per ballot on Sepolia, mostly for a new storage slot for
-        each fresh key's nonce. The relayer now calls \texttt{castVote}
-        itself. The forwarder stays deployed and tested.
+        the relayer's path, for the reasons given in
+        Section~\ref{sec:req-changes}. The forwarder stays deployed and
+        tested.
   \item \textbf{The proving files.} The plan was to check them against hashes
         published in the Semaphore repository. They are instead pinned by
         SHA-256 against the npm package of the same release, whose own
@@ -87,12 +86,13 @@ planned, and the two fallbacks were never needed:
         reports a failure or voting closes within five minutes.
   \item \emph{Relayer funds drained.} The relayer verifies the proof, checks
         that the nullifier is unspent and not already queued, and simulates the
-        call before it pays, so it pays for at most one ballot per registered
-        voter.
+        call before it pays, so it pays for at most one counted ballot per
+        registered voter. A ballot that loses a race, for example to the close
+        of voting, still costs gas.
   \item \emph{Not enough Sepolia ETH.} Gas and scaling measurements run on a
         local node, as planned. Test ETH has been more than enough for
         everything else: the current deployment of both tiers cost
-        0.00069\,ETH. \note{Recompute after the final redeployment.}
+        0.00069\,ETH.
   \item \emph{Proving moves to a server.} Not needed, as above.
   \item \emph{Tier 3 not ready, so tier 2 is demonstrated.} Not needed: tier 3
         runs on Sepolia.
@@ -100,11 +100,8 @@ planned, and the two fallbacks were never needed:
 
 \subsection{What remains}
 
-\note{Before the evaluation: B2 on a named phone, more B1 samples, C3, the D3
-attempt to link ballots to voters from a real election's chain data (Section~6
-gives the argument that it cannot be done), the E3 test with real
-participants, written instructions for auditors to pin their own copy of the
-voter lists, and the rehearsals and backup video.}
+\note{Before the evaluation: B2 on a named phone, the E3 test with real
+participants, and the rehearsals.}
 
 Beyond this project, six pieces of work would matter most:
 

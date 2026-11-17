@@ -77,7 +77,8 @@ pass through any of them.
 \end{enumerate}
 
 The browser reads the chain through a list of public RPC nodes, falling back
-from one to the next, and batches its reads into one multicall per block. The
+from one to the next, and batches the reads it makes for each block into a
+single call to a multicall contract, which runs many reads at once. The
 indexer follows both factories and every election's events into a database,
 waits three blocks before treating a block as settled, and rebuilds itself
 from the deployment block if a block it has seen is replaced. It exists so
@@ -87,8 +88,9 @@ authority we recognise, and the registrar serves only elections from our
 factories in which it holds the registrar role.
 
 Table~\ref{tab:components} sets out what each part holds, and what happens if
-it stops or misbehaves. The chain decides the result; the services can only
-fail to help. The one exception is the code of the pages themselves: whoever
+it stops or misbehaves. The chain decides the result: if a service stops,
+voting gets harder, but the result cannot change. The one exception is the
+code of the pages themselves: whoever
 serves them could serve a copy that leaks the voting key, so a voter trusts
 the served copy just as they would trust a web wallet.
 
@@ -125,7 +127,6 @@ with the optimizer at 200 runs for the Cancun EVM, and Sourcify~\cite{sourcify}
 reports an exact match for every one, for both creation and runtime bytecode.
 Anyone can therefore read the source of what is deployed, compile it and get
 the same bytes. Each address in the table links to the contract on Etherscan.
-\note{If the contracts are redeployed before submission, update this table.}
 
 \begin{table}[htbp]
   \centering
@@ -191,9 +192,9 @@ Table~\ref{tab:divergences} lists the changes to the architecture itself.
   \addlinespace[3pt]
   Tree depth & Not specified & Computed by the contract from the published voter count, in constant time & The depth chooses the verifier's key, so it must not come from the caller. An earlier version computed it in a loop, which added about 210 gas per tree level to every ballot (Section~6) \\
   \addlinespace[3pt]
-  Relaying & Through \texttt{VoteForwarder}, each ballot signed with a fresh key & The relayer calls \texttt{castVote} itself; the forwarder is deployed and still accepted & \texttt{castVote} never reads the sender, so the signature protected nothing the proof did not already protect. It cost 335,214 gas per ballot against 296,692 directly under mainnet's rules, and more on Sepolia (Section~\ref{sec:req-changes}) \\
+  Relaying & Through \texttt{VoteForwarder}, each ballot signed with a fresh key & The relayer calls \texttt{castVote} itself; the forwarder is deployed and still accepted & The proof already binds the ballot, so the signature added only gas: 335,214 per ballot against 296,692 directly under mainnet's rules (Section~\ref{sec:req-changes} gives the reasoning and the Sepolia figures) \\
   \addlinespace[3pt]
-  Relayer checks & Check the proof, pay the gas & Also checks the election, the phase and the nullifier, simulates the call, and allows one queued ballot per nullifier before signing a receipt & A ballot the contract would refuse never earns a receipt, and never costs the relayer gas \\
+  Relayer checks & Check the proof, pay the gas & Also checks the election, the phase and the nullifier, simulates the call, and allows one queued ballot per nullifier before signing a receipt & A ballot the contract would refuse at that moment never earns a receipt. One can still fail later, if voting closes or the same ballot is submitted directly first, and then it costs the relayer gas \\
   \addlinespace[3pt]
   Proof of email & An emailed one-time code & An emailed code, or Google sign-in limited to the institute's domain & Sending codes needs a mail service that a deployment may not have. Google sign-in needs none, and both lead to the same receipt \\
   \addlinespace[3pt]

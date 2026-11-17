@@ -188,9 +188,21 @@ test("an anonymous approval election runs end to end without voter wallets", asy
     await expect(page.getByText("Winner")).toHaveCount(1);
   });
 
-  await test.step("an observer audits the election from the chain and IPFS alone", async () => {
+  await test.step("an observer audits the election with our services unreachable (D4)", async () => {
+    // Every request to the API, the indexer and the relayer fails while the audit runs: it must
+    // pass from the chain and IPFS alone.
+    const services = /^http:\/\/(127\.0\.0\.1|localhost):(4000|4100)\//;
+    let blocked = 0;
+    await page.route(services, (route) => {
+      blocked++;
+      return route.abort();
+    });
     await page.getByRole("button", { name: "Run the audit" }).click();
     await expect(page.getByText("Every check passed")).toBeVisible({ timeout: 60_000 });
+    await page.unroute(services);
+    test
+      .info()
+      .annotations.push({ type: "D4", description: `${blocked} requests to our services blocked` });
     await screenshot(page, "16-election-audited");
   });
 

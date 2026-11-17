@@ -16,8 +16,8 @@ voters registering, a relayer submitting their ballots, voting closed and the
 result finalized by calls that anyone may make, and an audit in the browser
 recounting it from the chain and IPFS alone.
 
-The measurements support the design's main claims, with one cost that was not
-expected:
+The measurements support the design's main claims, and turned up two things
+that were not expected, a limit in the relayer and a cost on the testnet:
 
 \begin{itemize}
   \item \textbf{Anonymity has a fixed price.} Under mainnet's current rules a
@@ -32,37 +32,44 @@ expected:
         tree from the published list grows with every voter, to 15.8\,s at
         65,536. For a university electorate of tens of thousands, that rebuild,
         not the proof, is the slow step in the booth.
-  \item \textbf{Voting is fast enough.} \note{B1: replace with the median and
-        95th percentile from bench/results/b1-sepolia-*.csv.} In the first
-        Sepolia samples a ballot was counted 8.7 and 11.2 seconds after the
-        voter pressed Cast, about one block.
+  \item \textbf{A ballot is usually counted within one block.} On Sepolia,
+        with voters casting one at a time, the median time from pressing Cast
+        to the booth reporting the ballot counted was 11.1\,s over 16 ballots.
+        Eleven were counted within 15\,s; the slowest took 31.5\,s, waiting an
+        extra block or two for reasons not yet isolated.
+  \item \textbf{A room can vote at once.} The load test found that the relayer
+        let through one ballot per block. After the fix, 64 simultaneous voters
+        were counted in the next block and 1,024 within twenty blocks, with
+        none lost, and ten voters casting together on Sepolia all landed in
+        the same block.
   \item \textbf{The testnet changed the costs.} Sepolia's Glamsterdam rules
         price new state several times higher than mainnet's. Creating an
-        election there cost \note{3.09} million gas against 0.64 million locally. Under
-        the same rule, relaying through an ERC-2771 forwarder cost about
-        \note{127,000} gas more per ballot than relaying directly, which is why the
-        relayer now submits ballots itself.
+        election there cost 3.09 million gas against about 0.63 million
+        locally. The same rule made the planned forwarder cost about 127,000
+        gas more per ballot, so the relayer now submits ballots itself.
 \end{itemize}
 
 The security properties in Section~6 were tested by trying to break them:
 double voting, forged and tampered proofs, and an authority acting beyond its
 role all fail in the contract tests. Section~6 also sets out why chain data
-alone cannot link a ballot to a voter (D3). \note{The attempt to do so on a real
-election's data is still to be run; report its outcome here.} The results also have limits, and these
-matter as much as the results. The registrar decides who is eligible, and nothing
+alone cannot link a ballot to a voter (D3), and an attempt over all the public
+data of two test elections on Sepolia found nothing that narrowed a ballot
+below the voters on its list.
+
+The system also has limits. The registrar decides who is eligible, and nothing
 on-chain can check that it registered only real voters, or each of them once.
-The relayer sees when each ballot arrives and from which network address, so
-anonymity against the operator depends on keeping the relayer and the
-registrar apart, or on voters submitting from their own wallets. A voter can
+Anonymity against the operator depends on keeping the relayer and the
+registrar apart, or on voters submitting from their own wallets
+(Section~\ref{sec:trust}). A voter can
 still prove to a buyer how they voted, and anyone holding their key can vote
 in their place. The running count is public while voting is open. The proofs
 rest on Semaphore's trusted setup ceremony. Finally, everything here ran on a
 testnet: the gas figures are exact, but what a ballot would cost in money on
 mainnet depends on gas prices this project does not measure.
 
-Within those limits, the project shows that a small institution can run an
-election whose count nobody has to take on trust, with secret ballots, and with
-voters who have never owned cryptocurrency. What it does not yet show is that
+Within those limits, the project shows that a small institution can run a
+secret-ballot election whose count nobody has to take on trust, for voters
+who have never owned cryptocurrency. What it does not yet show is that
 real voters, rather than simulated ones, can do this unaided; the usability
 test with real participants is what would settle that.
 \note{E3: one sentence on the outcome once it is run.}

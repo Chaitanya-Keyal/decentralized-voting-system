@@ -13,7 +13,10 @@ import {
   createPublicClient,
   createWalletClient,
   http,
+  pad,
+  parseAbiItem,
   parseEventLogs,
+  toHex,
   type Address,
   type Hex,
 } from "viem";
@@ -90,7 +93,8 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const run = Date.now();
-  const timings: { voter: number; ms: number }[] = [];
+  const timings: { voter: number; ms: number; toBlockMs: number }[] = [];
+  let createdIn = 0n;
   let election: Address = "0x";
 
   const { timestamp: now } = await node.getBlock();
@@ -120,6 +124,7 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
       ],
     });
     const receipt = await node.waitForTransactionReceipt({ hash });
+    createdIn = receipt.blockNumber;
     const [created] = parseEventLogs({
       abi: electionFactoryAbi,
       eventName: "ElectionCreated",
@@ -164,6 +169,34 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
     await step(election, "openVoting");
   });
 
+  /**
+   * When the block holding this voter's ballot was produced, found by the nullifier the booth kept.
+   * From the click to that moment is proving, the relayer and waiting for a slot; the rest of the
+   * time to "counted" is the booth noticing.
+   */
+  const blockTime = async (voter: (typeof voters)[number]) => {
+    const stored = await voter.page.evaluate(
+      (key) => localStorage.getItem(key),
+      `dvote.anonymous-ballot.${sepolia.id}.${election}`.toLowerCase(),
+    );
+    const { nullifier } = JSON.parse(stored ?? "{}") as { nullifier?: string };
+    // A load-balanced node may not have the block yet, so the search is tried again for a while.
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const [log] = await node.getLogs({
+        address: election,
+        event: parseAbiItem("event VoteCast(bytes32 indexed key, uint256 indexed choice)"),
+        args: { key: pad(toHex(BigInt(nullifier ?? 0))) },
+        fromBlock: createdIn,
+        toBlock: "latest",
+      });
+      if (log) {
+        const block = await node.getBlock({ blockNumber: log.blockNumber });
+        return Number(block.timestamp) * 1000;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+    }
+    return Number.NaN;
+  };
   const ready = async (voter: (typeof voters)[number], index: number) => {
     await voter.page.goto(`/elections/${election}/vote`);
     await expect(voter.page.getByText("on the voter list, checked in this browser")).toBeVisible({
@@ -175,7 +208,8 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
     const started = Date.now();
     await voter.page.getByRole("button", { name: /Cast my ballot, no wallet needed/ }).click();
     await expect(voter.page.getByText("You have voted")).toBeVisible({ timeout: 5 * 60_000 });
-    timings.push({ voter: index + 1, ms: Date.now() - started });
+    const ms = Date.now() - started;
+    timings.push({ voter: index + 1, ms, toBlockMs: (await blockTime(voter)) - started });
   };
   if (BURST) {
     await test.step(`${VOTERS} voters cast their ballots at the same moment`, async () => {
@@ -195,7 +229,10 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
   await mkdir(RESULTS, { recursive: true });
   await writeFile(
     `${RESULTS}b1-sepolia-${BURST ? "burst-" : ""}${new Date(run).toISOString().slice(0, 16).replace(/[-:T]/g, "")}.csv`,
-    ["voter,election,click_to_counted_ms", ...timings.map((t) => `${t.voter},${election},${t.ms}`)]
+    [
+      "voter,election,click_to_counted_ms,click_to_block_ms",
+      ...timings.map((t) => `${t.voter},${election},${t.ms},${t.toBlockMs}`),
+    ]
       .join("\n")
       .concat("\n"),
   );

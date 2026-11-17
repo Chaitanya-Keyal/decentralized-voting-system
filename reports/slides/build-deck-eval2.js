@@ -438,7 +438,7 @@ async function main() {
     arrow(s, 6.9, 3.3, 6.35, 3.8, { color: C.muted, dash: true });
     arrow(s, 3.1, 4.66, 6.9, 4.66, { color: C.teal, dash: true });
     text(s, "audit: chain and IPFS only", { x: 3.7, y: 4.69, w: 2.8, h: 0.25, fontSize: 10, color: C.teal, italic: true });
-    text(s, "The chain decides the result. The services can fail to help, but cannot change it.", {
+    text(s, "The chain decides the result; a service that stops cannot change it.", {
       x: 0.5, y: 5.0, w: 8.4, h: 0.3, fontSize: 13, bold: true, color: C.navy,
     });
     pageNo(s, ++page);
@@ -467,7 +467,7 @@ async function main() {
       text(s, g, { x: 0.5 + i * (pw + 0.25) + pw * 0.55, y: 1.95, w: 1.75, h: 0.55, fontSize: 10, color: C.muted, italic: true });
     });
     const rows = [
-      ["Authority", "Creates the election and may cancel it before voting is under way. Cannot vote unless listed, cannot touch the list or the count."],
+      ["Authority", "Creates the election and may cancel it before voting is under way. Cannot vote unless listed, or change a published list or the count."],
       ["Registrar", "Publishes the voter list once, after registration closes and before voting is due. The list cannot change after that."],
       ["Anyone", "Moves the election on when its time has come, closes voting and finalizes, so no one can hold the result back."],
     ];
@@ -600,11 +600,14 @@ async function main() {
     iconCircle(s, I.phone, 0.7, 1.3, 0.5, C.teal);
     text(s, "One voter, Sepolia (B1)", { x: 1.32, y: 1.37, w: 3.3, h: 0.4, fontFace: HEAD, fontSize: 15, bold: true, color: C.navy });
     stat(s, fig(b1s?.median, "B1 median, current relayer", s1), `median, click to counted (${b1s?.n ?? 0} ballots)`, 0.75, 2.0, 1.9);
-    stat(s, fig(b1s?.slowest, "B1 slowest, current relayer", s1), "slowest; target: 95% under 30 s", 2.75, 2.0, 1.9, C.navy);
+    stat(s, fig(b1s?.slowest, "B1 slowest, current relayer", s1), `slowest of ${b1s?.n ?? 0}; ${b1s ? b1Now.filter((ms) => ms <= 15_000).length : 0} counted within 15 s`, 2.75, 2.0, 1.9, C.navy);
     const before = stats(b1Before);
-    text(s, before ? `Before the relayer change: median ${s1(before.median)}, slowest ${s1(before.slowest)} of ${before.n}. A ballot lands one, two or three 12-second slots after the click, depending on when in a slot it reaches the chain.` : "", {
-      x: 0.75, y: 3.45, w: 3.9, h: 1.4, fontSize: 11.5, color: C.muted,
-    });
+    const burst = stats(b1Burst);
+    if (!burst) missing.push("B1, ten voters at once");
+    text(s, [
+      { text: burst ? `Ten voters at once: all in one block, median ${s1(burst.median)} (ten browsers proving on one machine).` : "", options: { breakLine: true } },
+      { text: before ? `Earlier relayer, one at a time: median ${s1(before.median)}, slowest ${s1(before.slowest)} of ${before.n}. The slow ballots wait an extra block or two; why is still open.` : "" },
+    ], { x: 0.75, y: 3.4, w: 3.9, h: 1.55, fontSize: 11.5, color: C.muted, paraSpaceAfter: 6 });
     card(s, 5.2, 1.1, 4.3, 3.95);
     iconCircle(s, I.users, 5.4, 1.3, 0.5, C.amber);
     text(s, "A burst through the relayer (C3)", { x: 6.02, y: 1.37, w: 3.4, h: 0.4, fontFace: HEAD, fontSize: 15, bold: true, color: C.navy });
@@ -633,8 +636,8 @@ async function main() {
       [true, "D1 One ballot per voter", "A reused nullifier is refused, also through the forwarder with a second key; the relayer refuses it before paying."],
       [true, "D2 Only listed voters", "Real proofs against another root, at the wrong depth, for another election, tampered or with a changed choice: all refused."],
       [false, "D3 Ballot secrecy", "Holds against the chain. Against the operators it holds while the relayer is run apart from the registrar."],
-      [true, "D4 Anyone can verify", "The audit recounts and re-checks every proof from the chain and IPFS, with no call to our services."],
-      [true, "D5 The authority is contained", "It cannot touch the list or the count, or hold the result back: anyone can close and finalize."],
+      [true, "D4 Anyone can verify", "The audit recounts and re-checks every proof from the chain and IPFS, and passes with our API and relayer blocked."],
+      [true, "D5 The authority is contained", "It cannot change a published list or the count, or hold the result back: anyone can close and finalize."],
     ];
     props.forEach(([holds, h, b], i) => {
       const y = 1.1 + i * 0.8;

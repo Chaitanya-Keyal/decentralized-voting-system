@@ -50,7 +50,10 @@ voters. Its result page and audit can then be shown at once if the live election
 finished wallet election makes a useful comparison: its ballots table shows who voted for whom.
 
 **Rehearsals.** Rehearse three times on the presentation laptop and the room's network, timing
-each step. Record one full run as the backup video.
+each step. A backup video, [demo-backup.mp4](demo-backup.mp4), shows the whole story in under
+a minute and a half, recorded from a scripted run on a local chain with a caption for each step;
+`E2E_VIDEO=1 E2E_VIDEO_OUT=<file> pnpm e2e --grep "backup video"` records it again after a change.
+A recording of a live rehearsal on Sepolia is a better backup still, if there is time.
 
 ## Setting up the live election
 
@@ -108,7 +111,7 @@ difference between the tiers: there, every ballot appears beside the wallet that
 | A page seems stuck on an old phase | Wait for the next block (12 s). The page refreshes itself, and the browser falls back to another public RPC endpoint |
 | Someone cannot sign in with Google | They watch; the voters who registered beforehand are enough for every step |
 | The room registers too slowly | Let registration close on schedule. Show the result and the audit on the finished election |
-| The network fails | Play the backup video. If there is time, run the same steps on a local chain on the laptop, as in [CONTRIBUTING.md](../CONTRIBUTING.md#trying-an-election-in-the-browser), where **Move the chain's clock** skips the waits |
+| The network fails | Play the backup video ([demo-backup.mp4](demo-backup.mp4)). If there is time, run the same steps on a local chain on the laptop, as in [CONTRIBUTING.md](../CONTRIBUTING.md#trying-an-election-in-the-browser), where **Move the chain's clock** skips the waits |
 
 ## Questions worth preparing for
 

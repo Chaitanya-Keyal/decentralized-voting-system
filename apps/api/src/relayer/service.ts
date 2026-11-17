@@ -320,11 +320,15 @@ export function startWorker(relay: Relayer) {
       // here, with the election's reason, before anything is paid. It is estimated against the
       // latest block rather than at send time with a nonce some ballots ahead: ballots queued ahead
       // only make the election's first writes cheaper, and a fifth more covers a change of block.
-      const [gas, block, tip] = await Promise.all([
+      const [gas, block, suggestedTip] = await Promise.all([
         publicClient.estimateContractGas({ ...simulateAt, ...call }),
         publicClient.getBlock(),
         publicClient.estimateMaxPriorityFeePerGas(),
       ]);
+      const tip =
+        suggestedTip > config.RELAYER_MIN_PRIORITY_FEE_WEI
+          ? suggestedTip
+          : config.RELAYER_MIN_PRIORITY_FEE_WEI;
       // Twice the base fee: it rises by at most an eighth a block, so a burst of ballots cannot
       // leave one priced below it for several blocks.
       const request = {

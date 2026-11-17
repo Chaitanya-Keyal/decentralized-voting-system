@@ -72,9 +72,7 @@ expensive at this scale. Paper also cannot let a voter check their own vote.
 The secret ballot deliberately separates the paper from the person, and
 anything that let a voter prove how they voted would also let them prove it to
 someone trying to buy their vote. Watching a paper election closely also needs
-agents at every booth all day. In short, paper costs money, time and the
-ability to verify your own vote, while hosted voting puts all four jobs in one
-pair of hands.
+agents at every booth all day.
 
 \subsection{Existing systems}
 
@@ -104,8 +102,9 @@ The Voatz finding applies to \projectname{} as much as to any other system: the
 chain protects a ballot only once it is on the chain. Building the system made
 the parts before that point concrete. They are the booth that makes the proof,
 the proving files it downloads, the relayer that submits the ballot, and the
-registrar that decides who is on the list. Section~5 describes how each is
-constrained: the proving files are checked against pinned hashes, the relayer
+registrar that decides who is on the list. Sections~\ref{sec:trust}
+and~\ref{sec:architecture} describe how each is constrained: the proving files
+are checked against pinned hashes, the relayer
 cannot alter a ballot and its receipts make a dropped ballot evident, and the
 registrar's list can be checked by every voter before voting opens.
 

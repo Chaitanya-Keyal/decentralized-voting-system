@@ -41,15 +41,12 @@ same lifecycle, factory and voter list design.
         election, so the contract rejects a second ballot without learning who
         sent either. A relayer submits the ballot and pays its gas, so a voter
         needs no wallet and no cryptocurrency. Any wallet can submit the ballot
-        instead if the relayer is unavailable. The contracts also accept
-        ballots through an ERC-2771~\cite{erc2771} forwarder, but the relayer
-        does not use it: the proof already binds the ballot, and on Sepolia the
-        forwarder added about 127,000 gas per ballot.
+        instead if the relayer is unavailable.
 \end{itemize}
 
 Around the contracts sit three off-chain services. The registrar checks a
-voter's institute email address with a one-time code and returns a signed
-receipt for every registration. The relayer is a separate process that checks
+voter's institute email address, through Google sign-in or a one-time code,
+and returns a signed receipt for every registration. The relayer is a separate process that checks
 each ballot completely before paying for it and keeps no request logs. The
 indexer is a read cache that makes election lists and ballot tables quick to
 show; nothing depends on it for correctness. Once an election's voter list is
@@ -62,29 +59,42 @@ anyone can check the deployed bytecode against the code described here.
 \paragraph{Headline results.}
 Under Ethereum mainnet's current rules, measured locally, a tier 2 ballot costs
 80,221 gas and a tier 3 ballot 296,692 gas: anonymity costs about 216,000 gas
-per ballot. The tier 3 ballot's cost does not depend on the size of the
-electorate: it stays within 24 gas of 296,680 from 4 to 65,536 voters. Sepolia,
-however, now runs the Glamsterdam upgrade~\cite{glamsterdam}, whose
-EIP-8037~\cite{eip8037} charges 1,530 gas for every byte of new state. Creating
-state there costs several times more: deploying the tier 2 election contract
-took 14.66 million gas against 2.08 million under mainnet's rules, and creating
-an election 3.09 million against 0.64 million. Section~6 therefore reports gas
-under both rule sets. The contracts pass over 90 Foundry tests, with 97.8\% line
-and 100\% branch coverage, and Slither reports no findings once its timestamp
-detector, which flags the deliberate time-gated phases, is set aside. A complete
-anonymous approval election, three voters with no wallets and one of them
-moving to a new browser with their backup, runs in the browser in about 30
-seconds including three proofs. \note{Latency on Sepolia (B1), proving time by
-device (B2), gas against roll size (C1, C2) and the usability test (E3) are
-being measured; add one sentence each once Section 6 has them.}
+per ballot. The tier 3 ballot's cost does not depend on the size of the voter
+list: from 4 to 65,536 voters it stays between 296,656 and 296,692 gas, and
+publishing the list costs the same at every size. Sepolia, however, now runs
+the Glamsterdam upgrade~\cite{glamsterdam}, whose EIP-8037~\cite{eip8037}
+charges 1,530 gas for every byte of new state. Creating state there costs
+several times more: deploying the tier 2 election contract took 14.66 million
+gas against 2.08 million under mainnet's rules, and creating an election about
+3.09 million against about 0.63 million. Section~6 therefore reports gas under
+both rule sets.
+
+The work that does grow with the list moves to the voter's device. Proving a
+ballot takes 0.57\,s at two voters and 1.52\,s at 65,536 on one ARM64 CPU
+core, while rebuilding the list to check it grows to 15.8\,s at 65,536. On
+Sepolia, with voters casting one at a time, a ballot was counted a median of
+11.1\,s after the voter pressed Cast (16 ballots; slowest 31.5\,s). A load test
+found that the relayer let through only one ballot per block; after the fix,
+64 simultaneous voters were all counted in the next block.
+\note{Proving time on phones (B2) and the usability test with real
+participants (E3): one sentence each once measured.}
+
+The contracts pass all 92 Foundry tests, with 97.8\% of lines and every branch
+covered when last measured, and Slither reports no findings once its timestamp
+detector, which flags the deliberate time-gated phases, is set aside. On a
+local chain, with the clock moved ahead between phases, a browser test runs a
+complete anonymous approval election with three voters who have no wallets,
+two of whom move to a new browser, one with the backup file and one with the
+private link. On Sepolia, anonymous elections with up to ten voters have run
+end to end in real time.
 
 We chose voting from the available domains because it has the widest gap
 between what an organiser claims and what anyone else can verify. A wrong stock
 count in a warehouse is caught at the next physical count, but a wrong election
 result is rarely checked again. In an election the participants are opponents,
-so the record has to be one that none of them controls, that nobody can quietly
-edit, and that anyone can check. A public blockchain provides such a record: the
-rules are enforced by the network, and anyone can re-run them.
+so the record has to be one that none of them controls and that anyone can
+check. A public blockchain provides such a record: the rules are enforced by
+the network, and anyone can re-run them.
 
 The design does not solve every problem in electronic voting. Its limits,
 namely the correctness of the voter list, coercion, the trusted setup, and

@@ -53,14 +53,15 @@ authority that dislikes how things are going cannot stall. What only the
 authority can do happens before the first ballot and is recorded on-chain: it
 can change an election's details until registration is due to open, its
 candidates until voting is due to open, and cancel it until the published list
-reaches its voting window. Any more power would let it influence ballots; any
-less, and nobody could set up an election at all.
+reaches its voting window. None of these lets it touch a ballot.
 
 \paragraph{Registrar.}
 Evidence of eligibility, such as a student's email address, must never end up
-on a public blockchain. The registrar therefore checks it off-chain, by
-emailing a six-digit code to an institute address, and publishes only the voter
-list's root, the voter count and the list's IPFS address. Every registration
+on a public blockchain. The registrar therefore checks it off-chain, either
+through Google sign-in limited to the institute's domain or by emailing a
+six-digit code to an institute address, and publishes only the voter list's
+root, the voter count and the list's IPFS address, its content identifier
+(CID), which names the file by a hash of its contents. Every registration
 earns a receipt the registrar signs, over the wallet in tier 2 or the identity
 commitment in tier 3. The list is published only after registration closes and
 before voting is due to open, and it can never change, because a registrar that
@@ -87,16 +88,16 @@ would be visible, and the tally is public.
 Anyone can audit an election without signing up or asking permission, because
 the ballots, the tally, the root and the voter count are all public. An audit
 that went through our backend would only check what we say, not what is on the
-blockchain, so the audit in the web application reads only the chain and IPFS
-and works with every \projectname{} service switched off.
+blockchain, so the audit in the web application reads only the chain and
+IPFS. It still passes with our API, indexer and relayer unreachable, as long
+as the voter list can be fetched from IPFS.
 
 \paragraph{Relayer.}
 The relayer exists so that voters do not need cryptocurrency: it pays the gas
 for anonymous ballots. It cannot change a ballot, because the choice and the
-nullifier are bound into the proof, and the forward request it submits is
-signed by a key the booth makes for that ballot alone. It is the only one of
-our services that has to stay up during voting, and any wallet can stand in for
-it. Because it can read each choice and decide whether to forward it, it also
+nullifier are bound into the proof, and it submits exactly the call the booth
+built. It is the only one of our services that handles ballots during voting,
+and any wallet can stand in for it. Because it can read each choice and decide whether to forward it, it also
 opens up an attack, described in Section~\ref{sec:trust}.
 
 \subsection{Functional requirements}
@@ -115,17 +116,17 @@ requirement.
   \endlastfoot
   FR1 & Let the Authority create an election with its candidates, registration and voting dates, and a ballot description, and allow changes to the candidates only before voting opens. & Met. A factory deploys each election as a minimal proxy clone~\cite{eip1167}; the description and manifestos go to IPFS. The ballot type and counting rule are also chosen at creation and never change. \\
   \addlinespace[2pt]
-  FR2 & Let the Registrar check eligibility off-chain, accept each commitment without putting personal data on-chain, and give the voter a signed receipt for it. & Met. Email codes, then a typed-data receipt signed by the registrar's key over the commitment (tier 3) or the wallet (tier 2), which the voter can check against the registrar the contract names. Email addresses stay in the registrar's database. \\
+  FR2 & Let the Registrar check eligibility off-chain, accept each commitment without putting personal data on-chain, and give the voter a signed receipt for it. & Met. Google sign-in limited to the institute's domain, or an emailed code, then a receipt signed by the registrar's key over the commitment (tier 3) or the wallet (tier 2), as EIP-712 typed data~\cite{eip712}, which the voter can check against the registrar the contract names. Email addresses stay in the registrar's database. \\
   \addlinespace[2pt]
   FR3 & When registration closes, have the Registrar publish the list of commitments and record its IPFS address, its root and the voter count in a single transaction, after which none of them can change. & Met. One call records all three, only between the close of registration and the start of voting; a second call reverts. The registrar publishes on its own once registration has closed. \\
   \addlinespace[2pt]
-  FR4 & Move between phases only through an explicit, one-way transaction that fails if it is attempted before its scheduled time. Only the Authority may configure or cancel an election, and only before voting opens; anyone may close voting and publish the result. & Met. Opening registration, opening voting, closing voting and finalizing are open to anyone once due. Cancellation is refused once the published list has reached its voting window. \\
+  FR4 & Move between phases only through an explicit, one-way transaction that fails if it is attempted before its scheduled time. Only the Authority may configure or cancel an election, and only before voting opens; anyone may close voting and publish the result. & Met, extended. Opening registration, opening voting, closing voting and finalizing are open to anyone once due. Cancellation is refused only once a published list has reached its voting window, so an election whose list never appeared, or whose voting window passed without voting opening, can still be cancelled rather than stay stuck. \\
   \addlinespace[2pt]
   FR5 & Accept a ballot only if it carries a valid zero-knowledge proof that the voter is on the published list, together with a nullifier and the chosen candidate. Record every nullifier, reject repeats, and reject any ballot beyond the voter count. & Met for tier 3, with the choice generalised to a bitmask under approval voting. The contract fixes the tree depth from the voter count and the proof's scope to its own address, so neither comes from the caller. Tier 2 applies the same rules with a Merkle proof and the voter's address in place of the nullifier. \\
   \addlinespace[2pt]
   FR6 & Have the booth download the published list, confirm that the Voter's commitment is on it, and build the proof locally, without asking the Registrar for anything at vote time. & Met. The booth rebuilds the tree, refuses a list that does not give the on-chain root and count, and proves in a Web Worker with proving files checked against pinned SHA-256 hashes. \\
   \addlinespace[2pt]
-  FR7 & Let the Relayer check a ballot's proof, and that its nullifier is unused, before paying the gas, and return a signed receipt. Warn the Voter and offer direct submission if no transaction appears by a deadline, and let a Voter who has gas skip the Relayer entirely. & Met. Before signing a receipt the relayer also checks the election, and simulates the whole forwarded call. The booth waits up to five minutes for the chain to record the nullifier. It warns when voting closes within five minutes, and always offers submission from any wallet. \\
+  FR7 & Let the Relayer check a ballot's proof, and that its nullifier is unused, before paying the gas, and return a signed receipt. Warn the Voter and offer direct submission if no transaction appears by a deadline, and let a Voter who has gas skip the Relayer entirely. & Met. Before signing a receipt the relayer also checks the election, and simulates the exact \texttt{castVote} call. The booth waits up to five minutes for the chain to record the nullifier. It warns when voting closes within five minutes, and always offers submission from any wallet. \\
   \addlinespace[2pt]
   FR8 & Change the tally only in the transaction that accepts a ballot, make the result permanent once it is published, and keep every ballot, the tally, the root, the voter count and the result readable from the blockchain alone. & Met. Each accepted ballot emits an event with its key and choice; the in-browser audit recounts from those events and compares with the contract's tally and winners. \\
 \end{longtable}
@@ -144,13 +145,13 @@ Section~6 reports the measured values.
   \endhead
   \bottomrule
   \endlastfoot
-  NFR1 & \emph{Ballot secrecy} (tier 3). Nothing on the blockchain links a ballot to a voter's commitment or registration. The choice itself is public; what stays hidden is who made it. This always holds against anyone reading the blockchain. Against our own operator it holds only if the Relayer is run separately from the Registrar, or if the Voter submits through a wallet not linked to them. Tier 2 ballots are open by design. & D3, an attempt to deanonymize ballots using all chain data \\
+  NFR1 & \emph{Ballot secrecy} (tier 3). Nothing on the blockchain links a ballot to a voter's commitment or registration. The choice itself is public; what stays hidden is who made it. Nothing on-chain links a ballot to a commitment; how well that hides a voter depends on the size of the list, the timing of ballots and the result. Against our own operator it also needs the Relayer and the Registrar to be run apart (Section~\ref{sec:trust}). Tier 2 ballots are open by design. & D3, an attempt to deanonymize ballots using all chain data \\
   \addlinespace[2pt]
   NFR2 & \emph{Eligibility.} A ballot is accepted only with a proof that the voter is on the published list, assuming the trusted setup is sound (Section~\ref{sec:trust}). & D2: a proof against the wrong root, or a tampered proof, must fail \\
   \addlinespace[2pt]
   NFR3 & \emph{One ballot per voter.} A second ballot from the same secret is rejected, and the number of accepted ballots never exceeds the published voter count. & D1, with fuzz tests \\
   \addlinespace[2pt]
-  NFR4 & \emph{Verifiability.} A Voter can find their own ballot and confirm that they are on the published list, and anyone can rebuild the root and recount the tally from the blockchain, even with all of our services offline. & D4, with our backend switched off \\
+  NFR4 & \emph{Verifiability.} A Voter can confirm that they are on the published list and that their ballot was counted, and anyone can rebuild the root and recount the tally from the blockchain and IPFS, without our API, indexer or relayer. & D4, with our API and relayer unreachable \\
   \addlinespace[2pt]
   NFR5 & \emph{Integrity of the count.} Only an accepted ballot changes the tally, and nobody, including the Authority, can change a tally, stop the count or block the result. & D5 \\
   \addlinespace[2pt]
@@ -195,10 +196,10 @@ Evaluation~1 partly unmet. Each change and its reason are recorded below.
 
   \item \textbf{The relayer is its own process.} It has its own key, its own
         queue store and no access to the registrar's database, and it keeps no
-        request logs. Keeping the two apart keeps apart who registered and when
-        ballots arrived, which is the operator condition NFR1 depends on.
+        request logs. Keeping the two apart is the operator condition NFR1
+        depends on (Section~\ref{sec:trust}).
 
-  \item \textbf{The relayer promises less than it checks.} Besides the proof
+  \item \textbf{The relayer checks more than planned.} Besides the proof
         and the nullifier (FR7), the relayer checks that the election is an
         anonymous \projectname{} election and simulates the call it will send
         before signing a receipt. A ballot the contract would reject
@@ -211,7 +212,7 @@ Evaluation~1 partly unmet. Each change and its reason are recorded below.
         key. The ballot's proof already binds the choice and the election, and
         \texttt{castVote} never reads the sender, so the signature added
         nothing the relayer could not already do or undo. It did add cost: on
-        Sepolia a forwarded ballot used 522,535 gas against 395,413 sent
+        Sepolia a forwarded ballot used 521,094 gas against 393,900 sent
         directly, mostly for a new storage slot holding each fresh key's nonce.
         The relayer now calls \texttt{castVote} itself. The forwarder is still
         deployed and tested, for relayers that expect it.
@@ -273,26 +274,29 @@ the other four hold in both tiers.
 
 \begin{itemize}
   \item \emph{Ballot secrecy.} The proof shows only that the voter is on the
-        list. A voter is hidden among everyone else on the list, so a single
-        ballot cast in a quiet hour is easier to guess. This holds fully
-        against anyone reading the blockchain; against our own operator it
-        needs the relayer to be run separately from the registrar, or the
-        voter to submit through a wallet not linked to them.
+        list, and nothing on-chain links a ballot to a commitment. A voter is
+        hidden among everyone else on the list and no further: in a small
+        list, a ballot cast in a quiet hour, or a unanimous result, says more.
+        Against our own operator secrecy needs one more condition. The
+        registrar knows who registered, and the relayer sees when each ballot
+        arrives and from which network address; run by the same people, the
+        two could be matched. So the relayer must be run apart from the
+        registrar, or the voter must submit through a wallet not linked to
+        them.
   \item \emph{Eligibility.} Only someone on the published list can produce a
         ballot that the contract accepts.
   \item \emph{One voter, one ballot.} Each nullifier, or in tier 2 each
         wallet, can vote only once, and the number of ballots is capped at the
         voter count.
-  \item \emph{Verifiability.} A voter can find their own ballot and confirm
-        they are on the list, and anyone can recount the tally from public
-        blockchain data and IPFS.
+  \item \emph{Verifiability.} A voter can confirm that they are on the list
+        and that their ballot was counted, and anyone can recount the tally
+        from public blockchain data and IPFS.
   \item \emph{Integrity of the count.} Only an accepted ballot changes the
         tally, and anyone can close voting and publish the result, so no
         operator can change it or hold it back.
 \end{itemize}
 
-There are also eight things \projectname{} does not guarantee, and we would
-rather state them plainly.
+There are also eight things \projectname{} does not guarantee.
 
 \begin{itemize}
   \item \emph{Coercion resistance and vote selling.} Anyone who holds a voter's
@@ -314,18 +318,17 @@ rather state them plainly.
         make this provable, but only before voting opens, and neither one makes
         the registrar honest.
   \item \emph{Privacy from the relayer, and selective censorship.} The relayer
-        sees each ballot's choice and the network address it came from. The
-        ballot itself names nobody, but an operator running both the registrar
-        and the relayer could match the two. The relayer could also quietly
-        drop the ballots for one candidate, and low turnout would hide it. The
+        sees each ballot's choice and the network address it came from, which
+        is why it must be run apart from the registrar (above). It could also
+        quietly drop the ballots for one candidate, and low turnout would hide
+        it. The
         receipt, the booth's wait for the chain and the option to submit from
         any wallet (FR7) limit this, but direct submission needs someone with
         gas.
   \item \emph{Network-level anonymity.} The relayer or the RPC provider sees the
-        network address a ballot comes from, and an operator that also ran
-        registration would have the address the person registered from. The
-        relayer keeps no request logs, but that is a promise rather than a
-        guarantee. A real fix would need Tor or a mixnet.
+        network address a ballot comes from. The relayer keeps no request logs,
+        but that is a promise rather than a guarantee. A real fix would need
+        Tor or a mixnet.
   \item \emph{Secrecy of the running tally.} Ballots are counted as they
         arrive, so a partial result is visible during voting and could
         influence people who have not voted yet. The timestamps also help
@@ -342,4 +345,8 @@ rather state them plainly.
         web wallet.
 \end{itemize}
 
-All eight are left as future work (Section~7).
+Section~7 takes up five of them: coercion, the relayer's view and its power
+to censor, the running tally, lost secrets and the served pages. The other
+three remain open. Fake voters and the correctness of the list come down to
+trusting the registrar, and network-level anonymity needs tools outside this
+project.

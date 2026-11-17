@@ -240,8 +240,7 @@ as Section~\ref{sec:trust} explains.
 
 \subsection{Gas-efficiency measures}\label{sec:gas-measures}
 
-Each of these was a deliberate choice. Section~6 measures the ones that can be
-measured. Every figure quoted here is under mainnet's current rules, from the
+Section~6 measures the ones that can be measured. Every figure quoted here is under mainnet's current rules, from the
 gas snapshot committed in \texttt{contracts/snapshots/} or the sweep in
 \texttt{bench/results/gas.csv}; Table~\ref{tab:a1} lists the main ones.
 
@@ -270,9 +269,8 @@ gas snapshot committed in \texttt{contracts/snapshots/} or the sweep in
         storage slot. A ballot writes one new storage slot, for its key, and
         updates the ballot count and the tally.
   \item \emph{No forwarder.} Sending \texttt{castVote} directly saves 38,522
-        gas per tier 3 ballot (296,692 against 335,214), and much more under
-        Glamsterdam, where the forwarder's nonce for each fresh key is new
-        state.
+        gas per tier 3 ballot under mainnet's rules (296,692 against 335,214)
+        and 127,194 on Sepolia (Section~\ref{sec:req-changes}).
 \end{itemize}
 
 Not everything was trimmed. Titles and candidate names are stored as strings so
@@ -300,9 +298,9 @@ taken directly from the deployed source.
     (\texttt{contracts/src/Election.sol}).},
   label={lst:recordballot}]{../contracts/src/Election.sol}
 
-A few properties are worth reading off the code. The public values of the proof
-are built from storage and from the contract's own address; the only input
-taken from the caller is the choice, the nullifier and the proof. The one
+The code shows several properties directly. The public values of the proof
+are built from storage and from the contract's own address; the only inputs
+taken from the caller are the choice, the nullifier and the proof. The one
 external call, to the verifier, is to a \texttt{view} function, so it runs as a
 static call and cannot change any state. All state changes come after it.
 \texttt{\_recordBallot} checks the key, the choice and the cap before writing
@@ -348,7 +346,7 @@ on-chain verifier are tested against each other. The tier 2 tests likewise use
 a voter list built by the TypeScript tree builder.
 
 When last measured, \texttt{forge coverage} reported 97.8\% of lines and every
-branch of the contracts. \note{Re-measure at the final commit.}
+branch of the contracts.
 
 Static analysis runs on every pull request and every push to the main
 branch. Continuous integration checks formatting,
