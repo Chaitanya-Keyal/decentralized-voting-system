@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { api } from "@/lib/api";
 import type { OnchainElection } from "@/lib/election";
 import { describeError } from "@/lib/errors";
-import { ipfsUrl } from "@/lib/ipfs";
+import { ipfsUrl, publicIpfsUrl } from "@/lib/ipfs";
 import { formatRelative, formatTime } from "@/lib/time";
 
 import { Button, ExternalLink, LinkButton, Mono, Notice, Spinner } from "../ui";
@@ -50,11 +50,19 @@ function RegistrationCount({ election, closed }: { election: OnchainElection; cl
 }
 
 function VoterList({ election }: { election: OnchainElection }) {
+  const elsewhere = publicIpfsUrl(election.voterListCid);
   return (
     <p className="text-sm text-zinc-600 dark:text-zinc-400">
       The voter list has {election.voterCount} {election.voterCount === 1 ? "voter" : "voters"}.
       Root <Mono value={election.voterRoot} />,{" "}
-      <ExternalLink href={ipfsUrl(election.voterListCid)}>full list on IPFS</ExternalLink>.
+      <ExternalLink href={ipfsUrl(election.voterListCid)}>full list on IPFS</ExternalLink>
+      {elsewhere && (
+        <>
+          {" "}
+          (also on <ExternalLink href={elsewhere}>Pinata&apos;s gateway</ExternalLink>)
+        </>
+      )}
+      .
     </p>
   );
 }

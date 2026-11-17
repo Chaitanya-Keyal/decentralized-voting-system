@@ -34,6 +34,13 @@ const schema = z
     HIDDEN_ELECTIONS: addressListSchema,
 
     IPFS_API_URL: z.url().default("http://127.0.0.1:5001"),
+    /**
+     * A Pinata API key (its JWT) that may upload files. With it, each voter list the registrar
+     * publishes is copied to Pinata with its election's documents, so that any IPFS gateway can
+     * serve them, not only this server's node. Without it, nothing is copied.
+     */
+    PINATA_JWT: optional(z.string().trim()),
+    PINATA_UPLOAD_URL: z.url().default("https://uploads.pinata.cloud/v3/files"),
 
     /** Only addresses at this domain can register. */
     EMAIL_DOMAIN: z.string().default("hyderabad.bits-pilani.ac.in"),

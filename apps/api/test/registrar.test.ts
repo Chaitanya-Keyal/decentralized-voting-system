@@ -54,6 +54,7 @@ vi.mock("../src/mailer", () => ({
 }));
 
 vi.mock("../src/ipfs", () => ({
+  copyToPinata: () => Promise.resolve({ copied: 0, failed: 0 }),
   pinJson: (value: unknown) => {
     if ((value as { description?: string }).description === "fail") {
       return Promise.reject(new Error("IPFS add failed at http://192.0.2.7:5001/?key=secret"));

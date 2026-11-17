@@ -47,6 +47,7 @@ import { env } from "./env";
 import type { Prisma } from "./generated/prisma/client";
 import { verifyGoogleIdToken } from "./google";
 import { HttpError, parse } from "./http";
+import { copyElectionToPinata } from "./documents";
 import { pinJson } from "./ipfs";
 import { sendCode as emailCode } from "./mailer";
 import { loggable } from "./redact";
@@ -500,6 +501,8 @@ async function publish(election: Address, log: FastifyBaseLogger): Promise<Publi
   await confirm(txHash);
 
   log.info({ election, root, count, cid, txHash }, "Published the voter list");
+  // A copy on Pinata, so that any IPFS gateway can serve the list; nobody waits for it.
+  void copyElectionToPinata(election, cid, log);
   return { root, count, cid, txHash };
 }
 

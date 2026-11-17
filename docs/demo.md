@@ -76,10 +76,12 @@ before then. Use anonymous ballots, with plurality counting and three or four ca
 ## During the demo
 
 1. **The election.** Open the election page and show the phase, the schedule and the contract
-   address. Each election is a minimal-proxy clone, so its own address on Etherscan shows almost
-   no code. For the source, open the implementation contract listed in
-   [`contracts/deployments/11155111.json`](../contracts/deployments/11155111.json), which is
-   verified on Sourcify.
+   address, then press **see it on Blockscout**, a public explorer run by others. Its **Logs**
+   tab names every event: the voter list's publication, each `VoteCast`, `Finalized` with the
+   tally. Each election is a minimal-proxy clone, so its own page shows only a few bytes of code;
+   the audit card links to the shared contract it copies, from
+   [`contracts/deployments/11155111.json`](../contracts/deployments/11155111.json), whose Solidity
+   source is verified on Sourcify. Etherscan shows the same data, raw.
 2. **Registration.** Put the registration page's address on the projector as a QR code. Each
    person opens it on their phone, creates a voting key, signs in with Google and registers. Point
    out the line explaining what the registrar can and cannot see. Anyone who will vote from

@@ -82,12 +82,19 @@ export default function AboutPage() {
 
       <h2>Checking it without trusting this site</h2>
       <p>
-        You do not have to take this site&apos;s word for anything. Each election page names its
-        contract and links to it on Blockscout, a block explorer run by others that reads the
-        blockchain for itself. There you can see every step sent to the election, every ballot (by
-        its ballot ID alone), the voter list&apos;s fingerprint, and the totals and winner. The
-        contracts&apos; source code is published and verified on Sourcify, and a voter list
-        downloaded from anywhere can be checked against the fingerprint in the contract.
+        You do not have to take this site&apos;s word for anything. Each election page links to its
+        contract on Blockscout, a block explorer run by others that reads the blockchain for itself.
+        There you can see every step sent to the election, every ballot (by its ballot ID alone),
+        the voter list&apos;s fingerprint, and the totals and winner. Each kind of election shares
+        one contract, whose source code is verified on Sourcify and readable on Blockscout.
+      </p>
+
+      <p>
+        Voter lists, descriptions and manifestos are on IPFS, where a document&apos;s address is a
+        hash of its contents. Besides this site&apos;s own IPFS node, the registrar copies them to
+        Pinata, a pinning service that offers them to the whole IPFS network, so any IPFS gateway or
+        node can fetch them. A copy from anywhere either matches the address the contract records or
+        it is not the published document.
       </p>
 
       <h2>Two kinds of election</h2>

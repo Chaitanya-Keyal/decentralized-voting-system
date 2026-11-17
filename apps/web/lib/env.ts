@@ -49,6 +49,14 @@ export const relayerUrl = setting(process.env.NEXT_PUBLIC_RELAYER_URL) ?? "http:
 export const ipfsGateway = setting(process.env.NEXT_PUBLIC_IPFS_GATEWAY) ?? "http://127.0.0.1:8080";
 
 /**
+ * On Sepolia, the registrar copies each published voter list and its election's documents to
+ * Pinata, which offers them to the whole IPFS network. Its public gateway, run by others, is the
+ * fallback when this site's gateway fails, and where anyone can fetch them without this site.
+ */
+export const publicIpfsGateway =
+  chain.id === sepolia.id ? "https://gateway.pinata.cloud" : undefined;
+
+/**
  * A public block explorer, run by others, where the chain has one. On Sepolia, Blockscout rather
  * than the chain's default, Etherscan: it reads the contracts' verified source from Sourcify, so it
  * shows their code and names every call and event, where Etherscan shows raw data.

@@ -13,7 +13,8 @@
     "test": "prisma generate && vitest run",
     "typecheck": "prisma generate && tsc --noEmit",
     "dev:relayer": "tsx watch src/relayer/main.ts",
-    "relayer": "tsx src/relayer/main.ts"
+    "relayer": "tsx src/relayer/main.ts",
+    "copy-to-pinata": "tsx src/copy-to-pinata.ts"
   },
   "dependencies": {
     "@dvote/shared": "workspace:*",

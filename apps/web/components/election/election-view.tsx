@@ -12,6 +12,7 @@ import { Card, ExternalLink, Mono } from "../ui";
 import { Audit } from "./audit";
 import { AuthorityPanel } from "./authority-panel";
 import { Ballots } from "./ballots";
+import { CheckElsewhere } from "./check-elsewhere";
 import { Description } from "./description";
 import { ElectionPending } from "./election-pending";
 import { NextStep } from "./next-step";
@@ -80,16 +81,7 @@ export function ElectionView({ address }: { address: string }) {
           description="Recount the election yourself, in this browser, from the chain and IPFS alone."
         >
           <Audit election={election} />
-          {explorerAddress(election.address) && (
-            <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
-              To check without this site at all, open the contract on {explorer?.name}, which reads
-              the blockchain for itself: its events list every ballot and the voter list&apos;s
-              fingerprint, and &ldquo;Read contract&rdquo; gives the totals and the winner.{" "}
-              <ExternalLink href={explorerAddress(election.address)!}>
-                Open on {explorer?.name}
-              </ExternalLink>
-            </p>
-          )}
+          <CheckElsewhere election={election} />
         </Card>
       )}
 

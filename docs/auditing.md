@@ -25,8 +25,10 @@ set to them.
 ## Keep your own copy of the voter list
 
 The contract stores only the list's root, its size and its IPFS content identifier (CID). The
-list itself lives on IPFS for as long as someone serves it. If you may want to audit the election
-later, keep a copy now, while our node still serves it.
+list itself lives on IPFS for as long as someone serves it. On Sepolia the registrar copies each
+list it publishes, with the election's description and manifestos, to Pinata, a pinning service
+that offers them to the whole IPFS network, so they do not depend on our server. If you may want
+to audit the election later, keep a copy of your own as well.
 
 1. Find the CID. The election page links to the list, or read it from the contract:
 
@@ -40,11 +42,11 @@ later, keep a copy now, while our node still serves it.
    ipfs pin add <cid>
    ```
 
-3. Or save the file from any gateway and check that it is the published one. A file whose CID
-   matches cannot have been changed:
+3. Or save the file from any gateway, such as Pinata's public one, and check that it is the
+   published one. A file whose CID matches cannot have been changed:
 
    ```sh
-   curl -o voter-list.json https://<gateway>/ipfs/<cid>
+   curl -o voter-list.json https://gateway.pinata.cloud/ipfs/<cid>
    ipfs add --only-hash --cid-version=1 voter-list.json   # must print the same CID
    ```
 
