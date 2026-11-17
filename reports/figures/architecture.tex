@@ -14,8 +14,6 @@
                       align=center, minimum width=3.3cm, minimum height=0.95cm},
     con/.style     = {draw=black, line width=1.1pt, fill=black!8, align=center,
                       minimum width=3.6cm, minimum height=0.95cm},
-    idle/.style    = {draw=black!45, dashed, fill=white, text=black!60,
-                      align=center, minimum width=3.6cm, minimum height=0.95cm},
     flow/.style    = {-{Latex[length=2.4mm,width=1.9mm]}, draw=black!75, thick},
     cache/.style   = {-{Latex[length=2.2mm,width=1.8mm]}, draw=black!45,
                       dash pattern=on 1.5pt off 1.5pt, thick},
@@ -50,7 +48,6 @@
   \node[con, minimum height=1.55cm] (elec) at (15.2, -2.75)
     {\textbf{One clone per election}\\\texttt{MerkleElection} (tier 2) or\\\texttt{SemaphoreElection} (tier 3)};
   \node[con] (ver)  at (15.2, -5.0) {\texttt{SemaphoreVerifier}\\Groth16, depths 1--32};
-  \node[idle] (fwd) at (15.2, -6.7) {\texttt{VoteForwarder}\\deployed; our relayer skips it};
 
   % ---- flows ----
   \draw[flow] (admin.east) -- node[lab, above, pos=0.55] {create; configure; cancel}

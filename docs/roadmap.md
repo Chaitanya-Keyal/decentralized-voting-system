@@ -73,7 +73,7 @@ secret to keep yet; the secret, and the backup copy of it, arrive with tier 3.
 
 **Frontend**
 - Admin console: create and configure an election, open each phase
-- Registration page: institute email and code; the voter signs with the wallet being
+- Registration page: Google sign-in with the institute account; the voter signs with the wallet being
   registered; the registrar's receipt is checked against the contract, shown and offered as a
   download
 - Ballot booth: downloads the voter list, checks the voter's own wallet is on it, builds its
@@ -94,9 +94,9 @@ also covers a voter restoring their key on a new browser and a refused second ba
 contracts are on Sepolia and verified on Sourcify (`contracts/deployments/11155111.json`), and a
 browser test runs a whole anonymous election there through the real registrar and relayer
 (`e2e/sepolia.spec.ts`). The public demo runs the same stack on Sepolia.
-Three things changed from the plan. The relayer submits `castVote` itself instead of going
-through `VoteForwarder`, so there is no throwaway signing key: the proof already binds the
-ballot, and the forwarder cost about 127,000 gas more per ballot on Sepolia
+Three things changed from the plan. The relayer submits `castVote` itself and there is no
+forwarder or throwaway signing key: the proof already binds the ballot, and a forwarder cost
+about 127,000 gas more per ballot on Sepolia
 ([architecture.md](architecture.md), section 4). The proving files are pinned by SHA-256,
 checked against the `@zk-kit/semaphore-artifacts` npm package. And the go/no-go below came out
 as go, so proving stays on the voter's device: about 0.6 to 1.5 s in Node.js on one ARM64 core,
@@ -104,7 +104,7 @@ and in the browser on an Android phone under two seconds up to 4,096 voters and 
 (B2).
 
 **Proofs**
-- Poseidon LeanIMT replacing the tier 2 tree; nullifiers scoped to the election ID
+- Poseidon LeanIMT replacing the tier 2 tree; nullifiers scoped to the election's address
 - Browser proving with Semaphore v4 in a Web Worker
 - The Semaphore setup files are taken from the published ceremony, and their hashes are
   checked against the `@zk-kit/semaphore-artifacts` npm package (the plan said the Semaphore
@@ -113,13 +113,12 @@ and in the browser on an Android phone under two seconds up to 4,096 voters and 
 **Contracts**
 - `castVote` accepts a Semaphore proof against the frozen root; nullifier registry; a
   ballot is rejected once spent nullifiers would exceed the voter count (FR5)
-- ERC-2771 support on `SemaphoreElection`, and `VoteForwarder` (OpenZeppelin `ERC2771Forwarder`)
 
 **Backend**
 - Relayer with a BullMQ queue: checks the proof and that the nullifier is unused before
   paying gas, rate limiting, and a signed receipt for every accepted ballot (FR7)
-- The relayer runs as its own process with its own database and logs, separate from the
-  registrar, and keeps no request logs
+- The relayer runs as its own process with its own Redis store, separate from the registrar,
+  and keeps no request logs
 
 **Frontend**
 - Registration creates the voter's Semaphore identity on their device and sends only its
@@ -146,7 +145,7 @@ Commit the second gas snapshot here. The difference from M1's is the cost of ano
 ## M3 · Feature freeze
 
 **Status: done.** Approval voting, Slither (no findings, one detector excluded) and
-coverage (98.9% of lines, every branch), reorg handling and the rebuild, the edge cases, and the
+coverage (every line and branch), reorg handling and the rebuild, the edge cases, and the
 audit panel are built, and the end-to-end tests run the audit. Auditors' instructions, including
 how to keep their own copy of the lists, are in [auditing.md](auditing.md). The relayer is
 reachable from a phone on the public demo. The tier 3 fallback below was not needed.
@@ -218,8 +217,8 @@ days before the evaluation.
 4. Open the block explorer and show that no on-chain field links ballots to the people who
    cast them.
 5. Attempt a double vote and watch it fail.
-6. Switch off the backend, and show the audit dashboard still recounting the correct tally
-   from the chain.
+6. Run the audit, which recounts the tally from the chain and IPFS alone, without our
+   backend.
 7. Finalize, and show the permanent result.
 
 ---

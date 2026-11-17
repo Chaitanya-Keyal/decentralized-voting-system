@@ -98,7 +98,7 @@ const sepoliaGas = (tier, operation) => {
   return rows.length ? Math.min(...rows.map((r) => Number(r.gas))) : undefined;
 };
 // The election contract's deployment, from the receipts in the report's deployment table.
-const DEPLOY_MERKLE_SEPOLIA = 14659413;
+const DEPLOY_MERKLE_SEPOLIA = 14630061;
 
 // C2: the booth's two costs, median of five runs.
 const c2 = readCsv(path.join(RESULTS, "summary-arm64-node24.csv"));
@@ -110,9 +110,8 @@ const c2series = (phase) =>
 const prove = c2series("prove");
 const rebuild = c2series("tree_rebuild");
 
-// B1, end to end on Sepolia, with the relayer as it is: runs from RELAYER_FINAL on (UTC, as in the
-// file names). From TIP_FLOOR on, it also offers at least a 0.1 gwei tip, as it does by default.
-const RELAYER_FINAL = "202611170200";
+// B1, end to end on Sepolia. From TIP_FLOOR on (UTC, as in the file names), the relayer offers at
+// least a 0.1 gwei tip, as it does by default; the runs before used the tip a node suggests.
 const TIP_FLOOR = "202611170340";
 const b1 = (from, to, burst) =>
   results(burst ? /^b1-sepolia-burst-\d+\.csv$/ : /^b1-sepolia-\d+\.csv$/)
@@ -121,9 +120,9 @@ const b1 = (from, to, burst) =>
       return stamp >= from && stamp < to;
     })
     .flatMap((file) => readCsv(file).map((r) => Number(r.click_to_counted_ms)));
-const b1NodeTip = b1(RELAYER_FINAL, TIP_FLOOR, false);
+const b1NodeTip = b1("0", TIP_FLOOR, false);
 const b1Now = b1(TIP_FLOOR, "9", false);
-const b1Burst = b1(RELAYER_FINAL, "9", true);
+const b1Burst = b1("0", "9", true);
 
 // B2: the booth's code in a laptop's browser, from the /bench page.
 const laptop = fs.existsSync(path.join(RESULTS, "summary-laptop-core-ultra-7-256v-chromium.csv"))
@@ -440,7 +439,7 @@ async function main() {
     // Chain and storage
     card(s, 6.9, 1.15, 2.6, 2.45, C.navy);
     text(s, "Ethereum Sepolia", { x: 7.08, y: 1.25, w: 2.3, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.amber });
-    text(s, ["Two election factories (clones)", "Wallet and anonymous election logic", "Semaphore verifier", "ERC-2771 forwarder (kept, unused by the relayer)"].map((t, i, a) => ({ text: t, options: { bullet: true, breakLine: i < a.length - 1 } })), {
+    text(s, ["Two election factories (clones)", "Wallet and anonymous election logic", "Semaphore verifier"].map((t, i, a) => ({ text: t, options: { bullet: true, breakLine: i < a.length - 1 } })), {
       x: 7.08, y: 1.68, w: 2.3, h: 1.85, fontSize: 11, color: C.white, paraSpaceAfter: 4,
     });
     card(s, 6.9, 3.8, 2.6, 0.95);
@@ -494,7 +493,7 @@ async function main() {
       text(s, what, { x: 2.2, y, w: 7.1, h: 0.66, fontSize: 12.5, valign: "middle" });
     });
     pageNo(s, ++page);
-    s.addNotes("Elections are cheap clones of one implementation per tier. Phase changes are time-gated; the only role with real power is the registrar's, and it acts once. Ninety-two Foundry tests, five of them fuzz tests; Slither reports nothing apart from the deliberate timestamp checks.");
+    s.addNotes("Elections are cheap clones of one implementation per tier. Phase changes are time-gated; the only role with real power is the registrar's, and it acts once. Ninety Foundry tests, five of them fuzz tests; Slither reports nothing apart from the deliberate timestamp checks.");
   }
 
   // 7. What changed ----------------------------------------------------------
@@ -502,7 +501,7 @@ async function main() {
     const s = pres.addSlide();
     title(s, "What changed since Evaluation 1, and why", "Changes");
     const changes = [
-      [I.relay, "The relayer calls the contract directly", "The proof already binds the ballot. Going through the ERC-2771 forwarder would add about a third more gas on Sepolia."],
+      [I.relay, "No forwarder", "The relayer calls the contract directly. The proof already binds the ballot, and an ERC-2771 forwarder added about a third more gas per ballot on Sepolia."],
       [I.ruler, "Approval voting", "A voter can approve several candidates, as committee seats need. The counting rule is fixed when the election is created."],
       [I.gas, "Sepolia's Glamsterdam upgrade", "New state costs 1,530 gas a byte there, so deployment takes its gas limits from the network, and gas is reported under both rule sets."],
       [I.bolt, "Both tiers offered", "Wallet ballots stay as a choice for open votes: about 3.7 times cheaper per ballot under mainnet's rules, with no proving."],
@@ -545,7 +544,7 @@ async function main() {
       },
     );
     stat(s, n0(Number(snap3.castVote)), "gas, an anonymous ballot (local, mainnet rules)", 6.7, 1.2, 2.8);
-    stat(s, `± ${n0((Math.max(...flatFrom4) - Math.min(...flatFrom4)) / 2)}`, "gas of spread, 4 to 65,536 voters: calldata bytes, not list size", 6.7, 2.45, 2.8, C.navy);
+    stat(s, n0(Math.max(...flatFrom4) - Math.min(...flatFrom4)), "gas of spread, 4 to 65,536 voters: calldata bytes, not list size", 6.7, 2.45, 2.8, C.navy);
     stat(s, n0(Number(snap3.publishVoterList)), "gas to publish a list of any size", 6.7, 3.7, 2.8, C.amber);
     pageNo(s, ++page);
     s.addNotes("The central claim. Each point is a real election on a local node. Only a root, a count and a content hash go on-chain, so publishing is flat; the anonymous ballot is flat because the verifier's work does not grow with the list. The wallet ballot grows a little, one hash per tree level.");
@@ -574,7 +573,7 @@ async function main() {
     text(s, "local, mainnet rules", { x: 4.4, y: 1.8, w: 2.0, h: 0.25, fontSize: 10, color: C.muted, align: "right" });
     text(s, "Sepolia, Glamsterdam", { x: 6.8, y: 1.8, w: 2.5, h: 0.25, fontSize: 10, color: C.red, align: "right" });
     pageNo(s, ++page);
-    s.addNotes("Foundry's EVM does not model EIP-8037 yet, so its own gas estimates for Sepolia are about seven times too low. We deploy with the node's estimates, and report both rule sets.");
+    s.addNotes("Foundry's EVM does not model EIP-8037 yet, so its own gas estimates for deploying contracts on Sepolia are about seven times too low. We deploy with the node's estimates, and report both rule sets.");
   }
 
   // 10. C2 -----------------------------------------------------------------------
@@ -653,7 +652,7 @@ async function main() {
     const s = pres.addSlide();
     title(s, "Security properties, as tested", "Security (D1–D5)");
     const props = [
-      [true, "D1 One ballot per voter", "A reused nullifier is refused, also through the forwarder with a second key; the relayer refuses it before paying."],
+      [true, "D1 One ballot per voter", "A reused nullifier is refused, whoever sends it again; the relayer refuses it before paying."],
       [true, "D2 Only listed voters", "Real proofs against another root, at the wrong depth, for another election, tampered or with a changed choice: all refused."],
       [false, "D3 Ballot secrecy", "Holds against the chain. Against the operators it holds while the relayer is run apart from the registrar."],
       [true, "D4 Anyone can verify", "The audit recounts and re-checks every proof from the chain and IPFS, and passes with our API and relayer blocked."],
@@ -751,7 +750,7 @@ async function main() {
       { text: "MACI-style re-voting against coercion, encrypted ballots until voting closes, institute single sign-on, several relayers, and pages a voter can verify." },
     ], { x: 0.7, y: 4.2, w: 8.6, h: 0.75, fontSize: 13, valign: "middle" });
     pageNo(s, ++page);
-    s.addNotes("These are stated in Section 3 of the report as non-guarantees, and Section 7 says what would address each.");
+    s.addNotes("These are stated in Section 3 of the report as non-guarantees. Section 7 says what would address three of them; an honest roll still rests on the registrar.");
   }
 
   // 16. Close ------------------------------------------------------------------

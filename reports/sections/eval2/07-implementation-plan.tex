@@ -37,9 +37,9 @@ Some items were built differently from the plan:
 \begin{itemize}
   \item \textbf{The relayer's path.} The plan had the booth sign each ballot
         with a fresh key and send it through an ERC-2771~\cite{erc2771}
-        forwarder. The relayer instead calls \texttt{castVote} itself, for the
-        reasons given in Section~\ref{sec:req-changes}. The forwarder stays
-        deployed and tested.
+        forwarder. The relayer instead calls \texttt{castVote} itself, and
+        there is no forwarder, for the reasons given in
+        Section~\ref{sec:req-changes}.
   \item \textbf{The proving files.} The plan was to check them against hashes
         published in the Semaphore repository. They are instead pinned by
         SHA-256 against the npm package of the same release, whose own
@@ -85,7 +85,7 @@ planned, and the two fallbacks were never needed:
   \item \emph{Not enough Sepolia ETH.} Gas and scaling measurements run on a
         local node, as planned. Test ETH has been more than enough for
         everything else: the current deployment of both tiers cost
-        0.00069\,ETH.
+        0.00061\,ETH.
   \item \emph{Proving moves to a server.} Not needed, as above.
   \item \emph{Tier 3 not ready, so tier 2 is demonstrated.} Not needed: tier 3
         runs on Sepolia.

@@ -22,7 +22,7 @@ prevents them from doing, as implemented. The paragraphs after it explain why.
       & Create an election with its candidates, dates, ballot type and counting
         rule; change details before registration opens and candidates before
         voting opens; cancel before voting opens
-      & Cast or change a ballot; change the voter list; stop voting once the list
+      & Cast a ballot unless it is on the list, or change one; change the voter list; stop voting once the list
         is published and its window has begun; withhold the result            \\
     Registrar
       & Check eligibility off-chain, register wallets or commitments, sign
@@ -57,8 +57,8 @@ reaches its voting window. None of these lets it touch a ballot.
 
 \paragraph{Registrar.}
 Evidence of eligibility, such as a student's email address, must never end up
-on a public blockchain. The registrar therefore checks it off-chain, either
-through Google sign-in limited to the institute's domain, and publishes only the voter list's
+on a public blockchain. The registrar therefore checks it off-chain, through
+Google sign-in limited to the institute's domain, and publishes only the voter list's
 root, the voter count and the list's IPFS address, its content identifier
 (CID), which names the file by a hash of its contents. Every registration
 earns a receipt the registrar signs, over the wallet in tier 2 or the identity
@@ -144,7 +144,7 @@ Section~6 reports the measured values.
   \endhead
   \bottomrule
   \endlastfoot
-  NFR1 & \emph{Ballot secrecy} (tier 3). Nothing on the blockchain links a ballot to a voter's commitment or registration. The choice itself is public; what stays hidden is who made it. Nothing on-chain links a ballot to a commitment; how well that hides a voter depends on the size of the list, the timing of ballots and the result. Against our own operator it also needs the Relayer and the Registrar to be run apart (Section~\ref{sec:trust}). Tier 2 ballots are open by design. & D3, an attempt to deanonymize ballots using all chain data \\
+  NFR1 & \emph{Ballot secrecy} (tier 3). Nothing on the blockchain links a ballot to a voter's commitment or registration. The choice itself is public; what stays hidden is who made it. How well that hides a voter depends on the size of the list, the timing of ballots and the result. Against our own operator it also needs the Relayer and the Registrar to be run apart (Section~\ref{sec:trust}). Tier 2 ballots are open by design. & D3, an attempt to deanonymize ballots using all chain data \\
   \addlinespace[2pt]
   NFR2 & \emph{Eligibility.} A ballot is accepted only with a proof that the voter is on the published list, assuming the trusted setup is sound (Section~\ref{sec:trust}). & D2: a proof against the wrong root, or a tampered proof, must fail \\
   \addlinespace[2pt]
@@ -207,15 +207,16 @@ the reason given.
         ballot per nullifier, and a rate limit per client, protect the
         relayer's funds.
 
-  \item \textbf{The relayer does not use the ERC-2771 forwarder.} Evaluation~1
-        planned to relay ballots through a forwarder, each signed by a fresh
-        key. The ballot's proof already binds the choice and the election, and
+  \item \textbf{No ERC-2771 forwarder.} Evaluation~1 planned to relay
+        ballots through a forwarder~\cite{erc2771}, each signed by a fresh key.
+        The ballot's proof already binds the choice and the election, and
         \texttt{castVote} never reads the sender, so the signature added
-        nothing the relayer could not already do or undo. It did add cost: on
-        Sepolia a forwarded ballot used 521,094 gas against 393,900 sent
-        directly, mostly for a new storage slot holding each fresh key's nonce.
-        The relayer calls \texttt{castVote} itself. The forwarder is still
-        deployed and tested, for relayers that expect it.
+        nothing the relayer could not already do or undo. It did add cost:
+        measured on Sepolia, a forwarded ballot used 127,194 gas more than one
+        sent directly, mostly for a new storage slot holding each fresh key's
+        nonce (\texttt{bench/results/sepolia-gas-202611170127.csv}). The relayer
+        therefore calls \texttt{castVote} itself, and \projectname{} has no
+        forwarder.
 
   \item \textbf{Direct submission is open to any wallet.} Evaluation~1 allowed
         a voter with gas to skip the relayer. Since an anonymous ballot carries

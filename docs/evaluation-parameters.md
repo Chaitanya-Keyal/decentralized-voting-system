@@ -65,7 +65,7 @@ linear in the roll; proving grows only with the tree's depth. This is the most l
 | D2 | Eligibility enforcement | A valid proof against the wrong root, and a tampered proof, must revert |
 | D3 | Ballot secrecy | Deanonymization attempt over all chain data; the operator condition reported beside the result |
 | D4 | Verifiability | A voter finds their own ballot; an observer recomputes the tally with our backend off |
-| D5 | Authority containment | An observer closes voting and finalizes; the authority cannot vote or alter a frozen root |
+| D5 | Authority containment | An observer closes voting and finalizes; the authority cannot vote unless it is on the list, or alter a frozen root |
 
 D2 holds only under the trusted setup assumption. D3 is conditional: against the
 chain nothing should be linkable, but against the operator secrecy holds only
@@ -90,8 +90,8 @@ E2 is zero by design: a voter who must first acquire ETH narrows the electorate
 to people who already hold cryptocurrency. That is also why direct submission is
 no general answer to a censoring relayer.
 
-E3 was a cognitive walkthrough, not a user study: a model playing a student is not a
-student. The report says so beside the result.
+E3 was run as a simulation, a cognitive walkthrough, and the report says so beside the
+result.
 
 ## Benchmark methodology
 

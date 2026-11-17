@@ -12,7 +12,8 @@ outside has any way to check that they were handled honestly.
 the ballot box and the count. The voter list, the election schedule and the
 count are held by smart contracts on a public test blockchain, Ethereum
 Sepolia~\cite{sepolia}. The Election Authority that runs an election cannot cast
-or change a ballot, cannot change the voter list once it has been published,
+a ballot unless it is on the voter list, cannot change one, cannot change the
+voter list once it has been published,
 and cannot stop the count: once voting has ended, anyone can close it and
 publish the result.
 
@@ -58,15 +59,15 @@ anyone can check the deployed bytecode against the code described here.
 
 \paragraph{Headline results.}
 Under Ethereum mainnet's current rules, measured locally, a tier 2 ballot costs
-80,221 gas and a tier 3 ballot 296,692 gas: anonymity costs about 216,000 gas
+80,221 gas and a tier 3 ballot 296,670 gas: anonymity costs about 216,000 gas
 per ballot. The tier 3 ballot's cost does not depend on the size of the voter
-list: from 4 to 65,536 voters it stays between 296,656 and 296,692 gas, and
+list: from 4 to 65,536 voters it stays between 296,634 and 296,670 gas, and
 publishing the list costs the same at every size. Sepolia, however, now runs
 the Glamsterdam upgrade~\cite{glamsterdam}, whose EIP-8037~\cite{eip8037}
 charges 1,530 gas for every byte of new state. Creating state there costs
-several times more: deploying the tier 2 election contract took 14.66 million
+several times more: deploying the tier 2 election contract took 14.63 million
 gas against 2.08 million under mainnet's rules, and creating an election about
-3.09 million against about 0.63 million. Section~6 therefore reports gas under
+2.97 million against about 0.6 million. Section~6 therefore reports gas under
 both rule sets.
 
 The work that does grow with the list moves to the voter's device. Proving a
@@ -80,8 +81,7 @@ all ten registered and voted, two of them with help.
 On an Android phone a ballot is proved in under two seconds for any list up
 to 4,096 voters, and in 9.1\,s at 65,536.
 
-The contracts pass all 92 Foundry tests, with 98.9\% of lines and every branch
-covered, and Slither reports no findings once its timestamp
+The contracts pass all 90 Foundry tests, which cover every line and branch, and Slither reports no findings once its timestamp
 detector, which flags the deliberate time-gated phases, is set aside. On a
 local chain, with the clock moved ahead between phases, a browser test runs a
 complete anonymous approval election with three voters who have no wallets,

@@ -211,8 +211,6 @@ count, and leaves one party in control of the franchise.
 │                                          └──verifies──▶ Semaphore  │
 │                                                         verifier   │
 │        both extend Election (lifecycle, VoterRegistry, TallyLib)   │
-│                                                                    │
-│   VoteForwarder (ERC-2771; accepted, not used by our relayer)      │
 └────────────────────────────────────────────────────────────────────┘
 ```
 The ballot booth talks to the backend to register and to hand a finished ballot to the relayer.
@@ -231,34 +229,30 @@ server is down, or lying, the result is still verifiable; the list can come from
 has it, since it is checked against the root. With the leaf set on IPFS a voter can also still
 build a proof without us. Casting it is the weaker half: with the relayer down,
 submission costs the voter their own gas, which section 1 concedes most of them will not have. This
-is the single most important architectural property to demo in Eval 2: **kill the backend mid-demo
-and show the tally still verifies.**
+is the single most important architectural property to show in Eval 2: **the audit recounts the
+tally from the chain and IPFS alone, and passes with our backend unreachable.**
 
 ## 4. Smart contracts
 
 | Contract | Responsibility | Notes |
 |---|---|---|
-| `ElectionFactory.sol` | Deploys and registers elections | EIP-1167 minimal proxy clones, one factory per tier, each cloning its own implementation. In the tier 2 gas snapshot, creating a later election, clone and set-up with three candidates, costs 622,262 gas; deploying a full copy of the election contract costs 2,084,623 |
+| `ElectionFactory.sol` | Deploys and registers elections | EIP-1167 minimal proxy clones, one factory per tier, each cloning its own implementation. It records only `isElection`; its `ElectionCreated` events list every election. In the tier 2 gas snapshot, creating an election, clone and set-up with three candidates, costs 595,090 gas; deploying a full copy of the election contract costs 2,080,541 |
 | `Election.sol` | Lifecycle state machine, candidate roster, ballot acceptance, tally storage | Abstract base of both tiers; one clone per election. The counting rule is fixed when the election is created. Accepting a ballot reverts once spent ballot keys reach the roll size |
 | `MerkleElection.sol` | Tier 2 `castVote(choice, proof)` | Checks a keccak Merkle proof that the sender's address is on the list; the ballot key is the address |
 | `SemaphoreElection.sol` | Tier 3 `castVote(choice, nullifier, points)` | Calls Semaphore's verifier with the stored root, the election's own address as the scope and the tree depth the contract computes, in constant time, from the stored roll size; never with values from the caller. The ballot key is the nullifier |
 | `VoterRegistry.sol` | Merkle root, roll size and leaf-set CID per election | A base of `Election`. No commitment is stored on-chain. All three values are written in one transaction and never change afterwards |
 | `SemaphoreVerifier` | Groth16 verification of the membership proof | Semaphore's standalone verifier, called with our own root, not Semaphore's group contracts. The tree depth selects the verification key, which is why the depth is pinned in the contract |
 | `TallyLib.sol` | Counting rules: plurality and approval | Under approval a choice is a non-empty bitmask of candidates, each of which gets a vote; ties give several winners |
-| `VoteForwarder.sol` | ERC-2771 trusted forwarder | OpenZeppelin `ERC2771Forwarder`. Tier 3 elections accept ballots through it, but our relayer does not use it: see below |
 
-The forwarder is easy to credit with a protection it does not give. It is the proof, not the
-EIP-712 signature, that stops a relayer altering a ballot:
-the proof commits to the nullifier and the candidate signal, so any tampering invalidates it,
-and the nullifier blocks replay. `castVote` never reads the sender at all, so ERC-2771 is not a
-security boundary here and a relayer can simply submit the ballot itself, with the same result.
-The plan was to use it anyway, for a request deadline and the audited implementation, but
-measurement settled it the other way. Under mainnet's current rules a ballot through the
-forwarder costs 335,214 gas against 296,692 submitted directly. On Sepolia, which runs
-Glamsterdam, the gap was about 127,000 gas per ballot (521,094 against 393,900), most of it a
-new nonce slot in the forwarder for the fresh key each forwarded ballot was signed with, which
-EIP-8037 prices as new state. So the relayer submits `castVote` itself and the booth signs
-nothing; the forwarder stays deployed and accepted for any ERC-2771 relayer that wants it.
+There is no ERC-2771 forwarder, although Evaluation 1 planned one. It would be easy to credit
+with a protection it does not give: it is the proof, not a signature on the call, that stops a
+relayer altering a ballot. The proof commits to the nullifier and the candidate signal, so any
+tampering invalidates it, and the nullifier blocks replay. `castVote` never reads the sender at
+all, so a relayer simply submits the ballot itself. Measured on Sepolia, which runs Glamsterdam,
+forwarding cost about 127,000 gas more per ballot, most of it a new nonce slot for the fresh key
+each forwarded ballot was signed with, which EIP-8037 prices as new state
+(`bench/results/sepolia-gas-202611170127.csv`). So the relayer submits `castVote` itself and the
+booth signs nothing.
 
 ### Lifecycle
 
@@ -369,7 +363,7 @@ These figures are under mainnet's current rules, which Foundry's local EVM imple
 runs Glamsterdam, whose EIP-8037 prices new state at 1,530 gas per byte, so a new storage slot
 is charged 97,920 gas for its state on top of the write itself, and deploying code costs about
 1,530 gas per byte instead of 200. Every ballot writes at least one new slot (its nullifier or
-address), so a typical tier 3 ballot cost 393,900 gas there. The shape in the roll size is
+address), so a typical tier 3 ballot cost 393,866 gas there. The shape in the roll size is
 unchanged.
 
 The two tiers do not share a tree, and the move from one to the other is a replacement rather

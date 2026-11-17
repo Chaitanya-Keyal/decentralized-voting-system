@@ -50,7 +50,7 @@ contract tests at that commit, D3 from the public data of two test elections
 on Sepolia, and D4 from the local browser test. E1 counts the actions in the
 interface as built, and E2 is read off the browser tests.
 
-\subsection{Results by evaluation parameter}
+\subsection{Explanation of Results per evaluation parameters}
 
 Results are presented against the parameters defined in the Evaluation~1
 report. Its predictions were about the shape of each result; where one was
@@ -75,38 +75,33 @@ tier~2 ballot: that is the price of anonymity on-chain.
     \toprule
     \textbf{Operation} & \textbf{Local} & \textbf{Sepolia} \\
     \midrule
-    Create an anonymous election (three candidates)          & 639,707 & 3,092,078 \\
-    Publish a voter list (root, size, CID)                   & 147,319 & 581,519 \\
+    Create an anonymous election (three candidates)          & 595,068 & 2,969,319 \\
+    Publish a voter list (root, size, CID)                   & 147,165 & 581,365 \\
     Wallet ballot, the election's first                      & 114,397 & 372,893 \\
     Wallet ballot, typical                                   & 80,221  & --- \\
-    Anonymous ballot, the election's first                   & 330,892 & 589,752 \\
-    Anonymous ballot, typical, direct or relayed             & 296,692 & 393,900 \\
-    Anonymous ballot through the ERC-2771 forwarder          & 335,214 & 521,094 \\
-    Close voting (wallet election)                           & 33,143  & 34,743 \\
+    Anonymous ballot, the election's first                   & 330,870 & 589,706 \\
+    Anonymous ballot, typical, direct or relayed             & 296,670 & 393,866 \\
+    Close voting (wallet election)                           & 33,121  & 34,721 \\
     Finalize (wallet election)                               & 89,881  & 159,490 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 The Sepolia column is one run on the deployment of Section~4, in blocks
-12,151,155 to 12,151,247 at a gas price of 16~wei
-(\nolinkurl{bench/results/sepolia-gas-202611170127.csv}). It cast one wallet
-ballot, so it has no typical one. Its election was not the first from its
-factory and had a longer title than the local one, so it wrote slightly more
-state; locally a first election costs 639,707 gas and a later one about
-622,262 (in the tier~2 snapshot), and the Sepolia figure is about five times
-either.
+12,157,523 to 12,157,613 at a gas price of 20 to 21~wei
+(\nolinkurl{bench/results/sepolia-gas-202611172302.csv}). It cast one wallet
+ballot, so it has no typical one. Its election had a longer title than the
+local one, so it wrote slightly more state; locally creating an election costs
+595,068 gas, and the Sepolia figure is about five times that.
 
 Glamsterdam's EIP-8037 charges 1,530 gas for each byte of new state: a new
 storage slot is charged 97,920 gas for its state, on top of the cost of the
 write itself, and deployed code $(120 + \textit{length}) \times 1{,}530$ gas
 instead of 200 per byte. Every ballot creates at least one slot, for its
-nullifier; measured, a typical anonymous ballot rose by 97,208 gas. Creating an
+nullifier; measured, a typical anonymous ballot rose by 97,196 gas. Creating an
 election writes a clone and its configuration, and costs about five times as
 much. Deploying the contracts rose more still: \texttt{MerkleElection} took
-14.66 million gas on Sepolia against 2.08 million locally. A forwarded ballot
-creates a second slot, for its fresh key's nonce, and so cost 127,194 gas more
-than one sent directly (Section~\ref{sec:req-changes}).
+14.63 million gas on Sepolia against 2.08 million locally.
 
 A fiat cost per vote is deliberately not a parameter: it would measure a gas
 price and an exchange rate on one day, not the system. Fees on Sepolia are
@@ -199,9 +194,9 @@ the code loads (1.4\,s at 16 voters), and rebuilding takes only milliseconds.
 This is the design's central claim, and Figure~\ref{fig:c1} tests it with a
 real election at every power of two from 2 to 65,536 voters
 (\texttt{bench/src/gas.ts}). Publishing a voter list costs the same at every
-size, 147,165 gas in tier~2 and 147,319 in tier~3, because only a root, a
-count and a CID go on-chain. A tier~3 ballot is flat too: 296,315 gas at two
-voters, then between 296,656 and 296,692 from 4 to 65,536. The differences
+size, 147,165 gas in either tier, because only a root, a count and a CID go
+on-chain. A tier~3 ballot is flat too: 296,269 gas at two voters, then between
+296,634 and 296,670 from 4 to 65,536. The differences
 there are multiples of 12 gas, the price gap between a zero and a non-zero
 byte of calldata, so they come from the proof's bytes, not from the size of
 the list. A tier~2 ballot is not flat. It grows by
@@ -254,7 +249,7 @@ against the on-chain root instead of accepting a Merkle path it is handed.
 With five runs per point, the 95th percentile is the slowest run. For proving
 it is within 10\% of the median at every size except two voters, where the
 first proof of the run also warms up the prover (1.09\,s); for rebuilding it
-is within 3\% from 1,024 voters up, and below that the times are a few
+is within 4\% from 1,024 voters up, and below that the times are a few
 milliseconds.
 
 \begin{figure}[htbp]
@@ -320,8 +315,9 @@ twelve minutes. DVote's relayer instead sends ballots one after another with
 consecutive nonces, without waiting for each to be mined, and keeps up to 64 in
 flight. Sixteen or sixty-four simultaneous voters are
 then all counted in the next block, 256 within six blocks, and 1,024 within
-twenty; no ballot failed at any load. (The smallest burst is accepted slowest
-because it includes the relayer loading its verification key.)
+twenty; no ballot failed at any load. (The burst of 16 is accepted more slowly
+than the burst of 64 because it includes the relayer loading its verification
+key.)
 
 What gives way first is the relayer's own pace. It checks every proof before
 accepting a ballot, one at a time, at six to ten ballots a second, and it
@@ -330,14 +326,14 @@ blocks. At 1,024 simultaneous voters the last ballot was counted after
 5.2~minutes, and 69 of them took longer than the booth's five minutes of
 patience: those voters would have been told to check back, although every
 ballot was counted. The chain is far from its limit: a Sepolia block holds
-about 500 tier~3 ballots at 393,900 gas each. Checking proofs on several
+about 500 tier~3 ballots at 393,866 gas each. Checking proofs on several
 cores, and running more than one relayer, would raise the ceiling.
 
 \subsubsection{Security and correctness (D1--D5)}
 
 \paragraph{D1, double-vote resistance: holds.}
 A replayed nullifier reverts with \texttt{AlreadyVoted} in the contract tests,
-including a replay through the forwarder under a second fresh key, and a fuzz
+including the same ballot sent again by another account, and a fuzz
 test casts ballots under arbitrary keys. A ballot past the published voter
 count reverts with \texttt{BallotCapReached}. The relayer refuses a ballot
 whose nullifier is spent or already queued before paying for it, and the booth
@@ -421,7 +417,7 @@ Table~\ref{tab:e3} gives the results.
 
 \begin{table}[htbp]
   \centering
-  \caption{Simulated usability test (E3), ten participants.}
+  \caption{Simulated usability test (E3): ten participants, in the final walkthrough.}
   \label{tab:e3}
   \small
   \begin{tabular}{@{}R{2.6cm}R{2.4cm}R{2.4cm}R{2.4cm}R{2.6cm}@{}}
@@ -466,7 +462,7 @@ proof, is the slow step, and it is the price of not taking the registrar's word
 for the list.
 
 Latency on Sepolia is mostly the chain's own. A typical ballot was counted
-within one slot of the click, and the booth noticed it within four seconds of
+within one slot of the click, and the booth noticed it within four and a half seconds of
 its block; the slower ballots waited for a later block. Under load, the limit
 is the relayer's own proof checking, far below the chain's capacity: a room of
 voters casting at once is counted in the next block.

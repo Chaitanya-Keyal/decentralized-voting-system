@@ -31,8 +31,8 @@ section 2, says what that leaves open.
 ## What it does
 
 - **Election authority** creates an election, sets the candidate roster, chooses plurality or
-  approval counting, and defines the registration and voting windows. It cannot vote, cannot
-  edit ballots, and cannot stop the count once voting opens.
+  approval counting, and defines the registration and voting windows. It cannot vote unless it
+  is on the voter list, cannot edit ballots, and cannot stop the count once voting opens.
 - **Registrar** checks that a voter holds an institute email address, by Google sign-in for the
   institute's domain, and publishes only the Merkle root of the voter
   list on-chain, with the list itself on IPFS; no personal data ever touches the chain.

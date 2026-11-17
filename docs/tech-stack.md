@@ -9,7 +9,7 @@ carries its reasoning and the alternative it beat.
 |---|---|---|
 | **Solidity `^0.8.28`** | Vyper, Rust/Solana | Largest ecosystem, matches the course, and one language for the local node and the public testbed alike |
 | **Foundry** (forge/cast/anvil) | Hardhat 3, Truffle | Tests are written *in Solidity*, so there is no context-switching, and the course is about Solidity. Foundry's gas snapshot cheatcodes record the gas of each step in a test (`contracts/snapshots/`), and gas is one of our graded evaluation parameters (A1). Built-in fuzzing gives us adversarial ballot tests cheaply. Single toolchain, one language. |
-| **OpenZeppelin Contracts 5.x** | Hand-rolled | Audited `AccessControl`, `ERC2771Forwarder`, `MerkleProof`, `Clones`. A security-focused project should not write its own access control. |
+| **OpenZeppelin Contracts 5.x** | Hand-rolled | Audited `AccessControl`, `MerkleProof`, `Clones`. A security-focused project should not write its own access control. |
 | **EIP-1167 minimal proxies** | Deploy a fresh `Election` each time | Each election is a tiny clone that forwards to one shared implementation, so creating an election costs a small fraction of a full deployment; A1 measures the actual figure. The implementation cannot be upgraded, so the rules cannot change mid-vote. |
 | **Semaphore v4** | Custom circom circuits, MACI | Audited, maintained, has the exact primitive we need (anonymous group membership + nullifier). Writing our own circuits would consume the entire project budget. We use its verifier and nullifier scheme but **not** its on-chain group management; the tree is built off-chain so registration stays O(1) in gas. Groth16 needs a circuit-specific trusted setup, so the eligibility guarantee rests on one: we take the published phase-two ceremony artifacts for the Semaphore circuits rather than running a ceremony of our own, and pin their SHA-256 hashes, checked against the `@zk-kit/semaphore-artifacts` npm package and the published copies; the browser refuses a file that does not match. If every contributor to that ceremony colluded, forged membership proofs would verify, which is why the contract also caps accepted ballots at the declared roll size. MACI adds coercion resistance but needs a coordinator and far more infrastructure than the schedule allows. |
 
@@ -88,7 +88,7 @@ quotes is a stated illustration rather than a target.
 - **Slither + `forge coverage`**: Slither reports nothing with one detector excluded,
   `timestamp`, because phases are time-gated by design and a block's timestamp is fixed by its
   slot; a proposer can at most skip its slot, delaying a phase change by 12 seconds.
-  `forge coverage` measured 98.9% of lines and every branch of the contracts. Both are
+  `forge coverage` measures every line and branch of the contracts as covered. Both are
   engineering hygiene, not evaluation parameters.
 
 ## Deliberately out of scope

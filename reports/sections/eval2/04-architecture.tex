@@ -1,7 +1,7 @@
 % ===========================================================================
 \section{Final System Architecture}\label{sec:architecture}
-% Source material: docs/architecture.md, checked against the code at 3bca300
-% and the contracts deployed from aab48cf.
+% Source material: docs/architecture.md, checked against the code
+% and the deployed contracts.
 % ===========================================================================
 
 \subsection{Architecture as built}
@@ -110,7 +110,7 @@ the served copy just as they would trust a web wallet.
     \addlinespace[3pt]
     Indexer & A copy of the chain's events & The list of elections and each election's table of ballots stop loading; an election's own page still shows its state, tally and audit from the chain & It could show wrong lists of elections or ballots. The audit panel and the contracts never read it \\
     \addlinespace[3pt]
-    IPFS node & Voter lists and descriptions, pinned by content address & Pinata keeps a copy of each published list and its election's documents, which any IPFS gateway can serve, and the site falls back to it & It cannot serve a different list under the same address, and a wrong list fails the root check \\
+    IPFS node & Voter lists and descriptions, pinned by content address & Pinata keeps a copy of each published list and its election's documents, which any IPFS gateway can serve, and the site falls back to it for documents up to 256\,KiB, which covers lists of a few thousand voters & It cannot serve a different list under the same address, and a wrong list fails the root check \\
     \addlinespace[3pt]
     Web pages & The voting key, in the browser that made it & Nobody can use our copy; the source is public and can be run elsewhere & A malicious copy could leak the key. This is trust in the served code, as with any web wallet \\
     \bottomrule
@@ -119,15 +119,16 @@ the served copy just as they would trust a web wallet.
 
 \subsection{Deployment}\label{sec:deployment}
 
-Table~\ref{tab:deployment} lists the deployed contracts. All six are on
-Ethereum Sepolia (chain ID 11155111) and were created in blocks 12,150,346 to
-12,150,351. Their addresses are recorded in
-\texttt{contracts/deployments/11155111.json}, committed in \texttt{aab48cf}; the
-contract sources have not changed since. Each was compiled with Solidity 0.8.28
-with the optimizer at 200 runs for the Cancun EVM, and Sourcify~\cite{sourcify}
-reports an exact match for every one, for both creation and runtime bytecode.
-Anyone can therefore read the source of what is deployed, compile it and get
-the same bytes. Each address in the table links to the contract on Etherscan.
+Table~\ref{tab:deployment} lists the deployed contracts. All five are on
+Ethereum Sepolia (chain ID 11155111) and were created in blocks 12,157,500 to
+12,157,504. Their addresses are recorded in
+\texttt{contracts/deployments/11155111.json}, which also names the two factories
+of an earlier deployment, whose elections the site still reads. Each contract
+was compiled with Solidity 0.8.28 with the optimizer at 200 runs for the Cancun
+EVM, and Sourcify~\cite{sourcify} reports an exact match for every one, for
+both creation and runtime bytecode. Anyone can therefore read the source of
+what is deployed, compile it and get the same bytes. Each address in the table
+links to the contract on Blockscout, which shows that verified source.
 
 \begin{table}[htbp]
   \centering
@@ -139,14 +140,13 @@ the same bytes. Each address in the table links to the contract on Etherscan.
     \toprule
     \textbf{Contract} & \textbf{Address} & \textbf{Role} & \textbf{Gas} \\
     \midrule
-    \texttt{ElectionFactory} & \href{https://sepolia.etherscan.io/address/0x983f62B08b34AF0FeA66589141f64d3ec2eFFd54}{\footnotesize\texttt{0x983f62B08b34AF0FeA66589141f64d3ec2eFFd54}} & Creates tier 2 elections & 3,541,020 \\
-    \texttt{MerkleElection} & \href{https://sepolia.etherscan.io/address/0x18574D1B6432b14C262dCf4Cee4C2604dF2016C3}{\footnotesize\texttt{0x18574D1B6432b14C262dCf4Cee4C2604dF2016C3}} & Tier 2 implementation & 14,659,413 \\
-    \texttt{ElectionFactory} & \href{https://sepolia.etherscan.io/address/0xE2B0121FdC5b8E5359FdE77dE7e44333AAe90690}{\footnotesize\texttt{0xE2B0121FdC5b8E5359FdE77dE7e44333AAe90690}} & Creates tier 3 elections & 3,541,020 \\
-    \texttt{SemaphoreElection} & \href{https://sepolia.etherscan.io/address/0xD04F2BE039C50f78eBa1353A8D4721fEc913A022}{\footnotesize\texttt{0xD04F2BE039C50f78eBa1353A8D4721fEc913A022}} & Tier 3 implementation & 16,462,526 \\
-    \texttt{SemaphoreVerifier} & \href{https://sepolia.etherscan.io/address/0x58Bd456880b0CD225629ECF676c7bF611FFA1A1e}{\footnotesize\texttt{0x58Bd456880b0CD225629ECF676c7bF611FFA1A1e}} & Semaphore's verifier, unmodified & 24,962,067 \\
-    \texttt{VoteForwarder} & \href{https://sepolia.etherscan.io/address/0xd0464A0CEa219C92c40d1A4770D43560aA701257}{\footnotesize\texttt{0xd0464A0CEa219C92c40d1A4770D43560aA701257}} & ERC-2771 forwarder; our relayer skips it & 6,067,286 \\
+    \texttt{ElectionFactory} & \href{https://eth-sepolia.blockscout.com/address/0xd58fcA0A33832aFE632CeCcFa8cF76212A442D50}{\footnotesize\texttt{0xd58fcA0A33832aFE632CeCcFa8cF76212A442D50}} & Creates tier 2 elections & 2,902,356 \\
+    \texttt{MerkleElection} & \href{https://eth-sepolia.blockscout.com/address/0xf511F0313BC5ae067f115c360a695513fB9E2b25}{\footnotesize\texttt{0xf511F0313BC5ae067f115c360a695513fB9E2b25}} & Tier 2 implementation & 14,630,061 \\
+    \texttt{ElectionFactory} & \href{https://eth-sepolia.blockscout.com/address/0x775dbb03Bf006965F87e823DE9a2b4bD43865659}{\footnotesize\texttt{0x775dbb03Bf006965F87e823DE9a2b4bD43865659}} & Creates tier 3 elections & 2,902,356 \\
+    \texttt{SemaphoreElection} & \href{https://eth-sepolia.blockscout.com/address/0xC68Bc7E5781BBCEeBE2A5191B1CA67a103c5F748}{\footnotesize\texttt{0xC68Bc7E5781BBCEeBE2A5191B1CA67a103c5F748}} & Tier 3 implementation & 15,792,072 \\
+    \texttt{SemaphoreVerifier} & \href{https://eth-sepolia.blockscout.com/address/0x63793A1033c88645C8a25648e02Ad22F581Ccee1}{\footnotesize\texttt{0x63793A1033c88645C8a25648e02Ad22F581Ccee1}} & Semaphore's verifier, unmodified & 24,962,067 \\
     \midrule
-    \multicolumn{3}{@{}l}{Total, at the 0.01 gwei gas price paid: about 0.00069 ETH} & 69,233,332 \\
+    \multicolumn{3}{@{}l}{Total, at the 0.01 gwei gas price paid: about 0.00061 ETH} & 61,188,912 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -159,8 +159,8 @@ calling its \texttt{implementation()} function, so a wallet election cannot be
 passed off as an anonymous one.
 
 Deploying code costs far more on Sepolia than under mainnet's current rules.
-Deploying \texttt{MerkleElection} took 14,659,413 gas on Sepolia, about seven
-times the 2,084,623 of the same deployment in our local snapshot, because
+Deploying \texttt{MerkleElection} took 14,630,061 gas on Sepolia, about seven
+times the 2,080,541 of the same deployment in our local snapshot, because
 Glamsterdam~\cite{glamsterdam} brought EIP-8037, which charges 1,530 gas for
 every byte of new state, including deployed code~\cite{eip8037}. Section~6
 reports the effect on ordinary election steps.
@@ -193,15 +193,17 @@ Table~\ref{tab:divergences} lists the changes to the architecture itself.
   \addlinespace[3pt]
   Tree depth & Not specified & Computed by the contract from the published voter count, in constant time & The depth chooses the verifier's key, so it must not come from the caller. Computing it in constant time keeps a ballot's cost the same at every depth \\
   \addlinespace[3pt]
-  Relaying & Through \texttt{VoteForwarder}, each ballot signed with a fresh key & The relayer calls \texttt{castVote} itself; the forwarder is deployed and still accepted & The proof already binds the ballot, so the signature added only gas: 335,214 per ballot against 296,692 directly under mainnet's rules (Section~\ref{sec:req-changes} gives the reasoning and the Sepolia figures) \\
+  Relaying & Through \texttt{VoteForwarder}, each ballot signed with a fresh key & The relayer calls \texttt{castVote} itself; there is no forwarder & The proof already binds the ballot, so the signature added only gas: 127,194 more per ballot on Sepolia (Section~\ref{sec:req-changes}) \\
+  \addlinespace[3pt]
+  Election list & The factory keeps a list of every election, for auditors & The factory records only \texttt{isElection}; its \texttt{ElectionCreated} events list the elections & The events already give auditors the list, so storing it again would cost every election a storage write \\
   \addlinespace[3pt]
   Relayer checks & Check the proof, pay the gas & Also checks the election, the phase and the nullifier, simulates the call, and allows one queued ballot per nullifier before signing a receipt & A ballot the contract would refuse at that moment never earns a receipt. One can still fail later, if voting closes or the same ballot is submitted directly first, and then it costs the relayer gas \\
   \addlinespace[3pt]
   Proof of email & An emailed one-time code & Google sign-in limited to the institute's domain & Google confirms that the account is one the institute manages, and the registrar needs no mail service. The receipt is the same \\
   \addlinespace[3pt]
-  Document storage & IPFS through Pinata~\cite{pinata} & An IPFS node of our own, which the site reads first, and a copy of each published list, with its election's description and manifestos, on Pinata & Our node keeps the site fast and free of a pinning service's limits, but it is not connected to the public network, so on its own nobody could fetch a list without our server. The registrar sends Pinata the node's own bytes and checks that it arrives at the same address; the site falls back to Pinata's gateway and takes a document only if it hashes to its address \\
+  Document storage & IPFS through Pinata~\cite{pinata} & An IPFS node of our own, which the site reads first, and a copy of each published list, with its election's description and manifestos, on Pinata & Our node keeps the site fast and free of a pinning service's limits, but it is not connected to the public network, so on its own nobody could fetch a list without our server. The registrar sends Pinata the node's own bytes and checks that it arrives at the same address; the site falls back to Pinata's gateway for documents up to 256\,KiB and takes one only if it hashes to its address \\
   \addlinespace[3pt]
-  Which elections are served & Not specified & The registrar serves only elections from our factories where it holds the registrar role and, if configured, whose authority it recognises; the indexer's list is filtered the same way & The factories are open to anyone, so anyone could create an election naming our registrar. Without the check it would send codes under any title and pay gas to publish any list \\
+  Which elections are served & Not specified & The registrar serves only elections from our factories where it holds the registrar role and, if configured, whose authority it recognises; the indexer's list is filtered the same way & The factories are open to anyone, so anyone could create an election naming our registrar. Without the check it would register voters under any title and pay gas to publish any list \\
   \addlinespace[3pt]
   Cancelling & Authority only, before voting opens & Also possible when the list never appeared, or the voting window passed without voting opening. The schedule can change only until registration is due, and the candidates until voting is due & An election whose registrar never published would otherwise be stuck for good. The limits go by the clock because a phase is open from its time even if nobody has recorded that on-chain \\
   \addlinespace[3pt]
@@ -211,8 +213,8 @@ Table~\ref{tab:divergences} lists the changes to the architecture itself.
 \end{longtable}
 
 The central decisions held. The voter list is still only a root on-chain, so
-publishing it costs the same at any size: 147,165 gas in tier 2 and 147,319 in
-tier 3, from 2 to 65,536 voters (Section~6). Every phase change after
+publishing it costs the same at any size: 147,165 gas in either tier, from 2
+to 65,536 voters (Section~6). Every phase change after
 configuration is still open to anyone once its time comes, so the authority
 cannot stall the count. The registrar still takes no part in voting, the
 relayer still runs apart from it, and the audit still reads only the chain and

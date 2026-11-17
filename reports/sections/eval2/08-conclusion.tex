@@ -20,12 +20,12 @@ The measurements support the design's main claims:
 
 \begin{itemize}
   \item \textbf{Anonymity has a fixed price.} Under mainnet's current rules a
-        tier~3 ballot costs 296,692 gas against 80,221 for a tier~2 ballot.
+        tier~3 ballot costs 296,670 gas against 80,221 for a tier~2 ballot.
         The difference, about 216,000 gas, is mostly the contract's check of
         the proof.
   \item \textbf{The price does not grow with the electorate.} From 4 to 65,536
-        voters, a tier~3 ballot costs between 296,656 and 296,692 gas, and
-        publishing a voter list costs 147,319 gas at every size. The work that
+        voters, a tier~3 ballot costs between 296,634 and 296,670 gas, and
+        publishing a voter list costs 147,165 gas at every size. The work that
         does grow moves to the voter's device: proving takes 0.57\,s at two
         voters and 1.52\,s at 65,536 on one ARM64 core, but rebuilding the
         tree from the published list grows with every voter, to 15.8\,s at
@@ -42,10 +42,8 @@ The measurements support the design's main claims:
         the same block.
   \item \textbf{The testnet changed the costs.} Sepolia's Glamsterdam rules
         price new state several times higher than mainnet's. Creating an
-        election there cost 3.09 million gas against about 0.63 million
-        locally. The same rule made the planned forwarder cost about 127,000
-        gas more per ballot, so the relayer submits ballots itself rather than
-        through the forwarder.
+        election there cost 2.97 million gas against about 0.6 million
+        locally.
 \end{itemize}
 
 The security properties in Section~6 were tested by trying to break them:

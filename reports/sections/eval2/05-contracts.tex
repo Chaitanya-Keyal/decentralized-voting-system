@@ -1,33 +1,32 @@
 % ===========================================================================
 \section{Smart Contract Design and Implementation}\label{sec:contracts}
-% Source material: contracts/src and contracts/test at 3bca300, which match
-% the sources deployed from aab48cf.
+% Source material: contracts/src and contracts/test, which match
+% the deployed sources.
 % ===========================================================================
 
-The on-chain part of \projectname{} is seven Solidity files, 687 lines with
+The on-chain part of \projectname{} is six Solidity files, 632 lines with
 their comments, compiled with Solidity 0.8.28~\cite{solidity}. They build on
-OpenZeppelin Contracts 5.6~\cite{openzeppelin} for access control, clones,
-Merkle proofs and the ERC-2771 forwarder, and on Semaphore's verifier, version
-4.14. \texttt{Election} is an abstract contract that inherits OpenZeppelin's
+OpenZeppelin Contracts 5.6~\cite{openzeppelin} for access control, clones and
+Merkle proofs, and on Semaphore's verifier, version 4.14. \texttt{Election} is an abstract contract that inherits OpenZeppelin's
 \texttt{AccessControl} and \texttt{Initializable} and our
 \texttt{VoterRegistry}. \texttt{MerkleElection} and \texttt{SemaphoreElection}
-extend it with a \texttt{castVote} each, and \texttt{SemaphoreElection} also
-inherits \texttt{ERC2771Context}.
+extend it with a \texttt{castVote} each.
 
 \subsection{Contract responsibilities}
 
 \subsubsection*{\texttt{ElectionFactory}}
 
 The only way to create an election. Its state is the address of the
-implementation it clones, fixed at deployment, a mapping
-\texttt{isElection} and the list of every election it has created.
+implementation it clones, fixed at deployment, and a mapping
+\texttt{isElection}.
 \texttt{createElection} can be called by anyone. It deploys a clone, records
 it, and initializes it in the same transaction, so nobody can initialize a
 clone before its creator does; the caller becomes the election's authority.
 The implementation itself disables its initializer in its constructor, so it
-can never be configured and used as an election. The read functions
-\texttt{elections}, \texttt{electionCount} and \texttt{electionAt} let auditors
-list every genuine election. We deploy two factories, one per tier.
+can never be configured and used as an election. \texttt{isElection} tells a
+genuine election from a look-alike, and the \texttt{ElectionCreated} events
+list every election the factory made, so the factory stores no list of its
+own. We deploy two factories, one per tier.
 
 \subsubsection*{\texttt{Election} and \texttt{VoterRegistry}}
 
@@ -109,10 +108,10 @@ pays the gas.
 
 Adds \texttt{castVote(choice, nullifier, points)}, where \texttt{points} is a
 Groth16 proof~\cite{groth16}, and the read functions \texttt{scope} and
-\texttt{merkleTreeDepth}. Its only state of its own is two addresses fixed at
-deployment: the verifier and the trusted forwarder. Clones read both from the
-implementation's code. \texttt{castVote} never reads the sender, so it does not
-matter who submits a ballot or whether it comes through the forwarder.
+\texttt{merkleTreeDepth}. Its only state of its own is the verifier's address,
+fixed at deployment, which clones read from the implementation's code.
+\texttt{castVote} never reads the sender, so it does not matter who submits a
+ballot.
 Section~\ref{sec:zk} explains the scheme and Listing~\ref{lst:castvote} shows
 the code.
 
@@ -126,13 +125,9 @@ vote. Under both rules the winners are every candidate tied for the most
 votes, in ascending order, and there are none if nobody voted. The rule is set
 when the election is created and has no setter.
 
-\subsubsection*{\texttt{VoteForwarder} and \texttt{SemaphoreVerifier}}
+\subsubsection*{\texttt{SemaphoreVerifier}}
 
-\texttt{VoteForwarder} is OpenZeppelin's \texttt{ERC2771Forwarder} under the
-name ``DVote VoteForwarder'', with no code of our own. Tier 3 elections trust
-it, and the tests relay ballots through it, but our relayer does not use it
-(Section~\ref{sec:divergences}). \texttt{SemaphoreVerifier} is Semaphore's
-Groth16 verifier, deployed unmodified. It holds one verification key for each
+Semaphore's Groth16 verifier, deployed unmodified. It holds one verification key for each
 tree depth from 1 to 32 and has no state or owner.
 
 \subsection{Election lifecycle}\label{sec:lifecycle}
@@ -240,21 +235,21 @@ as Section~\ref{sec:trust} explains.
 
 \subsection{Gas-efficiency measures}\label{sec:gas-measures}
 
-Section~6 measures the ones that can be measured. Every figure quoted here is under mainnet's current rules, from the
+Section~6 measures the ones that can be measured. Unless marked as Sepolia's, every figure quoted here is under mainnet's current rules, from the
 gas snapshot committed in \texttt{contracts/snapshots/} or the sweep in
 \texttt{bench/results/gas.csv}; Table~\ref{tab:a1} lists the main ones.
 
 \begin{itemize}
   \item \emph{The voter list stays off-chain.} Publishing a list writes a root,
         a count and an IPFS address in one transaction, and emits no list. It
-        costs 147,165 gas in tier 2 and 147,319 in tier 3 at every list size
+        costs 147,165 gas in either tier at every list size
         from 2 to 65,536 voters, which parameter C1 confirms
         (Figure~\ref{fig:c1}). Registering costs voters no gas at all.
   \item \emph{Clones.} Creating a wallet election, a clone set up with three
-        candidates, costs 639,362 gas for the first election from a factory and
-        622,262 for later ones. Deploying a full copy of the election contract
-        instead costs 2,084,623 before it is even set up, and under Glamsterdam
-        the same deployment cost 14,659,413 (Table~\ref{tab:deployment}).
+        candidates, costs 595,090 gas. Deploying a full copy of the election
+        contract instead costs 2,080,541 before it is even set up, and under
+        Glamsterdam the same deployment cost 14,630,061
+        (Table~\ref{tab:deployment}).
   \item \emph{Descriptions and manifestos on IPFS.} The chain holds only their
         IPFS addresses, with the title and the candidates' names, which a reader
         needs to make sense of the tally. This is a choice by construction, and
@@ -262,22 +257,26 @@ gas snapshot committed in \texttt{contracts/snapshots/} or the sweep in
   \item \emph{A constant-time tree depth.} The depth comes from one storage
         read and \texttt{Math.log2}, rather than a loop over the levels, which
         would add about 210 gas per level. A tier 3 ballot costs between
-        296,656 and 296,692 gas at every list size from 4 to 65,536 voters
-        (296,315 at 2), a spread of 36 gas.
+        296,634 and 296,670 gas at every list size from 4 to 65,536 voters
+        (296,269 at 2), a spread of 36 gas.
   \item \emph{Small ballots.} An approval ballot is one 256-bit number,
         however many candidates it approves. The four schedule times share one
         storage slot. A ballot writes one new storage slot, for its key, and
         updates the ballot count and the tally.
-  \item \emph{No forwarder.} Sending \texttt{castVote} directly saves 38,522
-        gas per tier 3 ballot under mainnet's rules (296,692 against 335,214)
-        and 127,194 on Sepolia (Section~\ref{sec:req-changes}).
+  \item \emph{No forwarder.} A relayed ballot is a plain call to
+        \texttt{castVote}. Forwarding it with a signature from a fresh key
+        cost 127,194 gas more per ballot on Sepolia
+        (Section~\ref{sec:req-changes}).
+  \item \emph{No stored list of elections.} The factory's events already list
+        every election, so creating one writes only its \texttt{isElection}
+        flag.
 \end{itemize}
 
 Not everything was trimmed. Titles and candidate names are stored as strings so
 that the contract alone explains its tally, and roles go through
 \texttt{AccessControl} rather than fixed addresses, because a clone cannot have
 its own immutable values. The first ballot also costs more than later ones
-(114,397 against 80,221 gas in tier 2, 330,892 against 296,692 in tier 3),
+(114,397 against 80,221 gas in tier 2, 330,870 against 296,670 in tier 3),
 because it moves \texttt{ballotsCast} and a candidate's count away from zero.
 
 \subsection{Selected implementation}
@@ -310,7 +309,7 @@ apart between them.
 
 \subsection{Testing and static analysis}\label{sec:contract-tests}
 
-The contracts have 92 Foundry~\cite{foundry} tests in six suites
+The contracts have 90 Foundry~\cite{foundry} tests in six suites
 (Table~\ref{tab:contract-tests}), and all pass at the deployed commit. Five are
 fuzz tests, which Foundry runs with 256 random inputs each by default and
 1,000 in continuous integration. There are no stateful invariant tests.
@@ -326,7 +325,7 @@ fuzz tests, which Foundry runs with 256 random inputs each by default and
     \midrule
     \texttt{Election} & 47 & Every function's caller and time window from Table~\ref{tab:entrypoints}; phases never go back; every cancellation case; the list is published once and then frozen; a key votes once (fuzzed over arbitrary keys); ballots stop at the voter count; approval ballots, ties and an election nobody voted in; roles cannot be granted or revoked by anyone \\
     \addlinespace[2pt]
-    \texttt{SemaphoreElection} & 19 & Real Semaphore proofs are accepted and counted; a second ballot, a changed choice, a ballot for another election, a proof against another root, a tampered proof and a proof at the wrong depth are all refused; the event carries only the nullifier and the choice; the forwarder relays a ballot but cannot replay or alter it; the depth is the smallest that fits the list (fuzzed over voter counts up to $2^{32}-1$) \\
+    \texttt{SemaphoreElection} & 17 & Real Semaphore proofs are accepted and counted; a second ballot, a changed choice, a ballot for another election, a proof against another root, a tampered proof and a proof at the wrong depth are all refused; the event carries only the nullifier and the choice; any account may submit a ballot, and none can replay a counted one; the depth is the smallest that fits the list (fuzzed over voter counts up to $2^{32}-1$) \\
     \addlinespace[2pt]
     \texttt{MerkleElection} & 10 & A listed wallet is counted once; a wallet not on the list fails with any proof (fuzzed over addresses), as does someone else's proof; leaves match OpenZeppelin's tree, and proofs built in TypeScript are accepted \\
     \addlinespace[2pt]
@@ -345,11 +344,8 @@ the same TypeScript code the booth runs, so the browser's proofs and the
 on-chain verifier are tested against each other. The tier 2 tests likewise use
 a voter list built by the TypeScript tree builder.
 
-\texttt{forge coverage} reports 98.9\% of lines (176 of 178), every branch
-(32 of 32) and 50 of 51 functions. The two lines and one function it misses are
-in \texttt{SemaphoreElection}, where the compiler requires an override of
-\texttt{\_msgData} that nothing calls; it is the same function Slither's
-dead-code note is suppressed for.
+\texttt{forge coverage} reports every line (162 of 162), statement (174 of
+174), branch (32 of 32) and function (43 of 43) of the contracts covered.
 
 Static analysis runs on every pull request and every push to the main
 branch. Continuous integration checks formatting,
