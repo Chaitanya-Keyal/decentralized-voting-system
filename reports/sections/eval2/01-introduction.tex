@@ -73,7 +73,7 @@ The work that does grow with the list moves to the voter's device. Proving a
 ballot takes 0.57\,s at two voters and 1.52\,s at 65,536 on one ARM64 CPU
 core, while rebuilding the list to check it grows to 15.8\,s at 65,536. On
 Sepolia, with voters casting one at a time, a ballot was counted a median of
-11.1\,s after the voter pressed Cast (16 ballots; slowest 31.5\,s). A load test
+10.7\,s after the voter pressed Cast (16 ballots; slowest 18.4\,s). A load test
 found that the relayer let through only one ballot per block; after the fix,
 64 simultaneous voters were all counted in the next block.
 \note{Proving time on phones (B2) and the usability test with real

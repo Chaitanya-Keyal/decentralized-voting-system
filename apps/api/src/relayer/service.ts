@@ -35,6 +35,8 @@ import {
   type Hex,
 } from "viem";
 
+import { anvil } from "viem/chains";
+
 import { HttpError } from "../http";
 import { loggable } from "../redact";
 import { chain, config, deployment, publicClient, relayer, simulateAt } from "./config";
@@ -110,18 +112,30 @@ export async function acceptBallot(
   }
 
   const contract = { address: election, abi: semaphoreElectionAbi } as const;
-  const [phase, schedule, used, root, voterCount, block] = await Promise.all([
-    publicClient.readContract({ ...contract, functionName: "phase" }),
-    publicClient.readContract({ ...contract, functionName: "schedule" }),
-    publicClient.readContract({
-      ...contract,
-      functionName: "ballotKeyUsed",
-      args: [pad(toHex(ballot.nullifier))],
-    }),
-    publicClient.readContract({ ...contract, functionName: "voterRoot" }),
-    publicClient.readContract({ ...contract, functionName: "voterCount" }),
-    publicClient.getBlock(simulateAt),
-  ]);
+  const read = () =>
+    Promise.all([
+      publicClient.readContract({ ...contract, functionName: "phase" }),
+      publicClient.readContract({ ...contract, functionName: "schedule" }),
+      publicClient.readContract({
+        ...contract,
+        functionName: "ballotKeyUsed",
+        args: [pad(toHex(ballot.nullifier))],
+      }),
+      publicClient.readContract({ ...contract, functionName: "voterRoot" }),
+      publicClient.readContract({ ...contract, functionName: "voterCount" }),
+      publicClient.getBlock(simulateAt),
+    ]);
+  let [phase, schedule, used, root, voterCount, block] = await read();
+  // Just after voting opens, a node behind a load balancer may not have that block yet and still
+  // report registration, so it is asked again a few times, a block apart, before refusing.
+  for (
+    let attempt = 1;
+    phase === Phase.Registration && chain.id !== anvil.id && attempt <= 3;
+    attempt++
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 4_000));
+    [phase, schedule, used, root, voterCount, block] = await read();
+  }
   const votingEnd = schedule[3];
   if (phase !== Phase.Voting || block.timestamp >= votingEnd) {
     throw new HttpError(409, "Voting is not open in this election.");

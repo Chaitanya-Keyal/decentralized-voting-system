@@ -425,7 +425,10 @@ Not a source of truth; it is a convenience and liveness layer. Four services:
   and queues the ballot. It submits `castVote` itself, sending ballots one at a time with
   consecutive nonces but without waiting for each to be mined (up to `RELAYER_CONCURRENCY`, 64 by
   default, in flight), so a burst of voters shares blocks; it retries a failed submission and
-  releases the nullifier for resubmission elsewhere if it gives up. In the C3 load test, 256
+  releases the nullifier for resubmission elsewhere if it gives up. A ballot not mined within
+  three minutes is sent again at the same nonce with higher fees, and every ballot offers a tip of
+  at least 0.1 gwei (`RELAYER_MIN_PRIORITY_FEE_WEI`): on Sepolia, ballots offering the few wei a
+  node suggested waited an extra block or two more often. In the C3 load test, 256
   simultaneous ballots were all counted within six 12-second blocks, and the relayer accepted
   about nine ballots a second on one core. Off-chain verification with snarkjs needs no chain
   access, and checks the root, the scope and the signal at once. Without it, ten thousand ballots

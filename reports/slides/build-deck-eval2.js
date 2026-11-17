@@ -112,14 +112,26 @@ const rebuild = c2series("tree_rebuild");
 
 // B1, end to end on Sepolia. The relayer changed how it sends at RELAYER_CHANGE (UTC, as in the
 // file names); samples before and after are kept apart.
+// From TIP_FLOOR on, the relayer also offers at least a 0.1 gwei tip.
 const RELAYER_CHANGE = "202611170200";
-const b1 = (after, burst) =>
+const TIP_FLOOR = "202611170340";
+const b1 = (from, to, burst) =>
   results(burst ? /^b1-sepolia-burst-\d+\.csv$/ : /^b1-sepolia-\d+\.csv$/)
-    .filter((file) => (path.basename(file).match(/(\d{12})/)[1] >= RELAYER_CHANGE) === after)
+    .filter((file) => {
+      const stamp = path.basename(file).match(/(\d{12})/)[1];
+      return stamp >= from && stamp < to;
+    })
     .flatMap((file) => readCsv(file).map((r) => Number(r.click_to_counted_ms)));
-const b1Before = b1(false, false);
-const b1Now = b1(true, false);
-const b1Burst = b1(true, true);
+const b1NoFloor = b1(RELAYER_CHANGE, TIP_FLOOR, false);
+const b1Now = b1(TIP_FLOOR, "9", false);
+const b1Burst = b1(RELAYER_CHANGE, "9", true);
+
+// B2: the booth's code in a laptop's browser, from the /bench page.
+const laptop = fs.existsSync(path.join(RESULTS, "summary-laptop-core-ultra-7-256v-chromium.csv"))
+  ? readCsv(path.join(RESULTS, "summary-laptop-core-ultra-7-256v-chromium.csv"))
+  : [];
+const laptopProve = (roll) =>
+  Number(laptop.find((r) => r.phase === "prove" && Number(r.roll_size) === roll)?.median_ms);
 const stats = (values) =>
   values.length
     ? {
@@ -587,6 +599,9 @@ async function main() {
     stat(s, s1(prove[0].ms), `to prove a ballot at ${prove[0].roll} voters`, 6.7, 1.2, 2.8);
     stat(s, s1(last(prove).ms), `at ${n0(last(prove).roll)} voters: proving grows with the tree's depth`, 6.7, 2.45, 2.8);
     stat(s, s1(last(rebuild).ms), `to rebuild a list of ${n0(last(rebuild).roll)}: linear, the price of not trusting the registrar`, 6.7, 3.7, 2.8, C.amber);
+    text(s, `In a laptop's browser (Intel Core Ultra 7): ${fig(laptopProve(16), "B2 laptop, 16 voters", s1)} to prove at 16 voters, ${fig(laptopProve(65536), "B2 laptop, 65,536 voters", s1)} at 65,536.`, {
+      x: 6.7, y: 4.55, w: 2.8, h: 0.6, fontSize: 11, italic: true, color: C.muted,
+    });
     pageNo(s, ++page);
     s.addNotes("The flat gas line must not hide work moved to the voter. Proving grows only with the tree's depth. Rebuilding the published list to check it against the on-chain root grows with the list; past about eight thousand voters it costs more than proving. One ARM64 core, Node.js 24; the phone figures come from the /bench page.");
   }
@@ -601,12 +616,12 @@ async function main() {
     text(s, "One voter, Sepolia (B1)", { x: 1.32, y: 1.37, w: 3.3, h: 0.4, fontFace: HEAD, fontSize: 15, bold: true, color: C.navy });
     stat(s, fig(b1s?.median, "B1 median, current relayer", s1), `median, click to counted (${b1s?.n ?? 0} ballots)`, 0.75, 2.0, 1.9);
     stat(s, fig(b1s?.slowest, "B1 slowest, current relayer", s1), `slowest of ${b1s?.n ?? 0}; ${b1s ? b1Now.filter((ms) => ms <= 15_000).length : 0} counted within 15 s`, 2.75, 2.0, 1.9, C.navy);
-    const before = stats(b1Before);
+    const noFloor = stats(b1NoFloor);
     const burst = stats(b1Burst);
     if (!burst) missing.push("B1, ten voters at once");
     text(s, [
       { text: burst ? `Ten voters at once: all in one block, median ${s1(burst.median)} (ten browsers proving on one machine).` : "", options: { breakLine: true } },
-      { text: before ? `Earlier relayer, one at a time: median ${s1(before.median)}, slowest ${s1(before.slowest)} of ${before.n}. The slow ballots wait an extra block or two; why is still open.` : "" },
+      { text: noFloor ? `Before the 0.1 gwei tip floor: median ${s1(noFloor.median)}, slowest ${s1(noFloor.slowest)} of ${noFloor.n}; slow ballots waited an extra block or two.` : "" },
     ], { x: 0.75, y: 3.4, w: 3.9, h: 1.55, fontSize: 11.5, color: C.muted, paraSpaceAfter: 6 });
     card(s, 5.2, 1.1, 4.3, 3.95);
     iconCircle(s, I.users, 5.4, 1.3, 0.5, C.amber);

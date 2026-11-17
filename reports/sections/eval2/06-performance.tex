@@ -125,10 +125,14 @@ before and after the relayer change described under C3 are kept apart.
 \begin{itemize}
   \item \emph{One voter at a time, the earlier relayer} (two runs, 8 ballots):
         median 16.6\,s, slowest 33.5\,s.
-  \item \emph{One voter at a time, the current relayer} (two runs, 16
-        ballots): median 11.1\,s, fastest 9.2\,s and slowest 31.5\,s, which
-        with 16 samples is also the nearest-rank 95th percentile. Eleven of
-        the 16 were counted within 15\,s, about one 12-second slot.
+  \item \emph{One voter at a time, the current relayer, offering the tip a
+        node suggests} (two runs, 16 ballots): median 11.1\,s, fastest
+        9.2\,s, slowest 31.5\,s; 11 of the 16 were counted within 15\,s,
+        about one 12-second slot.
+  \item \emph{One voter at a time, the current relayer, with a minimum tip of
+        0.1\,gwei} (two runs, 16 ballots): median 10.7\,s, fastest 8.2\,s,
+        slowest 18.4\,s, which with 16 samples is also the nearest-rank 95th
+        percentile; 14 of the 16 were counted within 15\,s.
   \item \emph{Ten voters at once, the current relayer}: all ten ballots
         landed in one block, counted 32.6 to 35.6\,s after the click (median
         33.1\,s). The ten browsers ran on one four-core machine and proved
@@ -136,19 +140,51 @@ before and after the relayer change described under C3 are kept apart.
         how phones would fare awaits B2.
 \end{itemize}
 
-In the second sequential run the test also recorded when the block holding
-each ballot was produced, found through the ballot's nullifier. For the five
-ballots where that lookup succeeded, the click to the ballot's block took 5.8,
-7.2, 7.3, 9.0 and 19.1\,s, and the block to the booth reporting the ballot
-counted took 2.5 to 3.9\,s. The slow ballots are therefore slow to be
-included, waiting an extra block or two, not slow to be noticed. Why some
-ballots wait is still an open question.
+From the second run on, the test also recorded when the block holding each
+ballot was produced, found through the ballot's nullifier. Once a ballot was in
+a block, the booth reported it counted 1.4 to 4.4\,s later, so the slow ballots
+were slow to be included, not slow to be noticed. Sepolia's nodes suggested a
+tip of 2~wei per gas, and ballots offering that waited an extra block or two
+more often; with a minimum of 0.1\,gwei, at a cost of about 0.00004 Sepolia
+ETH a ballot, no ballot waited more than one extra block. With 16 ballots on
+each side this is suggestive rather than settled, but the minimum is now the
+relayer's default (\texttt{RELAYER\_MIN\_PRIORITY\_FEE\_WEI}).
 
 \paragraph{B2, proof generation by device.}
-\note{pending: laptop and Android phone from the /bench page.} As a baseline,
-one ARM64 CPU core under Node.js proves a ballot in 0.57\,s (median of five)
-for a two-voter election and in 1.52\,s for 65,536 voters
-(Figure~\ref{fig:c2}).
+The demo's \texttt{/bench} page runs the booth's own code, the same Web Worker
+and proving files, at each size of voter list and saves the times. Table~\ref{tab:b2}
+gives the medians of five runs on a laptop with an Intel Core Ultra~7 256V,
+in Chromium~158, beside the ARM64 baseline in Node.js from C2.
+\note{pending: an Android phone from the same page.}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Time to prove a ballot and to rebuild the voter list (B2), median
+    of five runs. The laptop runs the booth's code in a browser; the baseline
+    runs it in Node.js.}
+  \label{tab:b2}
+  \small
+  \begin{tabular}{@{}R{2.4cm}R{2.6cm}R{2.6cm}R{2.6cm}R{2.6cm}@{}}
+    \toprule
+    & \multicolumn{2}{c}{\textbf{Laptop, Chromium}} & \multicolumn{2}{c}{\textbf{ARM64 core, Node.js}} \\
+    \textbf{Voters} & \textbf{Prove} & \textbf{Rebuild} & \textbf{Prove} & \textbf{Rebuild} \\
+    \midrule
+    16     & 0.43\,s & 0.001\,s & 0.79\,s & 0.004\,s \\
+    256    & 0.49\,s & 0.02\,s  & 0.96\,s & 0.06\,s \\
+    1,024  & 0.54\,s & 0.06\,s  & 1.05\,s & 0.25\,s \\
+    4,096  & 0.82\,s & 0.25\,s  & 1.31\,s & 1.01\,s \\
+    16,384 & 1.60\,s & 0.97\,s  & 1.41\,s & 3.98\,s \\
+    65,536 & 4.59\,s & 3.88\,s  & 1.52\,s & 15.78\,s \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+On the laptop a ballot is proved in under a second for any list up to 4,096
+voters, and in 4.6\,s at 65,536. The browser rebuilds the list four times
+faster than Node.js does on the ARM64 core, but its proving time grows faster
+with the tree's depth, so at the largest list the two costs are about equal.
+The first run in the browser is slower (1.7\,s at 16 voters) while the
+proving code is loaded.
 
 \subsubsection{Scalability (C1--C3)}
 

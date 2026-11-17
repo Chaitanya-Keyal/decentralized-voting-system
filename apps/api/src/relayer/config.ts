@@ -61,10 +61,11 @@ const schema = z
      */
     RELAYER_RECEIPT_TIMEOUT_MS: z.coerce.number().int().positive().default(180_000),
     /**
-     * The least priority fee (tip) a ballot offers, in wei. A node may suggest a tip of a few wei
-     * on a quiet testnet, which block builders can leave for later blocks.
+     * The least priority fee (tip) a ballot offers, in wei: 0.1 gwei by default. On a quiet
+     * testnet a node may suggest a tip of a few wei, and on Sepolia ballots offering that waited an
+     * extra block or two more often.
      */
-    RELAYER_MIN_PRIORITY_FEE_WEI: z.coerce.bigint().nonnegative().default(0n),
+    RELAYER_MIN_PRIORITY_FEE_WEI: z.coerce.bigint().nonnegative().default(100_000_000n),
   })
   .refine((env) => env.RELAYER_PRIVATE_KEY ?? env.RELAYER_ADDRESS, {
     message: "Set RELAYER_PRIVATE_KEY, or RELAYER_ADDRESS for an account Anvil has unlocked",
