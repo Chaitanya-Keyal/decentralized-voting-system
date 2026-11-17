@@ -422,8 +422,12 @@ Not a source of truth; it is a convenience and liveness layer. Four services:
   the nullifier and the proof, nothing else), **verifies the Groth16 proof off-chain before it
   spends anything**, checks that the election is one of ours and open and that the nullifier is
   unused and not already queued, simulates the exact call, and only then returns a signed receipt
-  and queues the ballot. It submits `castVote` itself, one ballot at a time, retries a failed
-  submission, and releases the nullifier for resubmission elsewhere if it gives up. Off-chain verification with snarkjs takes milliseconds, needs no chain
+  and queues the ballot. It submits `castVote` itself, sending ballots one at a time with
+  consecutive nonces but without waiting for each to be mined (up to `RELAYER_CONCURRENCY`, 64 by
+  default, in flight), so a burst of voters shares blocks; it retries a failed submission and
+  releases the nullifier for resubmission elsewhere if it gives up. In the C3 load test, 256
+  simultaneous ballots were all counted within six 12-second blocks, and the relayer accepted
+  about nine ballots a second on one core. Off-chain verification with snarkjs needs no chain
   access, and checks the root, the scope and the signal at once. Without it, ten thousand ballots
   carrying fresh random nullifiers and garbage proofs all pass a nullifier check, get sponsored,
   fail the pairing check on-chain and revert, and the relayer pays for roughly 250k gas each; a

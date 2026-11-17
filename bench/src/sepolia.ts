@@ -229,8 +229,9 @@ try {
   const schedule = {
     registrationStart: now + 120n,
     registrationEnd: now + 240n,
-    votingStart: now + 300n,
-    votingEnd: now + 900n,
+    // Both lists are built and published, one after the other, before voting is due.
+    votingStart: now + 420n,
+    votingEnd: now + 1020n,
   };
   const tier2 = await create(2, schedule);
   const tier3 = await create(3, schedule);

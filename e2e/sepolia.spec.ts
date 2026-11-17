@@ -185,7 +185,7 @@ test("an anonymous election runs end to end on Sepolia", async ({ page, browser 
       .concat("\n"),
   );
 
-  await test.step("voting closes, anyone finalizes, and an observer audits", async () => {
+  await test.step("voting closes, the authority finalizes, and an observer audits", async () => {
     await waitForChain(schedule.votingEnd);
     await step(election, "closeVoting");
     await step(election, "finalize");

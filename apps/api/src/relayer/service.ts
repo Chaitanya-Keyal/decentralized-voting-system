@@ -1,6 +1,8 @@
 // What the relayer does with a ballot: check it completely before paying anything, queue it, and
-// submit it to the election, paying the gas. Ballots are sent one at a time, so the relayer's nonce
-// never races with itself.
+// submit it to the election, paying the gas. Ballots are sent one at a time, in nonce order, but
+// the relayer does not wait for one to be mined before sending the next: on a chain with 12-second
+// blocks, waiting would let through one ballot per block, and a room of voters would queue for
+// minutes.
 //
 // The relayer calls `castVote` itself. The ballot's proof binds the choice and the election, and
 // `castVote` never reads the sender, so nothing is gained by having the voter sign the call: the
@@ -188,36 +190,90 @@ export async function ballotStatus(relay: Relayer, id: string): Promise<RelaySta
   throw new HttpError(404, "The relayer has no such ballot.");
 }
 
-/** Sends queued ballots, one at a time. */
+/**
+ * Sends the relayer's transactions one after another with consecutive nonces, without waiting for
+ * any to be mined. Everything else a send needs is worked out before it joins the line, so the
+ * line holds only the send itself. The nonce is counted here rather than asked of the node each
+ * time, because a node behind a load balancer may not yet count the transaction just sent. After a
+ * failed send, or one not mined in time that may have been dropped, it is read from the node
+ * again, so a gap left by a lost nonce gets filled.
+ */
+function createSender() {
+  let next: number | undefined;
+  let line: Promise<unknown> = Promise.resolve();
+  const forget = () => {
+    next = undefined;
+  };
+  const send = (request: Parameters<typeof relayer.writeContract>[0]): Promise<Hex> => {
+    const sent = line.then(async () => {
+      try {
+        next ??= await publicClient.getTransactionCount({
+          address: relayer.account.address,
+          blockTag: "pending",
+        });
+        const nonce = next;
+        const hash = await relayer.writeContract({ ...request, nonce });
+        next = nonce + 1;
+        return hash;
+      } catch (error) {
+        next = undefined;
+        throw error;
+      }
+    });
+    line = sent.catch(() => undefined);
+    return sent;
+  };
+  return { send, forget };
+}
+
+/**
+ * Sends queued ballots. Up to RELAYER_CONCURRENCY are checked and awaited at once; the sends
+ * themselves go out one at a time.
+ */
 export function startWorker(relay: Relayer) {
+  const sender = createSender();
   return new Worker<BallotJob>(
     "ballots",
     async (job: Job<BallotJob>) => {
       const { election } = job.data.ballot;
       const ballot = toBallot(job.data.ballot);
-      // A retry after a crash may find the ballot already counted, by an earlier attempt or by a
-      // direct submission. Either way the voter's ballot is in, which is what they need to know.
-      if (await isCounted(election, ballot.nullifier)) {
+      // A retry may find the ballot already counted, by an earlier attempt or by a direct
+      // submission. Either way the voter's ballot is in, which is what they need to know. (A first
+      // attempt was checked moments ago, when the ballot was accepted.)
+      if (job.attemptsMade > 0 && (await isCounted(election, ballot.nullifier))) {
         await relay.redis.set(key("mined", job.id ?? ""), "", "EX", 7 * 24 * 3600);
         return;
       }
-      const { request } = await publicClient.simulateContract({
-        ...simulateAt,
-        account: relayer.account,
-        ...castVoteCall(election, ballot),
+      const call = { account: relayer.account, ...castVoteCall(election, ballot) };
+      // Estimating the gas also runs the call, so a ballot the election would now reject fails
+      // here, with the election's reason, before anything is paid. It is estimated against the
+      // latest block rather than at send time with a nonce some ballots ahead: ballots queued ahead
+      // only make the election's first writes cheaper, and a fifth more covers a change of block.
+      const [gas, fees] = await Promise.all([
+        publicClient.estimateContractGas({ ...simulateAt, ...call }),
+        publicClient.estimateFeesPerGas(),
+      ]);
+      const txHash = await sender.send({
+        ...call,
+        chain,
+        gas: (gas * 6n) / 5n,
+        maxFeePerGas: fees.maxFeePerGas,
+        maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
       });
-      const txHash = await relayer.writeContract(request);
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: txHash,
-        timeout: 180_000,
-      });
+      let receipt;
+      try {
+        receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 180_000 });
+      } catch (error) {
+        sender.forget();
+        throw new Error(`Transaction ${txHash} was not mined in time`, { cause: error });
+      }
       if (receipt.status !== "success") throw new Error(`Transaction ${txHash} reverted`);
       await relay.redis.set(key("mined", job.id ?? ""), txHash, "EX", 7 * 24 * 3600);
     },
     {
       connection: relay.redis.duplicate({ maxRetriesPerRequest: null }),
       prefix: config.RELAYER_PREFIX,
-      concurrency: 1,
+      concurrency: config.RELAYER_CONCURRENCY,
     },
   ).on("failed", (job, error) => {
     // Only once the retries are spent. The ballot may then be sent again, through the relayer or

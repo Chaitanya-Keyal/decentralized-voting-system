@@ -86,7 +86,8 @@ quotes is a stated illustration rather than a target.
   `forge test` for the contracts; and both kinds of election end to end in a browser. Green CI is
   a precondition for merge.
 - **Slither + `forge coverage`**: Slither reports nothing with one detector excluded,
-  `timestamp`, because phases span hours and a validator can move a block's time by seconds.
+  `timestamp`, because phases are time-gated by design and a block's timestamp is fixed by its
+  slot; a proposer can at most skip its slot, delaying a phase change by 12 seconds.
   `forge coverage` measured 97.8% of lines and every branch of the contracts. Both are
   engineering hygiene, not evaluation parameters.
 

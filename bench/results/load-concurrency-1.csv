@@ -1,0 +1,17 @@
+relayer,load,ballot,accepted_ms,counted_ms,outcome,block
+concurrency-1,16,1,9336,156104,counted,13
+concurrency-1,16,2,9241,132985,counted,11
+concurrency-1,16,3,9241,120905,counted,10
+concurrency-1,16,4,9232,96741,counted,8
+concurrency-1,16,5,9182,12202,counted,1
+concurrency-1,16,6,9180,24262,counted,2
+concurrency-1,16,7,9217,48412,counted,4
+concurrency-1,16,8,9228,72606,counted,6
+concurrency-1,16,9,9228,84679,counted,7
+concurrency-1,16,10,9232,108819,counted,9
+concurrency-1,16,11,9342,168161,counted,14
+concurrency-1,16,12,9216,60521,counted,5
+concurrency-1,16,13,9201,36324,counted,3
+concurrency-1,16,14,9342,180212,counted,15
+concurrency-1,16,15,9336,145048,counted,12
+concurrency-1,16,16,9344,192258,counted,16

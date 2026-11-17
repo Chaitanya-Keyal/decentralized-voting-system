@@ -25,8 +25,9 @@ runs = 1000
 isolate = true
 
 [lint]
-# Phases are time-gated by design, over windows of hours or days. A validator can shift a
-# block's timestamp by only a few seconds, which cannot move a phase change meaningfully.
+# Phases are time-gated by design, over windows of minutes to days. Since the Merge a block's
+# timestamp is fixed by its slot; a proposer can at most skip its slot, delaying a phase change by
+# one 12-second slot.
 exclude_lints = ["block-timestamp"]
 
 # forge fmt always indents with spaces.

@@ -72,8 +72,8 @@ jobs:
       - run: forge fmt --check
       - run: forge lint --deny warnings
       - run: forge build --sizes
-      # Fails on any finding. slither.config.json excludes only the timestamp detector: phases
-      # span hours, and a validator can move a block's timestamp by seconds.
+      # Fails on any finding. slither.config.json excludes only the timestamp detector: phases are
+      # time-gated by design, and a block's timestamp is fixed by its slot.
       - name: Static analysis (Slither)
         run: |
           pipx install slither-analyzer==0.11.6

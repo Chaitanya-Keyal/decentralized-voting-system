@@ -49,6 +49,12 @@ const schema = z
     RELAYER_TRUSTED_PROXIES: z.coerce.number().int().min(0).default(0),
     /** Ballots one client may submit per minute. */
     RELAYER_RATE_LIMIT: z.coerce.number().int().positive().default(10),
+    /**
+     * Ballots in flight at once. They are still sent one at a time, in nonce order, but the relayer
+     * does not wait for one to be mined before sending the next, so a burst of voters shares blocks.
+     * 1 waits for each ballot's block before sending the next.
+     */
+    RELAYER_CONCURRENCY: z.coerce.number().int().positive().default(64),
   })
   .refine((env) => env.RELAYER_PRIVATE_KEY ?? env.RELAYER_ADDRESS, {
     message: "Set RELAYER_PRIVATE_KEY, or RELAYER_ADDRESS for an account Anvil has unlocked",

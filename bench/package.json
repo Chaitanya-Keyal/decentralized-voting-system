@@ -6,6 +6,7 @@
   "scripts": {
     "gas": "tsx src/gas.ts",
     "booth": "tsx src/booth.ts",
+    "load": "tsx src/load.ts",
     "typecheck": "tsc --noEmit",
     "sepolia": "tsx src/sepolia.ts"
   },

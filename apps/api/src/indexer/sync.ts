@@ -16,8 +16,8 @@ import { loggable } from "../redact";
 /** Blocks per `eth_getLogs` request, within what public RPC providers allow. */
 const BATCH_SIZE = 500n;
 
-/** Blocks to stay behind the head, so a short testnet reorg never reaches the database. Anvil
- * does not reorg. Proper reorg handling is planned for M3. */
+/** Blocks to stay behind the head, so a short testnet reorg rarely reaches the database; one that
+ * does is caught below and the index rebuilt. Anvil does not reorg. */
 const CONFIRMATIONS = chain.id === anvil.id ? 0n : 3n;
 
 const POLL_MS = chain.id === anvil.id ? 500 : 4_000;

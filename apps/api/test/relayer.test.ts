@@ -122,6 +122,35 @@ describe("relayer", () => {
     expect(await node.readContract({ ...contract, functionName: "tally" })).toEqual([0n, 1n]);
   }, 60_000);
 
+  it("sends a burst of ballots without waiting for each to be mined, so they share a block", async () => {
+    const { election, voters, tree, contract } = await votingElection("Mess committee");
+    const ballots: AnonymousBallot[] = [];
+    for (const [index, voter] of voters.entries()) {
+      ballots.push(await ballotFor(voter, tree, election, BigInt(index % 2)));
+    }
+    const ids: string[] = [];
+    await node.setAutomine(false);
+    try {
+      for (const ballot of ballots) {
+        const response = await submit(ballotRequest(election, ballot));
+        expect(response.statusCode, response.body).toBe(200);
+        ids.push(relayAcceptedSchema.parse(response.json()).id);
+      }
+      // All three are sent, with consecutive nonces, before any block is mined.
+      await expect
+        .poll(async () => (await node.getTxpoolStatus()).pending, { timeout: 20_000 })
+        .toBe(3);
+      await node.mine({ blocks: 1 });
+    } finally {
+      await node.setAutomine(true);
+    }
+    for (const id of ids) {
+      const status = await waitUntilMined(id);
+      expect(status.status, status.error).toBe("mined");
+    }
+    expect(await node.readContract({ ...contract, functionName: "ballotsCast" })).toBe(3n);
+  }, 90_000);
+
   it("refuses the same ballot twice, before paying for it", async () => {
     const { election, voters, tree } = await votingElection();
     const ballot = await ballotFor(voters[1]!, tree, election, 0n);
