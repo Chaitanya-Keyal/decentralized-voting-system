@@ -58,5 +58,7 @@ Ethereum Sepolia and verified on Sourcify; their addresses are in
 - [docs/auditing.md](docs/auditing.md): how anyone can check an election, and keep their own copy
   of its voter list
 - [docs/roadmap.md](docs/roadmap.md): what gets built, milestone by milestone
+- [reports/eval2.pdf](reports/eval2.pdf) and [reports/eval2-slides.pptx](reports/eval2-slides.pptx):
+  the Evaluation 2 report and slides; [docs/demo.md](docs/demo.md): the demo walkthrough
 - [Issue #2](https://github.com/Chaitanya-Keyal/decentralized-voting-system/issues/2): the
   checklist of everything left, kept up to date
