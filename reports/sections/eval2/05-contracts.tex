@@ -345,8 +345,11 @@ the same TypeScript code the booth runs, so the browser's proofs and the
 on-chain verifier are tested against each other. The tier 2 tests likewise use
 a voter list built by the TypeScript tree builder.
 
-When last measured, \texttt{forge coverage} reported 97.8\% of lines and every
-branch of the contracts.
+\texttt{forge coverage} reports 98.9\% of lines (176 of 178), every branch
+(32 of 32) and 50 of 51 functions. The two lines and one function it misses are
+in \texttt{SemaphoreElection}, where the compiler requires an override of
+\texttt{\_msgData} that nothing calls; it is the same function Slither's
+dead-code note is suppressed for.
 
 Static analysis runs on every pull request and every push to the main
 branch. Continuous integration checks formatting,

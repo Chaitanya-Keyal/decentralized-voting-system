@@ -142,7 +142,7 @@ Commit the second gas snapshot here. The difference from M1's is the cost of ano
 ## M3 · Feature freeze
 
 **Status: mostly done.** Approval voting, Slither (no findings, one detector excluded) and
-coverage (97.8% of lines, every branch), reorg handling and the rebuild, the edge cases, and the
+coverage (98.9% of lines, every branch), reorg handling and the rebuild, the edge cases, and the
 audit panel are built, and the end-to-end tests run the audit. Auditors' instructions, including
 how to keep their own copy of the lists, are in [auditing.md](auditing.md). The relayer is
 reachable from a phone on the public demo.
