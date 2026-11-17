@@ -9,6 +9,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { description } from "./site";
 
+const APPLY_KEPT_COLOR_SCHEME = `try{var s=localStorage.getItem("color-scheme");if(s==="light"||s==="dark")document.querySelectorAll('meta[name="color-scheme"]').forEach(function(m){m.content=s})}catch(e){}`;
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -39,6 +41,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
+        {/* Applies a light or dark choice kept by lib/color-scheme.ts before anything is drawn. It
+            runs first in the body, where the head's color-scheme meta exists, and does nothing
+            else, so it stays this small. */}
+        <script dangerouslySetInnerHTML={{ __html: APPLY_KEPT_COLOR_SCHEME }} />
         <ServiceWorker />
         <a
           href="#main"
@@ -57,6 +63,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </main>
           <footer className="mx-auto w-full max-w-4xl px-4 pb-6 text-sm text-zinc-500 dark:text-zinc-400">
             <nav aria-label="About DVote" className="flex gap-4">
+              <Link href="/about" className="hover:underline">
+                How it works
+              </Link>
               <Link href="/privacy" className="hover:underline">
                 Privacy
               </Link>

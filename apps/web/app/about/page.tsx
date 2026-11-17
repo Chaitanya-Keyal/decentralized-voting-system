@@ -1,0 +1,99 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+import { Prose } from "@/components/prose";
+
+export const metadata: Metadata = { title: "How it works" };
+
+export default function AboutPage() {
+  return (
+    <Prose title="How DVote works">
+      <p>
+        DVote runs elections whose result anyone can check for themselves. It is a student project
+        for BITS F452 (Blockchain Technology) at BITS Pilani, Hyderabad Campus. This site runs it on
+        Sepolia, an Ethereum test network, so nothing here costs real money.
+      </p>
+
+      <h2>The problem</h2>
+      <p>
+        In an ordinary online poll, whoever runs the server holds the voter list, the ballot box and
+        the count, and nobody else can check any of them. DVote puts the rules and the count in a
+        smart contract on a blockchain: a program everyone can read and nobody can change, whose
+        every step is public.
+      </p>
+
+      <h2>An anonymous election, step by step</h2>
+      <ol>
+        <li>
+          <strong>The organiser creates it</strong> from their wallet: the title, the candidates and
+          the schedule. All three are fixed in the election&apos;s contract.
+        </li>
+        <li>
+          <strong>Voters register.</strong> Each voter&apos;s browser makes a voting key, and they
+          sign in with their institute Google account. The registrar checks that the address is an
+          institute one and records the public part of the key. The key itself never leaves the
+          device.
+        </li>
+        <li>
+          <strong>The voter list is fixed.</strong> When registration closes, the registrar puts the
+          list on IPFS and records its fingerprint in the contract. Nobody can add or remove a voter
+          after that, and every voter can check that they are on it.
+        </li>
+        <li>
+          <strong>Voters vote.</strong> The browser makes a zero-knowledge proof: it shows the
+          ballot comes from someone on the list without showing who. A relayer sends it to the
+          contract and pays the fee, so voters need no wallet and no cryptocurrency.
+        </li>
+        <li>
+          <strong>The contract counts.</strong> It checks the proof, refuses a second ballot from
+          the same key, and adds the vote to the total.
+        </li>
+        <li>
+          <strong>Anyone checks the result.</strong> When voting closes, anyone can close the
+          election and finalize the result. Anyone can then run the audit on the election&apos;s
+          page: the browser recounts every ballot from the blockchain and IPFS alone, without asking
+          our servers anything.
+        </li>
+      </ol>
+
+      <h2>What is public, and what stays private</h2>
+      <ul>
+        <li>
+          <strong>Public:</strong> the candidates, the voter list (public keys only, never names or
+          email addresses), every ballot and the count.
+        </li>
+        <li>
+          <strong>Private:</strong> who cast which ballot. The registrar knows who registered but
+          cannot tell which ballot is whose, and the relayer sees ballots but not who sent them.
+        </li>
+        <li>
+          <strong>Kept by the registrar only:</strong> email addresses, to stop anyone registering
+          twice. They never go on the blockchain.
+        </li>
+      </ul>
+
+      <h2>What you still have to trust</h2>
+      <p>
+        The registrar decides who may vote, so it could add voters who should not be there.
+        Publishing the list fixes it for everyone to see, but comparing it with the real roll is up
+        to people outside the system. Everything after that, from the ballots to the count, anyone
+        can check.
+      </p>
+
+      <h2>Two kinds of election</h2>
+      <ul>
+        <li>
+          <strong>Anonymous ballots</strong>, as above.
+        </li>
+        <li>
+          <strong>Wallet ballots:</strong> voters register a wallet and vote from it, paying a
+          little gas. They cost less to run, but anyone can see which wallet voted for whom.
+        </li>
+      </ul>
+
+      <p>
+        What this site keeps about you is on the <Link href="/privacy">privacy</Link> page.
+      </p>
+    </Prose>
+  );
+}

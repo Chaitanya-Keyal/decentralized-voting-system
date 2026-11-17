@@ -8,6 +8,7 @@ import { chain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 import { useWalletForOrganisers, useWalletHidden } from "@/lib/header-wallet";
 
+import { ThemeToggle } from "./theme-toggle";
 import { Button } from "./ui";
 import { HeaderConnectButton } from "./wallet-connect";
 
@@ -103,8 +104,18 @@ export function Header() {
             <span className="hidden sm:inline">New election</span>
             <span className="sm:hidden">New</span>
           </Link>
+          {/* On a phone there is no room; the footer and the home page link to it. */}
+          <Link
+            href="/about"
+            className="hidden text-zinc-600 hover:text-zinc-900 sm:inline dark:text-zinc-400 dark:hover:text-zinc-100"
+          >
+            How it works
+          </Link>
         </nav>
-        <WalletButton />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <WalletButton />
+        </div>
       </div>
       <WrongNetwork />
     </header>

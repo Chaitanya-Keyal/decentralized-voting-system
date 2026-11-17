@@ -1,12 +1,46 @@
 @import "tailwindcss";
 
+/* `dark:` styles apply when the page shows dark: when the visitor chose dark with the header's
+   switch, or when the system is dark and they did not choose light. The choice lives in
+   <meta name="color-scheme">; without script it stays "light dark" and the system decides. */
+@custom-variant dark {
+  &:where(:root:has(> head > meta[name="color-scheme"][content="dark"]) *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not(:has(> head > meta[name="color-scheme"][content="light"])) *) {
+      @slot;
+    }
+  }
+}
+
 :root {
+  color-scheme: light dark;
   --background: #ffffff;
   --foreground: #18181b;
   --accent: #18181b;
-  color-scheme: light dark;
   /* Checkboxes and radio buttons in the site's colour. */
   accent-color: var(--accent);
+
+  /* The visitor's choice, from the meta, decides the scheme that colours follow. */
+  &:has(> head > meta[name="color-scheme"][content="dark"]) {
+    color-scheme: dark;
+  }
+  &:has(> head > meta[name="color-scheme"][content="light"]) {
+    color-scheme: light;
+  }
+
+  /* Browsers without light-dark() follow the system. */
+  @media (prefers-color-scheme: dark) {
+    --background: #09090b;
+    --foreground: #f4f4f5;
+    --accent: #f4f4f5;
+  }
+  @supports (color: light-dark(white, black)) {
+    --background: light-dark(#ffffff, #09090b);
+    --foreground: light-dark(#18181b, #f4f4f5);
+    --accent: light-dark(#18181b, #f4f4f5);
+  }
 }
 
 @theme inline {
@@ -14,14 +48,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09090b;
-    --foreground: #f4f4f5;
-    --accent: #f4f4f5;
-  }
 }
 
 body {
