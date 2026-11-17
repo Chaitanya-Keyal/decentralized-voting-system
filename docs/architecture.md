@@ -440,8 +440,9 @@ Not a source of truth; it is a convenience and liveness layer. Four services:
   fail the pairing check on-chain and revert, and the relayer pays for roughly 250k gas each; a
   daily cap does not prevent that, it only sets the price of shutting down the gasless path on
   the morning of the demonstration. With it, the relayer's worst-case lifetime exposure is
-  bounded by the roll size, because a valid proof requires an enrolled identity and each identity
-  yields exactly one usable nullifier per election. Rate limiting per source and per nullifier
+  bounded by the roll size of the deployment's own elections: it relays only for elections run by
+  the authorities it is configured with, a valid proof requires an enrolled identity, and each
+  identity yields exactly one usable nullifier per election. Rate limiting per source and per nullifier
   sits on top of that bound rather than substituting for it.
 - **Indexer**: tails both factories' `ElectionCreated` and each election's events
   (configuration, candidates, phases, `VoterRootPublished`, `VoteCast`, `Finalized`) and

@@ -84,10 +84,11 @@ planned, and the two fallbacks were never needed:
   \item \emph{Relayer down on the day.} Any wallet can submit an anonymous
         ballot. The booth always offers this, and recommends it when the relayer
         reports a failure or voting closes within five minutes.
-  \item \emph{Relayer funds drained.} The relayer verifies the proof, checks
-        that the nullifier is unspent and not already queued, and simulates the
-        call before it pays, so it pays for at most one counted ballot per
-        registered voter. A ballot that loses a race, for example to the close
+  \item \emph{Relayer funds drained.} The relayer pays only for elections run
+        by the deployment's authorities, since anyone can create one. It
+        verifies the proof, checks that the nullifier is unspent and not already
+        queued, and simulates the call before it pays, so it pays for at most
+        one counted ballot per registered voter. A ballot that loses a race, for example to the close
         of voting, still costs gas.
   \item \emph{Not enough Sepolia ETH.} Gas and scaling measurements run on a
         local node, as planned. Test ETH has been more than enough for

@@ -201,7 +201,8 @@ Evaluation~1 partly unmet. Each change and its reason are recorded below.
 
   \item \textbf{The relayer checks more than planned.} Besides the proof
         and the nullifier (FR7), the relayer checks that the election is an
-        anonymous \projectname{} election and simulates the call it will send
+        anonymous \projectname{} election run by one of the deployment's
+        authorities, and simulates the call it will send
         before signing a receipt. A ballot the contract would reject
         therefore never earns a receipt, and the voter is told why. One queued
         ballot per nullifier, and a rate limit per client, protect the
