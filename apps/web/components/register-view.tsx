@@ -140,8 +140,7 @@ function AnonymousRegistration({ election, now }: { election: OnchainElection; n
       {status && <Notice>{status}</Notice>}
       {receipt && election.voterListCid === "" && (
         <Notice tone="success">
-          You&apos;re registered. Voting opens {formatTime(election.schedule.votingStart)}. If you
-          will vote in this same browser, there is nothing more to do: come back then.
+          You&apos;re registered. Voting opens {formatTime(election.schedule.votingStart)}.
         </Notice>
       )}
       {identity && election.voterListCid !== "" && (

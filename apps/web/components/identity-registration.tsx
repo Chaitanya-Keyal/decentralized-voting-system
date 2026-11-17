@@ -113,7 +113,7 @@ export function VotingKeyCard({
           <>
             <ol className="flex list-decimal flex-col gap-1 pl-5">
               <li>Create your voting key. It stays in this browser.</li>
-              <li>Show that you are a student here, with your institute email.</li>
+              <li>Confirm your institute email address.</li>
               <li>Come back when voting opens, and vote.</li>
             </ol>
             <p className="text-zinc-600 dark:text-zinc-400">

@@ -2,6 +2,7 @@
 
 import { getAddress, isAddress } from "viem";
 
+import { useMarkWalletForOrganisers } from "@/lib/chrome";
 import { useElection } from "@/lib/election";
 import { describeError } from "@/lib/errors";
 import { useChainNow } from "@/lib/time";
@@ -20,6 +21,7 @@ export function ElectionView({ address }: { address: string }) {
   const valid = isAddress(address);
   const { data: election, error } = useElection(valid ? getAddress(address) : undefined);
   const now = useChainNow();
+  useMarkWalletForOrganisers(election?.tier === 3);
 
   if (!valid) return <Notice tone="error">That is not an election address.</Notice>;
   if (error) return <Notice tone="error">{describeError(error)}</Notice>;
@@ -89,7 +91,7 @@ export function ElectionView({ address }: { address: string }) {
           election.tier === 3
             ? `Every ballot is public, shown by its ballot ID alone, never with who cast it.${
                 election.voterCount > 0
-                  ? ` Each is hidden among the ${election.voterCount} people on the voter list.`
+                  ? ` Nobody can tell which of the ${election.voterCount} people on the voter list cast any one of them; the more people on the list, the better hidden each ballot is.`
                   : ""
               } A ballot this browser cast is marked "yours".`
             : "Every ballot is public, with the wallet that cast it."

@@ -54,7 +54,7 @@ export function Ballots({
             <th className="py-2 pr-4 font-medium">{tier === 3 ? "Ballot ID" : "Voter"}</th>
             <th className="py-2 pr-4 font-medium">Choice</th>
             <th className="hidden py-2 pr-4 font-medium sm:table-cell">Time</th>
-            <th className="py-2 font-medium">Transaction</th>
+            <th className="hidden py-2 font-medium sm:table-cell">Transaction</th>
           </tr>
         </thead>
         <tbody>
@@ -68,7 +68,7 @@ export function Ballots({
                 <td className="py-2 pr-4">
                   <Mono value={voterOf(ballot.key, tier)} />
                   {own !== undefined && BigInt(ballot.key) === own && (
-                    <span className="ml-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                    <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                       yours
                     </span>
                   )}
@@ -80,7 +80,7 @@ export function Ballots({
                 <td className="hidden py-2 pr-4 text-zinc-500 sm:table-cell">
                   {formatTime(ballot.timestamp)}
                 </td>
-                <td className="py-2">
+                <td className="hidden py-2 sm:table-cell">
                   {link ? (
                     <a href={link} target="_blank" rel="noreferrer" className="underline">
                       <Mono value={ballot.txHash} />

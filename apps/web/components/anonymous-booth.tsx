@@ -227,7 +227,7 @@ function AnonymousBallotForm({
 
         <details className="text-sm">
           <summary className="cursor-pointer text-zinc-600 dark:text-zinc-400">
-            Submit from a wallet instead
+            Advanced: send it from a wallet of your own instead
           </summary>
           <div className="mt-3 flex flex-col gap-3">
             <p className="text-zinc-500">
@@ -264,13 +264,13 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
   return (
     <>
       <Notice tone="success">
-        You have voted. Your ballot is recorded on the blockchain and included in the count.
+        You have voted. Your ballot is recorded on the blockchain and included in the count. It cost
+        you nothing.
       </Notice>
       <p className="text-sm text-zinc-700 dark:text-zinc-300">
-        Your ballot ID is <Mono value={pad(toHex(BigInt(ballot.nullifier)))} />. In the list of
-        ballots on the election&apos;s page, this browser marks it &ldquo;yours&rdquo;. The ID is
-        the same each time this key votes here, which is how a second ballot is refused, and it says
-        nothing about who you are.
+        Your ballot ID is <Mono value={pad(toHex(BigInt(ballot.nullifier)))} />. On the
+        election&apos;s page, this browser marks your ballot &ldquo;yours&rdquo;; note the ID if you
+        want to find it from another device. Nobody can connect the ID to your name.
       </p>
       <details className="text-sm text-zinc-600 dark:text-zinc-400">
         <summary className="cursor-pointer">Details</summary>
@@ -402,6 +402,11 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
           <p className="text-zinc-600 dark:text-zinc-400">
             Nobody can recover a lost key, not even us: that is what keeps your ballot secret.
           </p>
+          <div>
+            <LinkButton href={`/elections/${election.address}`} variant="secondary">
+              Only checking the results? See the count
+            </LinkButton>
+          </div>
         </div>
         <VotingKeyCard election={election} restoreOnly />
       </>

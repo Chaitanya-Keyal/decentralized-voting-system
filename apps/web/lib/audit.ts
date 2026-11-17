@@ -206,7 +206,7 @@ export async function runAudit(
         checked++;
         report("eligibility", "running", `${checked} of ${ballots.length} proofs checked`);
       }
-      return `${checked} proofs checked in this browser; a proof shows a ballot is from the list, not whose it is`;
+      return `${checked} ballots checked in this browser: each comes from someone on the list`;
     }
     for (const ballot of ballots) {
       const voter = slice(ballot.key, 12).toLowerCase();

@@ -19,6 +19,38 @@ import { Button, Card } from "./ui";
  * voter who registers on a laptop and votes on a phone, or whose link opens in another app's
  * browser, needs it there first. The QR code and the link carry the key itself.
  */
+/** A calendar file reminding the voter when voting opens, with a link to the booth. */
+function downloadReminder(election: OnchainElection) {
+  const stamp = (seconds: bigint | number) =>
+    new Date(Number(seconds) * 1000)
+      .toISOString()
+      .replace(/[-:]/g, "")
+      .replace(/\.\d{3}/, "");
+  const escape = (text: string) => text.replace(/[\\;,]/g, (match) => `\\${match}`);
+  const booth = `${window.location.origin}/elections/${election.address}/vote`;
+  const start = election.schedule.votingStart;
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//DVote//EN",
+    "BEGIN:VEVENT",
+    `UID:dvote-${election.address}@dvote`,
+    `DTSTAMP:${stamp(Math.floor(Date.now() / 1000))}`,
+    `DTSTART:${stamp(start)}`,
+    `DTEND:${stamp(Number(start) + 15 * 60)}`,
+    `SUMMARY:${escape(`Vote: ${election.title}`)}`,
+    `DESCRIPTION:${escape(`Voting is open until ${new Date(Number(election.schedule.votingEnd) * 1000).toLocaleString()}. ${booth}`)}`,
+    `URL:${booth}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ];
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([lines.join("\r\n")], { type: "text/calendar" }));
+  link.download = "dvote-voting-reminder.ics";
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 export function KeyTransfer({ election }: { election: OnchainElection }) {
   const identity = useStoredIdentity(chain.id, election.address);
   const [shown, setShown] = useState(false);
@@ -45,19 +77,39 @@ export function KeyTransfer({ election }: { election: OnchainElection }) {
   };
 
   return (
-    <Card
-      title="Voting from another device?"
-      description="Your voting key is in this browser only. If you will vote on your phone or in another browser, move the key there now; it cannot be recovered later."
-    >
+    <Card title="Where will you vote?">
       <div className="flex flex-col gap-4 text-sm">
-        {!shown ? (
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={() => setShown(true)}>Show a QR code to scan</Button>
-            <Button variant="secondary" onClick={() => void share()}>
-              {copied ? "Link copied" : "Send the link to yourself"}
-            </Button>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-2 rounded-lg border border-zinc-300 p-4 dark:border-zinc-700">
+            <p className="font-medium">Here, in this browser</p>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              Nothing more to do. Come back when voting opens.
+            </p>
+            <button
+              type="button"
+              className="w-fit underline"
+              onClick={() => downloadReminder(election)}
+            >
+              Add a reminder to my calendar
+            </button>
           </div>
-        ) : (
+          <div className="flex flex-col gap-2 rounded-lg border border-zinc-300 p-4 dark:border-zinc-700">
+            <p className="font-medium">
+              On my phone, in another browser, or from a link opened in WhatsApp or another app
+            </p>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              Your voting key is in this browser only. Move it there now; it cannot be recovered
+              later.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setShown(true)}>Show a QR code</Button>
+              <Button variant="secondary" onClick={() => void share()}>
+                {copied ? "Link copied" : "Send the link to yourself"}
+              </Button>
+            </div>
+          </div>
+        </div>
+        {shown && (
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
             <div
               className="size-44 shrink-0 rounded-lg border border-zinc-200 bg-white p-1 dark:border-zinc-800"

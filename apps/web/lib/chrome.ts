@@ -31,3 +31,29 @@ export function useHideWallet() {
     };
   }, []);
 }
+
+let organisersOnly = 0;
+
+export function useWalletForOrganisers(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => organisersOnly > 0,
+    () => false,
+  );
+}
+
+/**
+ * Labels the header's wallet button as the organisers' while the calling component is on screen,
+ * on pages voters also read, where a plain "Connect wallet" suggests voters need one.
+ */
+export function useMarkWalletForOrganisers(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    organisersOnly++;
+    listeners.forEach((listener) => listener());
+    return () => {
+      organisersOnly--;
+      listeners.forEach((listener) => listener());
+    };
+  }, [active]);
+}

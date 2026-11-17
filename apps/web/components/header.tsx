@@ -4,7 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { useAccount, useSwitchChain } from "wagmi";
 
-import { useWalletHidden } from "@/lib/chrome";
+import { useWalletForOrganisers, useWalletHidden } from "@/lib/chrome";
 import { chain } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 
@@ -43,6 +43,7 @@ function WrongNetwork() {
  */
 function WalletButton() {
   const hidden = useWalletHidden();
+  const forOrganisers = useWalletForOrganisers();
   return (
     <ConnectButton.Custom>
       {({ account, chain: connected, mounted, openAccountModal, openConnectModal }) => {
@@ -67,7 +68,7 @@ function WalletButton() {
                 onClick={openConnectModal}
                 className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
               >
-                Connect wallet
+                {forOrganisers ? "Connect wallet (organisers)" : "Connect wallet"}
               </button>
             )}
           </div>

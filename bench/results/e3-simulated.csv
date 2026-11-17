@@ -9,3 +9,13 @@ round,participant,profile,device,register,register_hesitation,vote,vote_hesitati
 1,8,cleared browser data before checking,phone,completed,0,completed,0,partly,partly
 1,9,busy student wanting the fewest clicks,laptop,completed,1,completed,1,yes,partly
 1,10,student-council member judging trust,laptop,completed,2,completed,1,partly,partly
+2,1,first-year who skims and worries,phone,completed,2,completed,1,yes,partly
+2,2,low vision with large text and zoom,phone,with help,3,completed,2,partly,partly
+2,3,non-native English speaker opening the link in WhatsApp's browser,phone,completed,2,with help,3,yes,partly
+2,4,sceptical computer science student,laptop,completed,1,completed,0,yes,partly
+2,5,registers in a library and votes on a phone,desktop then phone,completed,2,failed,3,no,partly
+2,6,worried about cost and crypto wallets,phone,completed,1,completed,1,yes,partly
+2,7,PhD scholar who rarely uses web apps,laptop,completed,1,completed,1,yes,partly
+2,8,cleared browser data before checking,phone,completed,1,completed,0,partly,partly
+2,9,busy student wanting the fewest clicks,laptop,completed,1,completed,0,partly,partly
+2,10,student-council member judging trust,laptop,completed,1,completed,1,yes,partly
