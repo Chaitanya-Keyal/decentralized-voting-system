@@ -109,6 +109,16 @@ describe("GET /config", () => {
     const response = await app.inject("/config");
     expect(response.json()).toMatchObject({ chainId: chain.id, registrar: REGISTRAR });
   });
+
+  it("answers the web app, but not a page on another site", async () => {
+    const from = (origin: string) =>
+      app.inject({
+        url: "/config",
+        headers: { origin, "sec-fetch-site": "cross-site", "sec-fetch-mode": "cors" },
+      });
+    expect((await from("http://localhost:3000")).statusCode).toBe(200);
+    expect((await from("https://elsewhere.example")).statusCode).toBe(403);
+  });
 });
 
 describe("registration", () => {

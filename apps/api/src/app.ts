@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import { chain, deployment, registrar } from "./chain";
 import { env } from "./env";
-import { clientError, parse } from "./http";
+import { clientError, parse, refuseOtherSites } from "./http";
 import { loggable } from "./redact";
 import { getElection, indexerStatus, listBallots, listElections } from "./indexer/queries";
 import { pinJson } from "./ipfs";
@@ -27,7 +27,9 @@ export async function buildApp(options: { logger?: boolean } = {}): Promise<Fast
     // more proxies than there really are, or a client could choose its own address.
     trustProxy: (_address: string, hop: number) => hop < env.API_TRUSTED_PROXIES,
   });
-  await app.register(cors, { origin: env.WEB_ORIGIN.split(",") });
+  const origins = env.WEB_ORIGIN.split(",");
+  app.addHook("onRequest", refuseOtherSites(origins));
+  await app.register(cors, { origin: origins });
 
   // Only messages written for clients reach them. Anything else, such as a failed request to the
   // node, can quote internal details like the RPC URL and its key, so it is logged instead.

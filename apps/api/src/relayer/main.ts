@@ -6,7 +6,7 @@ import cors from "@fastify/cors";
 import Fastify, { LogController, type FastifyServerOptions } from "fastify";
 import { z } from "zod";
 
-import { clientError, parse } from "../http";
+import { clientError, parse, refuseOtherSites } from "../http";
 import { loggable } from "../redact";
 import { chain, config, deployment, relayer } from "./config";
 import { acceptBallot, ballotStatus, connect, startWorker } from "./service";
@@ -22,7 +22,9 @@ export async function buildRelayer(options: { logger?: boolean } = {}) {
     trustProxy: (_address: string, hop: number) => hop < config.RELAYER_TRUSTED_PROXIES,
   };
   const app = Fastify(settings);
-  await app.register(cors, { origin: config.WEB_ORIGIN.split(",") });
+  const origins = config.WEB_ORIGIN.split(",");
+  app.addHook("onRequest", refuseOtherSites(origins));
+  await app.register(cors, { origin: origins });
 
   app.setErrorHandler((error, request, reply) => {
     const shown = clientError(error);
