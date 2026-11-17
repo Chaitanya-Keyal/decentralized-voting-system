@@ -1,87 +1,332 @@
 % ===========================================================================
 \section{Performance Analysis}
 % Source material: docs/evaluation-parameters.md, bench/results/
-% This is the section the final evaluation weighs most heavily. Every number
-% needs a stated environment and a stated sample size.
+% Every number states its environment and sample size. Graphs are drawn by
+% pgfplots from the committed CSVs, never by hand.
 % ===========================================================================
+
+% Keeps only the rows of a CSV whose column #1 equals #2.
+\pgfplotsset{
+  only/.style 2 args={
+    x filter/.append code={%
+      \edef\onlyvalue{\thisrow{#1}}\edef\onlywanted{#2}%
+      \ifx\onlyvalue\onlywanted\else\def\pgfmathresult{}\fi
+    }
+  },
+}
 
 \subsection{Setup}
 
-\stub{Describe the measurement environment precisely enough to be reproducible:
-  hardware, client versions, network, RPC provider, gas price at the time of
-  measurement, contract commit hash, sample sizes, and how repetitions were
-  aggregated.}
+Three environments produced the numbers in this section, each chosen for what
+it can measure honestly. Table~\ref{tab:bench-setup} lists them.
 
 \begin{table}[htbp]
   \centering
   \caption{Measurement environments.}
   \label{tab:bench-setup}
   \small
-  \begin{tabular}{@{}L{3.7cm}L{5.3cm}L{6.9cm}@{}}
+  \begin{tabular}{@{}L{3.2cm}L{4.6cm}L{8.1cm}@{}}
     \toprule
-    \textbf{Environment} & \textbf{Used for} & \textbf{Configuration}                                     \\
+    \textbf{Environment} & \textbf{Used for} & \textbf{Configuration} \\
     \midrule
-    Local EVM            & Gas measurements  & \note{toolchain version, solc version, optimizer settings} \\
-    Local node           & Throughput        & \note{host specification}                                  \\
-    Public testbed       & Latency, cost     & \note{network, RPC provider, gas price, block time}        \\
+    Local EVM            & Gas (A1, C1)      & Foundry 1.8.6 and Anvil 1.8.6; solc 0.8.28, optimizer on, 200 runs, \texttt{evm\_version} Cancun, so pre-Glamsterdam gas pricing \\
+    Local client         & Proving and tree rebuild (C2, B2 baseline) & One ARM64 core, Node.js 24, Semaphore 4.14.5 with the pinned v4.13.0 proving files; five runs per point \\
+    Ethereum Sepolia     & Gas under Glamsterdam (A1), latency (B1), the end-to-end run & The deployment of Table~\ref{tab:deployment}; public RPC (PublicNode, with Tenderly and 1RPC as fallbacks in the browser); 12-second slots \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\stub{State plainly which numbers come from a local environment and which from a
-  live network, and why the split was made that way. Do not present a locally
-  measured number as though it came from the testbed.}
+Gas is deterministic for given bytecode, calldata and rules, so A1 and C1 were
+measured locally, where a sweep over seventeen roll sizes costs nothing and
+repeats exactly. Sepolia matters for two other reasons. It is where latency is
+real (B1), and since 6~October~2026 it runs the Glamsterdam
+upgrade~\cite{glamsterdam}, whose EIP-8037~\cite{eip8037} changes gas pricing in
+ways Foundry's EVM does not yet model. Every figure below says which of the two
+it comes from. The scripts are in \texttt{bench/}, the raw results in
+\texttt{bench/results/}, and the contract commit for all gas figures is the one
+deployed in Section~4.
 
 \subsection{Results by evaluation parameter}
 
-Results are presented against the parameters defined in the Evaluation 1 report.
-Targets stated there were hypotheses; where a target was missed, the result is
-reported as measured and analysed.
+Results are presented against the parameters defined in the Evaluation~1
+report. Its targets were hypotheses; where one was missed, the result is
+reported as measured.
 
 \subsubsection{Cost (A1)}
 
-\stub{Report the gas per operation (A1). A fiat cost per vote is an
-  illustration at a stated gas price, not a graded figure, since it depends on a
-  gas price and an exchange rate outside the project's control.}
+Table~\ref{tab:a1} gives the gas of every step of an election in both tiers,
+under the two rule sets. The local figures come from the gas snapshot
+(\texttt{contracts/snapshots/}), which runs each call as its own transaction
+with a voter list of 1,024. A tier~3 ballot carries a Groth16 proof that the
+contract verifies with pairings, so it costs about 216,000 gas more than a
+tier~2 ballot: that is the price of anonymity on-chain.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Gas per operation (A1). ``Local'' is pre-Glamsterdam pricing on
+    Foundry's EVM; ``Sepolia'' is the same contracts under Glamsterdam.}
+  \label{tab:a1}
+  \small
+  \begin{tabular}{@{}L{7.4cm}R{2.4cm}R{2.4cm}@{}}
+    \toprule
+    \textbf{Operation} & \textbf{Local} & \textbf{Sepolia} \\
+    \midrule
+    Create an election (clone, schedule, three candidates) & 639,707 & \note{3,091,733} \\
+    Publish the voter list (root, size, CID)                & 147,319 & \note{581,507} \\
+    Tier 2 ballot, typical                                  & 80,221  & \note{pending} \\
+    Tier 2 ballot, first of the election                    & 114,397 & \note{372,893} \\
+    Tier 3 ballot, typical                                  & 296,692 & \note{pending} \\
+    Tier 3 ballot, first of the election                    & 330,892 & \note{pending} \\
+    Tier 3 ballot through the ERC-2771 forwarder            & 335,214 & \note{pending} \\
+    Close voting                                            & 33,143  & \note{pending} \\
+    Finalize                                                & 89,881  & \note{pending} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\note{Replace the Sepolia column from bench/results/sepolia-gas-*.csv of the run
+  on the current deployment.}
+
+Glamsterdam's EIP-8037 charges 1,530 gas for each byte of new state: a new
+storage slot costs 97,920 gas instead of 20,000, and deployed code
+$(120 + \textit{length}) \times 1{,}530$ gas instead of 200 per byte. Every
+ballot creates at least one slot, its nullifier, so its cost rises by about
+100,000 gas; creating an election writes a clone and its configuration, and
+costs about five times as much. Deploying the contracts rose more still:
+\texttt{MerkleElection} took 14.66 million gas on Sepolia against 2.08 million
+locally. The same rule decided a design question. Relaying a ballot through
+the ERC-2771 forwarder, signed by a fresh key, creates a second slot for that
+key's nonce; on Sepolia a forwarded ballot used about 127,000 gas more than one
+sent directly, which is why the relayer now calls \texttt{castVote} itself
+(Section~4).
+
+A fiat cost per vote is deliberately not a parameter: it would measure a gas
+price and an exchange rate on one day, not the system. Fees on Sepolia are
+close to zero (a base fee of 13~wei per gas at the time of writing), so gas is
+also the only meaningful measure there.
 
 \subsubsection{Performance (B1, B2)}
 
-\stub{Report latency distributions rather than averages: median and tail. Give
-  proof generation time by device class. Report the throughput curve and say where
-  it bends.}
+\paragraph{B1, end-to-end vote latency.}
+The Sepolia end-to-end test (\texttt{e2e/sepolia.spec.ts}) times each voter
+from pressing ``Cast my ballot'' to the booth reporting the ballot counted.
+That interval includes proving in the browser, the relayer's checks, a block
+on Sepolia and the booth confirming the nullifier on-chain.
+\note{pending: median and 95th percentile from bench/results/b1-sepolia-*.csv;
+  first two samples 8.7\,s and 11.2\,s, against 12-second slots.}
+
+\paragraph{B2, proof generation by device.}
+\note{pending: laptop and Android phone from the /bench page.} As a baseline,
+one ARM64 core under Node.js proves a ballot in 0.57\,s (median of five) for a
+two-voter election and in 1.52\,s for 65,536 voters
+(Figure~\ref{fig:c2}).
 
 \subsubsection{Scalability (C1--C3)}
 
-This is the central claim of the design.
+\paragraph{C1, gas against roll size.}
+This is the design's central claim, and Figure~\ref{fig:c1} tests it with a
+real election at every power of two from 2 to 65,536 voters
+(\texttt{bench/src/gas.ts}). Publishing a voter list costs the same at every
+size, 147,165 gas in tier~2 and 147,319 in tier~3, because only a root, a
+count and a CID go on-chain. A tier~3 ballot is flat too: 296,315 gas at two
+voters, then between 296,656 and 296,692 from 4 to 65,536. The differences
+there are multiples of 12 gas, the price gap between a zero and a non-zero
+byte of calldata, so they come from the proof's bytes, not from the size of
+the list. A tier~2 ballot is not flat. It grows by
+about 700 gas each time the roll doubles, from 73,462 to 84,703, because its
+Merkle proof gains one hash per tree level.
 
 \begin{figure}[htbp]
   \centering
-  \fbox{\parbox[c][5.5cm][c]{0.9\linewidth}{\centering\itshape
-      Figure placeholder: gas cost against voter-roll size.\\
-      Generate from \texttt{bench/results/} by script, not by hand.}}
-  \caption{Gas cost per operation against the size of the electorate.}
+  \begin{tikzpicture}
+    \begin{axis}[
+        width=0.92\linewidth, height=6.2cm,
+        xmode=log, log basis x=2,
+        xlabel={Voters on the list}, ylabel={Gas (thousands)},
+        ymin=0, ymax=340,
+        xmin=1.4, xmax=93000,
+        legend columns=3, legend cell align=left,
+        legend style={at={(0.5,1.03)}, anchor=south, font=\small, draw=none},
+        grid=major, grid style={gray!20},
+        unbounded coords=discard,
+        y filter/.expression={y/1000},
+      ]
+      \addplot+[mark=*, mark size=1.4pt, only={operation}{cast_vote}, restrict expr to domain={\thisrow{tier}}{3:3}]
+        table[x=roll_size, y=gas, col sep=comma]{../bench/results/gas.csv};
+      \addlegendentry{Tier 3 ballot}
+      \addplot+[mark=square*, mark size=1.4pt, only={operation}{cast_vote}, restrict expr to domain={\thisrow{tier}}{2:2}]
+        table[x=roll_size, y=gas, col sep=comma]{../bench/results/gas.csv};
+      \addlegendentry{Tier 2 ballot}
+      \addplot+[mark=triangle*, mark size=1.4pt, only={operation}{publish_roll}, restrict expr to domain={\thisrow{tier}}{3:3}]
+        table[x=roll_size, y=gas, col sep=comma]{../bench/results/gas.csv};
+      \addlegendentry{Publish the list}
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Gas per operation against the size of the electorate (C1), local,
+    pre-Glamsterdam pricing. Tier~3 ballots and list publication are flat;
+    tier~2 ballots grow with the Merkle proof.}
   \label{fig:c1}
 \end{figure}
 
-\stub{State whether gas is flat in the size of the electorate, and give the
-  measured figures at each roll size. If the line is not flat, explain precisely
-  where the growth enters and what it would take to remove it. A negative result
-  reported clearly is a better outcome than a favourable one that was not measured.}
+The sweep also caught a regression worth reporting. Its first run showed tier~3
+ballots rising by about 210 gas per tree level. The cause was the contract's
+own depth calculation, a loop that read the voter count from storage once per
+level. It now takes one read and a constant-time logarithm, and the second
+sweep is the flat line in the figure.
+
+\paragraph{C2, booth time against roll size.}
+The flat line in C1 must not hide work moved onto the voter's device.
+Figure~\ref{fig:c2} separates the booth's two costs. Proving grows only with
+the tree's depth: from 0.57\,s at two voters to 1.52\,s at 65,536, about
+60\,ms per level. Rebuilding the tree from the published list is linear in the
+roll: 2.0\,s at 8,192 voters, 7.9\,s at 32,768 and 15.8\,s at 65,536, about
+0.24\,ms per voter. Past roughly 8,000 voters, rebuilding the list costs more
+than proving the ballot. This is where the design pays for not trusting the
+registrar: the booth checks the whole list against the on-chain root instead of
+accepting a Merkle path it is handed.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+        width=0.92\linewidth, height=6.2cm,
+        xmode=log, log basis x=2, ymode=log,
+        xlabel={Voters on the list}, ylabel={Time (ms, median of 5)},
+        xmin=1.4, xmax=93000,
+        legend pos=south east, legend cell align=left, legend style={font=\small},
+        grid=major, grid style={gray!20},
+        unbounded coords=discard,
+      ]
+      \addplot+[mark=*, mark size=1.4pt, only={phase}{prove}]
+        table[x=roll_size, y=median_ms, col sep=comma]{../bench/results/summary-arm64-node24.csv};
+      \addlegendentry{Prove the ballot}
+      \addplot+[mark=square*, mark size=1.4pt, only={phase}{tree_rebuild}]
+        table[x=roll_size, y=median_ms, col sep=comma]{../bench/results/summary-arm64-node24.csv};
+      \addlegendentry{Rebuild the voter tree}
+    \end{axis}
+  \end{tikzpicture}
+  \caption{The booth's two costs against the size of the electorate (C2), one
+    ARM64 core, Node.js 24. Proving grows with the tree's depth; rebuilding the
+    tree grows with the number of voters.}
+  \label{fig:c2}
+\end{figure}
+
+\paragraph{C3, concurrent voters.}
+The relayer is the one shared component every anonymous ballot passes
+through, so C3 loads it until something gives way
+(\texttt{bench/src/load.ts}). For each load, a tier~3 election has that many
+registered voters, and all of them send their ballots to the relayer at the
+same moment. The node is a local Anvil mining a block every 12~seconds with
+Sepolia's block gas limit of about 200 million gas, and the relayer is one
+Node.js process, which checks proofs on a single core, on the same four-core
+ARM64 machine. Table~\ref{tab:c3} gives the results.
+
+\begin{table}[htbp]
+  \centering
+  \caption{A burst of simultaneous ballots through the relayer (C3), local
+    node with 12-second blocks. ``Accepted'' is when the last ballot was
+    accepted, ``counted'' when the ballot was on-chain, both measured from the
+    moment the burst was sent.}
+  \label{tab:c3}
+  \small
+  \begin{tabular}{@{}L{3.6cm}R{1.4cm}R{2.0cm}R{2.0cm}R{2.0cm}R{1.4cm}R{2.0cm}@{}}
+    \toprule
+    \textbf{Relayer} & \textbf{Ballots} & \textbf{All accepted} & \textbf{Median counted} & \textbf{Last counted} & \textbf{Blocks} & \textbf{Most in a block} \\
+    \midrule
+    One ballot per block (before)  & 16   & 9.3\,s  & 102.8\,s & 192.3\,s & 16 & 1 \\
+    Up to 64 in flight (now)       & 16   & 10.2\,s & 13.0\,s  & 13.0\,s  & 1  & 16 \\
+                                   & 64   & 7.1\,s  & 12.9\,s  & 13.6\,s  & 1  & 64 \\
+                                   & 256  & 29.3\,s & 48.7\,s  & 73.2\,s  & 6  & 64 \\
+                                   & 1,024 & \note{} & \note{} & \note{} & \note{} & \note{} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The first run found a real limit. The relayer used to send one ballot and wait
+for its block before sending the next, so sixteen voters took sixteen blocks,
+and a room of sixty would have waited twelve minutes. It now sends ballots one
+after another with consecutive nonces, without waiting for each to be mined,
+and keeps up to 64 in flight. Sixteen or sixty-four simultaneous voters are
+then all counted in the next block, and 256 within six blocks; no ballot failed
+at any load. What limits it now is, first, the cap of 64 ballots in flight,
+and second, the relayer checking every proof before accepting it, one at a
+time: it accepted about nine ballots a second, so a burst arrives on-chain
+over several blocks rather than one. The chain itself is far from its limit:
+a block on Sepolia holds about 500 tier~3 ballots. \note{1,024 row: what gives
+way first.} Verifying proofs on several cores, and running more than one
+relayer, would raise the ceiling further.
 
 \subsubsection{Security and correctness (D1--D5)}
 
-\stub{For each property, state how it was demonstrated and what the outcome was.
-  Where a property is only partially achieved, say so and give the limit precisely.}
+\begin{itemize}
+  \item \textbf{D1, double-vote resistance: holds.} A replayed nullifier
+        reverts with \texttt{AlreadyVoted} in the contract tests, including a
+        replay through the forwarder under a second fresh key. A ballot past
+        the published roll size reverts with \texttt{BallotCapReached}. The
+        relayer refuses a ballot whose nullifier is spent or already queued
+        before paying for it, and the booth works out its own nullifier before
+        proving, so a voter who has voted, in any browser, is told so at once.
+  \item \textbf{D2, eligibility: holds, under the trusted setup.} The contract
+        tests verify real proofs made by the same TypeScript library the booth
+        uses, and reject a proof against another root, a tampered proof, a
+        proof at the wrong depth, a proof for another election and a ballot
+        whose choice was changed after proving, each with
+        \texttt{InvalidProof}. The proving files are pinned by SHA-256 to the
+        published Semaphore v4.13.0 artifacts.
+  \item \textbf{D3, ballot secrecy: holds against the chain; conditional
+        against the operator.} On-chain, a tier~3 ballot shows its nullifier,
+        its choice and the relayer's address as sender; the voter list shows
+        identity commitments. Linking a nullifier to a commitment needs the
+        identity's secret, which never leaves the voter's device. Against the
+        operator, secrecy holds while the relayer, which sees when ballots
+        arrive and from which network address, is run apart from the
+        registrar, which knows who registered; or while the voter submits
+        from a wallet of their own. The anonymity set is the published list,
+        which in a small election is small.
+  \item \textbf{D4, verifiability: holds.} The audit panel recounts any
+        election in the browser from the contract's events and the list on
+        IPFS, re-verifies every tier~3 proof, and compares totals and winners
+        with the contract's; it makes no request to \projectname{}'s API.
+        Both local browser tests and the Sepolia test run it to completion.
+        A voter can find their own ballot, marked ``yours'', by its ballot
+        ID.
+  \item \textbf{D5, authority containment: holds.} Closing voting and
+        finalizing are open to anyone once due; a contract test performs both
+        from an unrelated account. The authority cannot
+        publish the voter list, which only the registrar's role can, and a
+        published list cannot be replaced; it cannot vote without being on the
+        list; and it cannot cancel an election once voting is under way with a
+        published list.
+\end{itemize}
 
 \subsubsection{Usability (E1--E3)}
 
-\stub{Report the user-testing results, including the tasks participants failed
-  and what caused each failure. Failures here are the most useful data in the
-  section.}
+\paragraph{E1, steps to cast a ballot.}
+With Google sign-in, an anonymous voter takes five actions to register (open
+the link, create a voting key, sign in with Google, choose the account,
+register) and three to vote (open the booth, mark a candidate, cast). With an
+emailed code, registering takes seven: typing the address, asking for a code,
+reading it from the inbox and typing it in replace the two sign-in steps. A
+voter who registers on one device and votes on another adds three: showing the
+QR code, scanning it, and confirming the key on the new device.
+
+\paragraph{E2, voter gas burden: zero.} No tier~3 voter in any test held ETH or
+a wallet; the relayer paid for every ballot.
+
+\paragraph{E3, task success.}
+\note{pending: real participants.} Before testing with people, three simulated
+participants, each played by a language model briefed on a persona, walked
+through screenshots of every step. This is a cognitive walkthrough, not a
+user study, and is reported as one. A first-year student on a phone completed
+the task in one browser but would have failed had the link opened in another
+app's browser. A student wary of online voting completed it with doubts: the
+privacy claim was asserted rather than explained. A student who registered on
+a library computer and voted from a phone failed at the booth, because nothing
+had told him, while he still could, to move his voting key. Each finding led
+to a change: a QR code and private link to carry the key to another device,
+with a confirmation step; one plain explanation of what the registrar can and
+cannot see; and a ballot ID the voter can find in the public list.
 
 \subsection{Discussion}
 
-\stub{Step back from the individual numbers. Which design decisions were
-  vindicated by measurement, which were not, and what would be done differently
-  with the benefit of the results? Name the system's principal remaining
-  limitation.}
+\note{Write once B1, B2, C3 and E3 are in.}

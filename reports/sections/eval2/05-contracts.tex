@@ -1,47 +1,383 @@
 % ===========================================================================
-\section{Smart Contract Design and Implementation}
+\section{Smart Contract Design and Implementation}\label{sec:contracts}
+% Source material: contracts/src and contracts/test at 3bca300, which match
+% the sources deployed from aab48cf.
 % ===========================================================================
+
+The on-chain part of \projectname{} is seven Solidity files, 687 lines with
+their comments, compiled with Solidity 0.8.28~\cite{solidity}. They build on
+OpenZeppelin Contracts 5.6~\cite{openzeppelin} for access control, clones,
+Merkle proofs and the ERC-2771 forwarder, and on Semaphore's verifier, version
+4.14. \texttt{Election} is an abstract contract that inherits OpenZeppelin's
+\texttt{AccessControl} and \texttt{Initializable} and our
+\texttt{VoterRegistry}. \texttt{MerkleElection} and \texttt{SemaphoreElection}
+extend it with a \texttt{castVote} each, and \texttt{SemaphoreElection} also
+inherits \texttt{ERC2771Context}.
 
 \subsection{Contract responsibilities}
 
-\stub{One subsection per contract. For each: its responsibility, its state, its
-  entry points, and the access control applied to each entry point.}
+\subsubsection*{\texttt{ElectionFactory}}
 
-\subsection{Election lifecycle}
+The only way to create an election. Its state is the address of the
+implementation it clones, fixed at deployment, a mapping
+\texttt{isElection} and the list of every election it has created.
+\texttt{createElection} can be called by anyone. It deploys a clone, records
+it, and initializes it in the same transaction, so nobody can initialize a
+clone before its creator does; the caller becomes the election's authority.
+The implementation itself disables its initializer in its constructor, so it
+can never be configured and used as an election. The read functions
+\texttt{elections}, \texttt{electionCount} and \texttt{electionAt} let auditors
+list every genuine election. We deploy two factories, one per tier.
 
-\stub{Present the lifecycle state machine as implemented, and state which
-  transitions are time-gated, which require an explicit call, and which are
-  irreversible.}
+\subsubsection*{\texttt{Election} and \texttt{VoterRegistry}}
 
-\subsection{Anonymous eligibility and nullifiers}
+\texttt{Election} holds one election's lifecycle, candidates, ballots and
+tally, and each clone has its own copy of this state:
 
-\stub{Explain the implemented scheme end to end: how an identity commitment is
-  formed, how the off-chain tree is maintained, what the proof attests to, and how
-  the nullifier prevents a second ballot without revealing the voter.}
+\begin{itemize}
+  \item the phase, the schedule (four timestamps packed into one storage
+        slot), the title and the IPFS address of the ballot description;
+  \item the candidates (1 to 64, each with a name and an optional manifesto
+        address), the counting rule, the tally and, once finalized, the
+        winners;
+  \item \texttt{ballotsCast} and a mapping of used ballot keys: the voter's
+        address in tier 2, the nullifier in tier 3.
+\end{itemize}
 
-\subsection{Gas-efficiency measures}
+\texttt{VoterRegistry}, an abstract base of \texttt{Election}, adds the voter
+list: its Merkle root, the number of voters and its IPFS address. The three
+are written together, once, and never change. No voter data is stored
+on-chain.
 
-\stub{Describe each deliberate gas decision (the off-chain membership tree,
-  minimal proxy clones for election deployment, off-chain metadata storage) and
-  point forward to the measurement that confirms or refutes each one.}
+Two roles are granted when the election is initialized:
+\texttt{AUTHORITY\_ROLE} to its creator and \texttt{REGISTRAR\_ROLE} to the
+registrar it names. Nobody holds the admin role, so neither role can be
+granted to anyone else or revoked; a holder can only renounce its own.
+Table~\ref{tab:entrypoints} lists every function that changes state, who may
+call it and when.
+
+\begin{table}[htbp]
+  \centering
+  \caption{State-changing functions of an election, in lifecycle order. Each
+    time is one of the four in the election's schedule, compared with the
+    block's timestamp.}
+  \label{tab:entrypoints}
+  \small
+  \begin{tabular}{@{}L{3.0cm}L{2.3cm}L{6.4cm}L{5.4cm}@{}}
+    \toprule
+    \textbf{Function} & \textbf{Caller} & \textbf{Allowed when} & \textbf{Effect} \\
+    \midrule
+    \texttt{configure} & Authority & Created, before \mbox{\emph{registrationStart}} & Replaces the title, description and schedule \\
+    \addlinespace[2pt]
+    \texttt{setCandidates} & Authority & Created or Registration, before \mbox{\emph{votingStart}} & Replaces the candidates \\
+    \addlinespace[2pt]
+    \texttt{cancel} & Authority & Created or Registration, except when the list is published and the voting window is open & Moves to Cancelled \\
+    \addlinespace[2pt]
+    \texttt{openRegistration} & Anyone & Created, from \mbox{\emph{registrationStart}} & Moves to Registration \\
+    \addlinespace[2pt]
+    \texttt{publishVoterList} & Registrar & Registration, from \mbox{\emph{registrationEnd}} until \mbox{\emph{votingStart}}; once; no empty value & Writes the root, the voter count and the list's address \\
+    \addlinespace[2pt]
+    \texttt{openVoting} & Anyone & Registration, from \mbox{\emph{votingStart}} until \mbox{\emph{votingEnd}}, with the list published & Sets up the tally; moves to Voting \\
+    \addlinespace[2pt]
+    \texttt{castVote} & Anyone (tier 3); a listed wallet (tier 2) & Voting, before \mbox{\emph{votingEnd}} & Records one ballot \\
+    \addlinespace[2pt]
+    \texttt{closeVoting} & Anyone & Voting, from \mbox{\emph{votingEnd}} & Moves to Tallying \\
+    \addlinespace[2pt]
+    \texttt{finalize} & Anyone & Tallying & Records the winners; moves to Finalized \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+A schedule is accepted only if its four times are in order, and a title only
+if it is not empty. The candidates can change until voting is due, so the
+meaning of a ballot never changes after it is cast. Both the schedule and the
+candidates are limited by the clock as well as by the phase, because
+registration and voting are open from their start times even before anyone
+has recorded that on-chain.
+
+\subsubsection*{\texttt{MerkleElection} (tier 2)}
+
+Adds \texttt{castVote(choice, proof)}. The proof shows that the sender's
+address is a leaf under the published root, using OpenZeppelin's
+\texttt{MerkleProof}. Leaves are hashed exactly as OpenZeppelin's
+\texttt{StandardMerkleTree} hashes an address, so anyone can rebuild the tree
+from the published list with that library. The ballot key is the sender's
+address, so the chain shows which wallet chose which candidate, and the voter
+pays the gas.
+
+\subsubsection*{\texttt{SemaphoreElection} (tier 3)}
+
+Adds \texttt{castVote(choice, nullifier, points)}, where \texttt{points} is a
+Groth16 proof~\cite{groth16}, and the read functions \texttt{scope} and
+\texttt{merkleTreeDepth}. Its only state of its own is two addresses fixed at
+deployment: the verifier and the trusted forwarder. Clones read both from the
+implementation's code. \texttt{castVote} never reads the sender, so it does not
+matter who submits a ballot or whether it comes through the forwarder.
+Section~\ref{sec:zk} explains the scheme and Listing~\ref{lst:castvote} shows
+the code.
+
+\subsubsection*{\texttt{TallyLib}}
+
+An internal library, compiled into each election contract, with the two
+counting rules. Under plurality a choice is a candidate's index. Under approval
+it is a bitmask with one bit per approved candidate: at least one bit must be
+set, none beyond the last candidate, and each approved candidate gains one
+vote. Under both rules the winners are every candidate tied for the most
+votes, in ascending order, and there are none if nobody voted. The rule is set
+when the election is created and has no setter.
+
+\subsubsection*{\texttt{VoteForwarder} and \texttt{SemaphoreVerifier}}
+
+\texttt{VoteForwarder} is OpenZeppelin's \texttt{ERC2771Forwarder} under the
+name ``DVote VoteForwarder'', with no code of our own. Tier 3 elections trust
+it, and the tests relay ballots through it, but our relayer does not use it
+(Section~\ref{sec:divergences}). \texttt{SemaphoreVerifier} is Semaphore's
+Groth16 verifier, deployed unmodified. It holds one verification key for each
+tree depth from 1 to 32 and has no state or owner.
+
+\subsection{Election lifecycle}\label{sec:lifecycle}
+
+Figure~\ref{fig:lifecycle-final} shows the lifecycle exactly as the modifiers
+in \texttt{Election.sol} enforce it. Its steps fall into four kinds.
+
+\begin{figure}[tb]
+  \centering
+  \resizebox{0.92\textwidth}{!}{\input{figures/lifecycle-final}}
+  \caption{Election lifecycle as implemented. Each forward step names who may
+    call it and from when; each phase names what happens inside it.}
+  \label{fig:lifecycle-final}
+\end{figure}
+
+\begin{itemize}
+  \item \emph{Time-gated and explicit.} Opening registration, opening voting
+        and closing voting each need their scheduled time to have passed and a
+        transaction from someone. Anyone may send it. Opening voting also has a
+        deadline: once \emph{votingEnd} has passed, voting can never open.
+  \item \emph{Explicit only.} \texttt{finalize} has no time of its own. It is
+        possible as soon as voting has been closed, which itself needs
+        \emph{votingEnd} to have passed. \texttt{cancel} waits for no scheduled
+        time either: it needs the authority and the right phase, and is refused
+        only while a published list's voting window is open.
+  \item \emph{By the clock alone.} Some things happen without any
+        transaction. Ballots stop being accepted at \emph{votingEnd} even while
+        the phase still reads Voting, because \texttt{castVote} checks the time
+        itself. The authority loses the right to change the schedule at
+        \emph{registrationStart} and the candidates at \emph{votingStart},
+        whether or not the phase has moved.
+  \item \emph{Irreversible.} No function moves an election to an earlier
+        phase, and the tests check this. The voter list can be published only
+        once, and is frozen while the election is still in Registration.
+        Finalized and Cancelled are final: no function that changes state
+        accepts an election in either phase.
+\end{itemize}
+
+Everything after configuration is open to anyone, so an authority that
+dislikes how the vote is going gains nothing by refusing to act. What the
+authority keeps is the ability to cancel, and only while that cannot stop a
+vote already under way. An election whose registrar never published a list,
+or whose voting window passed without anyone opening voting, can still be
+cancelled, so it does not stay open for good. In practice, the registrar opens
+registration itself if nobody has when it comes to publish, and the election
+page offers the next step as a button to anyone with a wallet.
+
+\subsection{Anonymous eligibility and nullifiers}\label{sec:zk}
+
+Tier 3 uses Semaphore version~4~\cite{semaphore}, with our own tree in place of
+Semaphore's on-chain groups.
+
+\paragraph{Identity.} The booth creates a random private key. From it
+Semaphore derives a secret scalar $s$ and a public key $(A_x, A_y)$ on the
+Baby Jubjub curve, and the identity's commitment is the Poseidon hash of that
+public key~\cite{semaphorecircuit}. The commitment is the only value that
+leaves the device. The secret stays in browser storage and in the backup file.
+
+\paragraph{The voter list.} When registration closes, the registrar sorts the
+commitments in ascending order, removes repeats and builds a Lean Incremental
+Merkle Tree with Poseidon~\cite{leanimt}. In this binary tree a node with no
+right child takes its left child's value, so $n$ leaves give a tree of depth
+$\lceil \log_2 n \rceil$ with no padding. Sorting means the tree does not
+depend on the order in which people registered, and a commitment's position
+says nothing about when its owner registered. The list goes to IPFS and only
+the root, the count and the list's address go on-chain.
+
+\paragraph{The proof.} To vote, the booth rebuilds the tree from the published
+list and proves, with Semaphore's circuit, that it knows a secret $s$ whose
+commitment is a leaf under the root. The proof has four public values, and the
+contract builds all four itself rather than taking them from the caller:
+\[
+  \bigl[\,\mathit{voterRoot},\ \mathit{nullifier},\ H(\mathit{choice}),\
+  H(\mathit{scope})\,\bigr],
+  \qquad H(x) = \mathrm{keccak256}(x) \gg 8,
+\]
+where the shift keeps a hash inside the proof system's field, as Semaphore
+does. The scope is the election's own address. The contract also chooses the
+verification key, through \texttt{merkleTreeDepth}: the depth is
+$\lceil \log_2 n \rceil$ for the published count $n$, but at least 1, the
+smallest depth Semaphore's circuits support. The caller supplies only the
+choice, the nullifier and the proof, and a proof made for any other choice,
+election, list or depth fails.
+
+\paragraph{The nullifier.} The circuit computes the nullifier as
+$\mathrm{Poseidon}(H(\mathit{scope}), s)$~\cite{semaphorecircuit}, and the
+proof shows it was computed correctly. It is the same every time the same
+secret votes in the same election, so \texttt{\_recordBallot} rejects a second
+ballot as \texttt{AlreadyVoted}. It differs between elections, because the
+scope is the election's address, so ballots from one voter in two elections
+cannot be linked. And it cannot be turned back into the secret. A relayer
+cannot change the choice, which is bound into the proof, or replay a ballot,
+whose nullifier is already used.
+
+\paragraph{The ballot cap.} Independently of the proof, \texttt{\_recordBallot}
+refuses any ballot once \texttt{ballotsCast} has reached the published voter
+count. This check does not depend on the trusted setup, so it still bounds the
+number of ballots if the setup were ever broken.
+
+What the chain records for each ballot is the \texttt{VoteCast} event with the
+nullifier and the choice, plus the transaction's sender and time. The sender is
+the relayer, or whichever wallet submitted the ballot. Nothing in it names the
+voter; how much that hides depends on the size of the list and the timing,
+as Section~\ref{sec:trust} explains.
+
+\subsection{Gas-efficiency measures}\label{sec:gas-measures}
+
+Each of these was a deliberate choice. Section~6 measures the ones that can be
+measured. Every figure quoted here is under mainnet's current rules, from the
+gas snapshot committed in \texttt{contracts/snapshots/} or the sweep in
+\texttt{bench/results/gas.csv}; Table~\ref{tab:a1} lists the main ones.
+
+\begin{itemize}
+  \item \emph{The voter list stays off-chain.} Publishing a list writes a root,
+        a count and an IPFS address in one transaction, and emits no list. It
+        costs 147,165 gas in tier 2 and 147,319 in tier 3 at every list size
+        from 2 to 65,536 voters, which parameter C1 confirms
+        (Figure~\ref{fig:c1}). Registering costs voters no gas at all.
+  \item \emph{Clones.} Creating a wallet election, a clone set up with three
+        candidates, costs 639,362 gas for the first election from a factory and
+        622,262 for later ones. Deploying a full copy of the election contract
+        instead costs 2,084,623 before it is even set up, and under Glamsterdam
+        the same deployment cost 14,659,413 (Table~\ref{tab:deployment}).
+  \item \emph{Descriptions and manifestos on IPFS.} The chain holds only their
+        IPFS addresses, with the title and the candidates' names, which a reader
+        needs to make sense of the tally. This is a choice by construction, and
+        Section~6 does not measure it separately.
+  \item \emph{A constant-time tree depth.} The depth comes from one storage
+        read and \texttt{Math.log2}. An earlier loop over the depth added about
+        210 gas per tree level. With the fix, a tier 3 ballot costs between
+        296,656 and 296,692 gas at every list size from 4 to 65,536 voters
+        (296,315 at 2), a spread of 36 gas.
+  \item \emph{Small ballots.} An approval ballot is one 256-bit number,
+        however many candidates it approves. The four schedule times share one
+        storage slot. A ballot writes one new storage slot, for its key, and
+        updates the ballot count and the tally.
+  \item \emph{No forwarder.} Sending \texttt{castVote} directly saves 38,522
+        gas per tier 3 ballot (296,692 against 335,214), and much more under
+        Glamsterdam, where the forwarder's nonce for each fresh key is new
+        state.
+\end{itemize}
+
+Not everything was trimmed. Titles and candidate names are stored as strings so
+that the contract alone explains its tally, and roles go through
+\texttt{AccessControl} rather than fixed addresses, because a clone cannot have
+its own immutable values. The first ballot also costs more than later ones
+(114,397 against 80,221 gas in tier 2, 330,892 against 296,692 in tier 3),
+because it moves \texttt{ballotsCast} and a candidate's count away from zero.
 
 \subsection{Selected implementation}
 
-\stub{Include the ballot-acceptance function as a listing. Choose one or two
-  functions that carry the design's central ideas rather than pasting whole files.}
+Listing~\ref{lst:castvote} is the tier 3 ballot function and the two values it
+derives. Listing~\ref{lst:recordballot} is the part both tiers share. Both are
+taken directly from the deployed source.
 
-\begin{lstlisting}[language=Solidity,caption={Ballot acceptance.},label={lst:castvote}]
-// Replace with the implemented function.
-function castVote(/* ... */) external {
-    // verify the membership proof
-    // reject a previously seen nullifier
-    // record the nullifier and increment the tally
-}
-\end{lstlisting}
+\lstinputlisting[language=Solidity, firstline=41, lastline=73, firstnumber=41,
+  columns=fullflexible, keepspaces=true,
+  caption={\texttt{SemaphoreElection.castVote} and the values it derives
+    (\texttt{contracts/src/SemaphoreElection.sol}).},
+  label={lst:castvote}]{../contracts/src/SemaphoreElection.sol}
 
-\subsection{Testing and static analysis}
+\lstinputlisting[language=Solidity, firstline=266, lastline=288, firstnumber=266,
+  columns=fullflexible, keepspaces=true, float=tb,
+  caption={How every ballot is accepted and counted, in either tier
+    (\texttt{contracts/src/Election.sol}).},
+  label={lst:recordballot}]{../contracts/src/Election.sol}
 
-\stub{Report the test suite: unit tests, fuzz campaigns, and what each adversarial
-  test asserts. Report the coverage figure and the static-analysis findings by
-  severity, with a written disposition for every finding, including the ones
-  judged to be false positives, and why.}
+A few properties are worth reading off the code. The public values of the proof
+are built from storage and from the contract's own address; the only input
+taken from the caller is the choice, the nullifier and the proof. The one
+external call, to the verifier, is to a \texttt{view} function, so it runs as a
+static call and cannot change any state. All state changes come after it.
+\texttt{\_recordBallot} checks the key, the choice and the cap before writing
+anything, so a ballot is either fully counted or has no effect. The same
+function serves both tiers, so the double-vote and cap checks cannot drift
+apart between them.
+
+\subsection{Testing and static analysis}\label{sec:contract-tests}
+
+The contracts have 92 Foundry~\cite{foundry} tests in six suites
+(Table~\ref{tab:contract-tests}), and all pass at the deployed commit. Five are
+fuzz tests, which Foundry runs with 256 random inputs each by default and
+1,000 in continuous integration. There are no stateful invariant tests.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Contract test suites.}
+  \label{tab:contract-tests}
+  \small
+  \begin{tabular}{@{}L{3.3cm}R{1.2cm}L{13.0cm}@{}}
+    \toprule
+    \textbf{Suite} & \textbf{Tests} & \textbf{What they assert} \\
+    \midrule
+    \texttt{Election} & 47 & Every function's caller and time window from Table~\ref{tab:entrypoints}; phases never go back; every cancellation case; the list is published once and then frozen; a key votes once (fuzzed over arbitrary keys); ballots stop at the voter count; approval ballots, ties and an election nobody voted in; roles cannot be granted or revoked by anyone \\
+    \addlinespace[2pt]
+    \texttt{SemaphoreElection} & 19 & Real Semaphore proofs are accepted and counted; a second ballot, a changed choice, a ballot for another election, a proof against another root, a tampered proof and a proof at the wrong depth are all refused; the event carries only the nullifier and the choice; the forwarder relays a ballot but cannot replay or alter it; the depth is the smallest that fits the list (fuzzed over voter counts up to $2^{32}-1$) \\
+    \addlinespace[2pt]
+    \texttt{MerkleElection} & 10 & A listed wallet is counted once; a wallet not on the list fails with any proof (fuzzed over addresses), as does someone else's proof; leaves match OpenZeppelin's tree, and proofs built in TypeScript are accepted \\
+    \addlinespace[2pt]
+    \texttt{ElectionFactory} & 7 & The caller becomes the authority; every election is recorded; clones are independent and cannot be initialized twice; zero addresses are refused; the creation event names the authority and the registrar \\
+    \addlinespace[2pt]
+    \texttt{TallyLib} & 7 & Winners have the most votes and every tied leader is returned, in order (fuzzed); an approval ballot adds exactly one vote per approved candidate (fuzzed); what counts as a valid choice under each rule \\
+    \addlinespace[2pt]
+    \texttt{GasSnapshot} & 2 & Runs a full election in each tier and records the gas of every step; continuous integration fails if any figure moves from the committed snapshot \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The tier 3 tests do not use mock proofs. The ballots in
+\texttt{test/fixtures/semaphore-ballots.json} are real Semaphore proofs, made by
+the same TypeScript code the booth runs, so the browser's proofs and the
+on-chain verifier are tested against each other. The tier 2 tests likewise use
+a voter list built by the TypeScript tree builder.
+
+When last measured, \texttt{forge coverage} reported 97.8\% of lines and every
+branch of the contracts. \note{Re-measure at the final commit.}
+
+Static analysis runs on every pull request and every push to the main
+branch. Continuous integration checks formatting,
+runs \texttt{forge lint} with warnings treated as errors, and runs
+Slither~\cite{slither} 0.11.6, which fails the build on any finding. Slither
+analyses our seven files only: OpenZeppelin and Semaphore's verifier are
+excluded as dependencies. On the deployed sources it reports no findings, with
+these dispositions for what is suppressed:
+
+\begin{itemize}
+  \item \emph{Block timestamp} (Slither's \texttt{timestamp} detector, rated
+        low impact; excluded in \texttt{slither.config.json}). It flags every
+        comparison with \texttt{block.timestamp}, and the lifecycle consists of
+        such comparisons by design. On proof-of-stake Ethereum a block's
+        timestamp must equal the start time of its slot~\cite{bellatrix}, so a
+        block proposer cannot choose it. The most a proposer can do is skip its
+        slot, which delays the next block by one slot. Against windows of
+        minutes to days, that cannot move a phase meaningfully. We judge every
+        instance a false positive.
+  \item \emph{Dead code} (\texttt{dead-code}, informational; suppressed on one
+        line). \texttt{SemaphoreElection.\_msgData} is never called, but the
+        compiler requires the override because two of its bases define it.
+  \item \emph{Lints.} \texttt{forge lint}'s block-timestamp lint is excluded
+        for the same reason as Slither's detector. Four lines suppress its
+        reentrancy-events lint, each with a comment saying why it does not
+        apply: before each of those events the only call is to create a
+        clone, which runs no code, to the read-only verifier, or none at all.
+\end{itemize}
+
+What this does not give us is an independent audit or formal verification.
+The tests show that the contracts do what we intended; they cannot show that
+we intended the right things.

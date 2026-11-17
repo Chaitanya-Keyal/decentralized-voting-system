@@ -2,6 +2,67 @@
 \section{Conclusion}
 % ===========================================================================
 
-\stub{What was built, what the measurements showed, and what the project
-  establishes about the viability of the approach. Be measured: state the
-  limitations alongside the results.}
+\projectname{} set out to show that an institutional election can run without
+anyone having to trust the organiser with the ballot box or the count, and
+that ballot secrecy can be added without giving that up. Both tiers were built
+and run end to end. In a wallet election (tier 2), the voter list, the ballots
+and the count are on a public chain, and the authority that created the
+election cannot change any of them. An anonymous election (tier 3) keeps all of
+that and hides who cast which ballot: the voter proves in zero knowledge that
+they are on the published list, a nullifier stops them voting twice, and a
+relayer pays the gas, so the voter needs no wallet and no cryptocurrency. A
+complete anonymous election has run on Ethereum Sepolia in real time, with
+voters registering, a relayer submitting their ballots, voting closed and the
+result finalized by calls that anyone may make, and an audit in the browser
+recounting it from the chain and IPFS alone.
+
+The measurements support the design's main claims, with one cost that was not
+expected:
+
+\begin{itemize}
+  \item \textbf{Anonymity has a fixed price.} Under mainnet's current rules a
+        tier~3 ballot costs 296,692 gas against 80,221 for a tier~2 ballot.
+        The difference, about 216,000 gas, is mostly the contract's check of
+        the proof.
+  \item \textbf{The price does not grow with the electorate.} From 4 to 65,536
+        voters, a tier~3 ballot costs between 296,656 and 296,692 gas, and
+        publishing a voter list costs 147,319 gas at every size. The work that
+        does grow moves to the voter's device: proving takes 0.57\,s at two
+        voters and 1.52\,s at 65,536 on one ARM64 core, but rebuilding the
+        tree from the published list grows with every voter, to 15.8\,s at
+        65,536. For a university electorate of tens of thousands, that rebuild,
+        not the proof, is the slow step in the booth.
+  \item \textbf{Voting is fast enough.} \note{B1: replace with the median and
+        95th percentile from bench/results/b1-sepolia-*.csv.} In the first
+        Sepolia samples a ballot was counted 8.7 and 11.2 seconds after the
+        voter pressed Cast, about one block.
+  \item \textbf{The testnet changed the costs.} Sepolia's Glamsterdam rules
+        price new state several times higher than mainnet's. Creating an
+        election there cost \note{3.09} million gas against 0.64 million locally. Under
+        the same rule, relaying through an ERC-2771 forwarder cost about
+        \note{127,000} gas more per ballot than relaying directly, which is why the
+        relayer now submits ballots itself.
+\end{itemize}
+
+The security properties in Section~6 were tested by trying to break them:
+double voting, forged and tampered proofs, and an authority acting beyond its
+role all fail in the contract tests. Section~6 also sets out why chain data
+alone cannot link a ballot to a voter (D3). \note{The attempt to do so on a real
+election's data is still to be run; report its outcome here.} The results also have limits, and these
+matter as much as the results. The registrar decides who is eligible, and nothing
+on-chain can check that it registered only real voters, or each of them once.
+The relayer sees when each ballot arrives and from which network address, so
+anonymity against the operator depends on keeping the relayer and the
+registrar apart, or on voters submitting from their own wallets. A voter can
+still prove to a buyer how they voted, and anyone holding their key can vote
+in their place. The running count is public while voting is open. The proofs
+rest on Semaphore's trusted setup ceremony. Finally, everything here ran on a
+testnet: the gas figures are exact, but what a ballot would cost in money on
+mainnet depends on gas prices this project does not measure.
+
+Within those limits, the project shows that a small institution can run an
+election whose count nobody has to take on trust, with secret ballots, and with
+voters who have never owned cryptocurrency. What it does not yet show is that
+real voters, rather than simulated ones, can do this unaided; the usability
+test with real participants is what would settle that.
+\note{E3: one sentence on the outcome once it is run.}

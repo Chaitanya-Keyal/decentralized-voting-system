@@ -1,13 +1,149 @@
 % ===========================================================================
 \section{Implementation Plan}
-% The template keeps this section in the final report. Use it to record what
-% was actually executed against the plan, and what remains.
+% The plan as executed, against the plan in the Evaluation 1 report.
 % ===========================================================================
 
-\stub{Record the plan as executed: what was delivered in each phase, what slipped
-  and why, and which contingencies were invoked. Compare against the plan given in
-  the Evaluation 1 report rather than presenting a tidied-up version of it.}
+The Evaluation~1 report planned five phases: tier 2 working end to end (M1),
+then tier 3 on Sepolia (M2), a feature freeze with auditing and usability
+testing, measurement, and finally rehearsal. This section records what
+actually happened in each, what slipped and why, and which of the planned
+contingencies were used. Table~\ref{tab:plan-executed} summarises it.
 
-\stub{State what remains as future work, with enough specificity to be
-  actionable: coercion resistance, tally secrecy while voting is open, and
-  production-grade identity verification.}
+\begin{table}[!htb]
+  \centering
+  \caption{The plan against what was delivered.}
+  \label{tab:plan-executed}
+  \small
+  \begin{tabular}{@{}L{2.3cm}L{6.2cm}L{7.3cm}@{}}
+    \toprule
+    \textbf{Phase} & \textbf{Planned}                                             & \textbf{Delivered}                                                                                            \\
+    \midrule
+    1 (M1)         & Tier 2 end to end on a local node; first gas snapshot          & Done on 25 October: the lifecycle, factory, registrar, indexer, admin console and booth, with a browser test and the tier 2 snapshot. Merged into \texttt{main} on 17 November \\
+    2 (M2)         & Tier 3 anonymous and gasless voting on Sepolia                 & Done, late: built and deployed on 17 November, three weeks after M1. A complete anonymous election has since passed end to end on Sepolia in real time \\
+    3 (freeze)     & Approval voting if time allowed, Slither, reorgs, audit with the backend off, usability test & Approval voting, Slither, coverage, reorg handling and the audit panel are done. \note{The usability test with real people is not; a simulated walkthrough stands in for now} \\
+    4 (measure)    & Every parameter measured                                       & \note{A1, C1 and C2 measured; B1 under way; B2 on a phone, C3, the D3 linking attempt and E3 with real users outstanding} \\
+    5 (rehearse)   & Three rehearsals on Sepolia, a backup video                   & \note{Still to do, in the days before the evaluation; the demo script is written} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{What slipped, and why}
+
+The largest slip is in time, not scope. M1 was ready on 25 October, but tier 3
+was not built until three weeks later, in the final days before the
+evaluation. As a result Phases 2 to 4 overlapped instead of running in
+order, and the go/no-go decision on proving in phones, planned for one week
+after M1, was not taken on that date. It was settled by measurement instead.
+Proving a ballot takes 0.57\,s at two voters and 1.52\,s at 65,536 on one
+ARM64 core in Node.js, which is fast enough that the server-side fallback was
+never needed. \note{Phones have still to be measured (B2), so for now this
+decision rests on a server core, not a phone.}
+
+Some items were built differently from the plan:
+
+\begin{itemize}
+  \item \textbf{The relayer's path.} The plan had the booth sign each ballot
+        with a fresh key and send it through an ERC-2771~\cite{erc2771}
+        forwarder. This was built, tested and measured, and then dropped as
+        the relayer's path. The proof already binds the choice and the
+        election, so the signature added no protection. It did add about
+        \note{127,000} gas per ballot on Sepolia, mostly for a new storage slot for
+        each fresh key's nonce. The relayer now calls \texttt{castVote}
+        itself. The forwarder stays deployed and tested.
+  \item \textbf{The proving files.} The plan was to check them against hashes
+        published in the Semaphore repository. They are instead pinned by
+        SHA-256 against the npm package of the same release, whose own
+        integrity hash matched the registry, and every file the booth
+        downloads is checked against those pins.
+  \item \textbf{Deployment.} Sepolia moved to the Glamsterdam upgrade on
+        6~October~\cite{glamsterdam}, after the plan was written. Under
+        EIP-8037~\cite{eip8037} the first deployment ran out of gas, because
+        Foundry's local simulation priced state at mainnet's rate. Deployments
+        now take their gas limits from the network, and A1 is reported under
+        both rule sets.
+  \item \textbf{Public RPC nodes.} The free Sepolia endpoints sit behind load
+        balancers, and one node can lag the next by a block. That broke three
+        things that work on a local node: the registrar's publication right
+        after it opened registration, the audit's last log query, and pages
+        that stopped refreshing. Each now tolerates a lagging node, and the
+        browser reads through a list of fallback endpoints.
+\end{itemize}
+
+Some things were added that the plan did not have. Approval voting, listed as
+optional, is built and fixed per election when it is created. Voters can prove
+their address with Google sign-in as well as an emailed code. A simulated
+usability walkthrough showed that a voter who registers on one device and
+votes on another is stranded, so the booth now offers a QR code and a private
+link that carry the voting key to the second device.
+
+\subsection{Contingencies}
+
+The Evaluation~1 plan named five risks. Three of its responses were built as
+planned, and the two fallbacks were never needed:
+
+\begin{itemize}
+  \item \emph{Relayer down on the day.} Any wallet can submit an anonymous
+        ballot. The booth always offers this, and recommends it when the relayer
+        reports a failure or voting closes within five minutes.
+  \item \emph{Relayer funds drained.} The relayer verifies the proof, checks
+        that the nullifier is unspent and not already queued, and simulates the
+        call before it pays, so it pays for at most one ballot per registered
+        voter.
+  \item \emph{Not enough Sepolia ETH.} Gas and scaling measurements run on a
+        local node, as planned. Test ETH has been more than enough for
+        everything else: the current deployment of both tiers cost
+        0.00069\,ETH. \note{Recompute after the final redeployment.}
+  \item \emph{Proving moves to a server.} Not needed, as above.
+  \item \emph{Tier 3 not ready, so tier 2 is demonstrated.} Not needed: tier 3
+        runs on Sepolia.
+\end{itemize}
+
+\subsection{What remains}
+
+\note{Before the evaluation: B2 on a named phone, more B1 samples, C3, the D3
+attempt to link ballots to voters from a real election's chain data (Section~6
+gives the argument that it cannot be done), the E3 test with real
+participants, written instructions for auditors to pin their own copy of the
+voter lists, and the rehearsals and backup video.}
+
+Beyond this project, six pieces of work would matter most:
+
+\begin{itemize}
+  \item \textbf{Coercion resistance.} A voter can still show a buyer how they
+        voted, for example by voting in front of them, and the key backup is one
+        more thing that can be handed over. A coercion-resistant design makes
+        it infeasible for a coercer to tell whether the voter
+        complied~\cite{jcj}. On Ethereum, MACI~\cite{maci} lets a voter cast a
+        later vote that nullifies an earlier one, so a vote cast under pressure
+        need not stand. The price is a coordinator who decrypts the votes and must
+        be trusted for collusion resistance, though not for the count. A tier
+        built on MACI's model would be the natural next step.
+  \item \textbf{Tally secrecy while voting is open.} Today the running count is
+        public, which can sway late voters. In Helios~\cite{helios}, the
+        bulletin board shows each ballot only in encrypted form, and the
+        ballots are shuffled and decrypted once the election closes; but whoever holds the decryption
+        key must be trusted not to use it early. In the Open Vote Network on
+        Ethereum~\cite{openvote}, nobody holds such a key, but the final tally
+        can be computed only after the last registered voter has voted, and a
+        voter who abstains blocks it. Its authors designed it for small
+        boardroom elections, not a university electorate.
+  \item \textbf{Production identity.} The registrar now accepts Google sign-in
+        restricted to the institute's Google domain~\cite{googleidtoken}. An
+        institute deployment would instead connect to the institute's own
+        single sign-on, and publish which attribute marks an eligible voter.
+        The registrar would remain the only trusted party for eligibility.
+  \item \textbf{A relayer that cannot censor selectively.} One relayer sees
+        when ballots arrive, from which network address, and could quietly
+        drop some. Several independent relayers, with the booth spreading
+        ballots between them and falling back to direct submission, would
+        remove any single point of censorship.
+  \item \textbf{Key portability.} A voting key lives in one browser. The QR code
+        and the backup file move it, but only if the voter thinks to. A key
+        derived from a passkey that syncs between the voter's own devices would
+        remove the problem the usability walkthrough found.
+  \item \textbf{Pages a voter can check.} The voter trusts whoever serves the
+        web app not to send the key elsewhere. A build that anyone can
+        reproduce from the source, published by its content hash on IPFS,
+        would let a voter, or someone they trust, check that the pages they
+        load are the published code.
+\end{itemize}

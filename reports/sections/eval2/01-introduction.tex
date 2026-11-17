@@ -1,10 +1,99 @@
 % ===========================================================================
 \section{Introduction}
-% Sections 1-3 are carried over from the Evaluation 1 report and revised to
-% reflect what was actually built. Do not rewrite them from scratch; do not
-% paste them unchanged either; the design will have moved.
+% Source material: Evaluation 1 Section 1, revised to the system as built.
 % ===========================================================================
 
-\stub{Revise the Evaluation 1 introduction. State what was built, and add one
-  paragraph summarising the headline results so a reader knows early what the
-  report concludes.}
+Most institutional elections, from a student senate to a club committee, run on
+a database that one organiser controls. Voters have to trust that organiser
+with the voter list, the ballot box, the count and the records, and nobody
+outside has any way to check that they were handled honestly.
+
+\projectname{} is a voting application that removes the need for that trust in
+the ballot box and the count. The voter list, the election schedule and the
+count are held by smart contracts on a public test blockchain, Ethereum
+Sepolia~\cite{sepolia}. The Election Authority that runs an election cannot cast
+or change a ballot, cannot change the voter list once it has been published,
+and cannot stop the count: once voting has ended, anyone can close it and
+publish the result.
+
+\paragraph{What was built.}
+\projectname{} supports two kinds of election, chosen when the election is
+created, and two counting rules, plurality and approval. Both kinds share the
+same lifecycle, factory and voter list design.
+
+\begin{itemize}[leftmargin=1.2em,itemsep=2pt,topsep=2pt]
+  \item \textbf{Wallet ballots (tier 2).} A voter registers a wallet. When
+        registration closes, the registrar publishes the list of registered
+        wallets on IPFS~\cite{ipfs} and records its Merkle root~\cite{merkle},
+        the number of voters and the list's IPFS address on-chain in one
+        transaction. A ballot is sent from the registered wallet with a Merkle
+        proof that the wallet is on the list. Everyone can see which wallet
+        voted for whom, and the voter pays a little gas.
+  \item \textbf{Anonymous ballots (tier 3).} The voter's browser creates a
+        Semaphore identity~\cite{semaphore}, keeps its secret on the device, and
+        offers a backup file that restores it on another device. Only the
+        identity's public commitment goes to the registrar, which publishes the
+        list of commitments in the same way. To vote, the browser downloads the
+        list, checks it against the root recorded on-chain, and proves in zero
+        knowledge that it holds the secret behind one of the commitments,
+        without saying which. The proof also binds the choice and a nullifier,
+        a value that is the same every time a given voter votes in a given
+        election, so the contract rejects a second ballot without learning who
+        sent either. A relayer submits the ballot and pays its gas, so a voter
+        needs no wallet and no cryptocurrency. Any wallet can submit the ballot
+        instead if the relayer is unavailable. The contracts also accept
+        ballots through an ERC-2771~\cite{erc2771} forwarder, but the relayer
+        does not use it: the proof already binds the ballot, and on Sepolia the
+        forwarder added about 127,000 gas per ballot.
+\end{itemize}
+
+Around the contracts sit three off-chain services. The registrar checks a
+voter's institute email address with a one-time code and returns a signed
+receipt for every registration. The relayer is a separate process that checks
+each ballot completely before paying for it and keeps no request logs. The
+indexer is a read cache that makes election lists and ballot tables quick to
+show; nothing depends on it for correctness. Once an election's voter list is
+published, its page offers an audit that recounts the result in the browser
+from the chain and IPFS alone, and in an anonymous election re-verifies every
+ballot's proof. The contracts are
+deployed on Sepolia and their source is verified on Sourcify~\cite{sourcify}, so
+anyone can check the deployed bytecode against the code described here.
+
+\paragraph{Headline results.}
+Under Ethereum mainnet's current rules, measured locally, a tier 2 ballot costs
+80,221 gas and a tier 3 ballot 296,692 gas: anonymity costs about 216,000 gas
+per ballot. The tier 3 ballot's cost does not depend on the size of the
+electorate: it stays within 24 gas of 296,680 from 4 to 65,536 voters. Sepolia,
+however, now runs the Glamsterdam upgrade~\cite{glamsterdam}, whose
+EIP-8037~\cite{eip8037} charges 1,530 gas for every byte of new state. Creating
+state there costs several times more: deploying the tier 2 election contract
+took 14.66 million gas against 2.08 million under mainnet's rules, and creating
+an election 3.09 million against 0.64 million. Section~6 therefore reports gas
+under both rule sets. The contracts pass over 90 Foundry tests, with 97.8\% line
+and 100\% branch coverage, and Slither reports no findings once its timestamp
+detector, which flags the deliberate time-gated phases, is set aside. A complete
+anonymous approval election, three voters with no wallets and one of them
+moving to a new browser with their backup, runs in the browser in about 30
+seconds including three proofs. \note{Latency on Sepolia (B1), proving time by
+device (B2), gas against roll size (C1, C2) and the usability test (E3) are
+being measured; add one sentence each once Section 6 has them.}
+
+We chose voting from the available domains because it has the widest gap
+between what an organiser claims and what anyone else can verify. A wrong stock
+count in a warehouse is caught at the next physical count, but a wrong election
+result is rarely checked again. In an election the participants are opponents,
+so the record has to be one that none of them controls, that nobody can quietly
+edit, and that anyone can check. A public blockchain provides such a record: the
+rules are enforced by the network, and anyone can re-run them.
+
+The design does not solve every problem in electronic voting. Its limits,
+namely the correctness of the voter list, coercion, the trusted setup, and
+privacy from the relayer, are set out together in Section~\ref{sec:trust}.
+
+The rest of this report is organised as follows. Section~2 revisits the
+problem and existing systems in the light of what was built. Section~3 restates
+the requirements and the trust model and records what changed during
+implementation. Section~4 describes the deployed architecture, Section~5 the
+contracts, and Section~6 the measurements against the evaluation parameters of
+the Evaluation~1 report. Section~7 compares the plan as executed with the plan
+as proposed, and Section~8 concludes.

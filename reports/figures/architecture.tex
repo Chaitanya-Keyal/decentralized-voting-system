@@ -1,0 +1,77 @@
+% DVote architecture as built, for Evaluation 2.
+% Bare tikzpicture: \input this inside a figure environment.
+% Same three lanes as the Evaluation 1 system model (figures/system-model.tex),
+% redrawn for what was built: a factory and an implementation per tier, the
+% voter list inside each election, a relayer that calls castVote itself, and
+% an audit path that reads only the chain and IPFS.
+\begin{tikzpicture}[
+    font=\small,
+    lane/.style    = {draw=black!25, rounded corners=6pt, fill=black!4},
+    lanelab/.style = {font=\small\bfseries, text=black!70},
+    user/.style    = {draw=black, thick, rounded corners=6pt, fill=white,
+                      align=center, minimum width=3.6cm, minimum height=1.1cm},
+    svc/.style     = {draw=black, thick, dashed, rounded corners=2pt, fill=white,
+                      align=center, minimum width=3.3cm, minimum height=0.95cm},
+    con/.style     = {draw=black, line width=1.1pt, fill=black!8, align=center,
+                      minimum width=3.6cm, minimum height=0.95cm},
+    idle/.style    = {draw=black!45, dashed, fill=white, text=black!60,
+                      align=center, minimum width=3.6cm, minimum height=0.95cm},
+    flow/.style    = {-{Latex[length=2.4mm,width=1.9mm]}, draw=black!75, thick},
+    cache/.style   = {-{Latex[length=2.2mm,width=1.8mm]}, draw=black!45,
+                      dash pattern=on 1.5pt off 1.5pt, thick},
+    audit/.style   = {-{Latex[length=2.4mm,width=1.9mm]}, draw=black!75, thick,
+                      dash pattern=on 4pt off 2.5pt, rounded corners=4pt},
+    num/.style     = {circle, fill=black, text=white, font=\scriptsize\bfseries,
+                      inner sep=1.2pt, minimum size=4.2mm},
+    lab/.style     = {font=\footnotesize, text=black!80, align=center, inner sep=1.5pt},
+  ]
+
+  % ---- lanes ----
+  \fill[lane] (-0.1, 1.35) rectangle (4.1, -8.0);
+  \fill[lane] (6.6, 1.35) rectangle (10.4, -8.0);
+  \fill[lane] (12.9, 1.35) rectangle (17.5, -8.0);
+  \node[lanelab] at (2.0, 1.0)  {Users' browsers};
+  \node[lanelab] at (8.5, 1.0)  {Our services};
+  \node[lanelab] at (15.2, 1.0) {Ethereum Sepolia};
+
+  % ---- users ----
+  \node[user] (admin) at (2.0, 0.0)  {\textbf{Election Authority}\\admin console, wallet};
+  \node[user] (booth) at (2.0, -3.6) {\textbf{Voter}\\registration and booth,\\proves in a Web Worker};
+  \node[user] (audit) at (2.0, -6.9) {\textbf{Anyone}\\audit panel};
+
+  % ---- services ----
+  \node[svc] (idx)  at (8.5, -0.95) {\textbf{Indexer}\\read cache of events};
+  \node[svc] (reg)  at (8.5, -2.45) {\textbf{Registrar}\\email code or Google};
+  \node[svc] (ipfs) at (8.5, -4.0)  {\textbf{IPFS node}\\voter lists, descriptions};
+  \node[svc] (rel)  at (8.5, -5.6)  {\textbf{Relayer}\\own key, own queue};
+
+  % ---- contracts ----
+  \node[con] (fac)  at (15.2, 0.0) {\texttt{ElectionFactory} $\times 2$\\one per tier};
+  \node[con, minimum height=1.55cm] (elec) at (15.2, -2.75)
+    {\textbf{One clone per election}\\\texttt{MerkleElection} (tier 2) or\\\texttt{SemaphoreElection} (tier 3)};
+  \node[con] (ver)  at (15.2, -5.0) {\texttt{SemaphoreVerifier}\\Groth16, depths 1--32};
+  \node[idle] (fwd) at (15.2, -6.7) {\texttt{VoteForwarder}\\deployed; our relayer skips it};
+
+  % ---- flows ----
+  \draw[flow] (admin.east) -- node[lab, above, pos=0.55] {create; configure; cancel}
+                              node[num, below, pos=0.55] {1} (fac.west);
+  \draw[flow] (fac.south) -- node[lab, right] {EIP-1167 clone} (elec.north);
+  \draw[cache] (elec.north west) -- node[lab, above, sloped, pos=0.5] {events} (idx.east);
+  \draw[cache] (idx.west) -- node[lab, below left=0pt, pos=0.55] {page lists} (admin.south east);
+  \draw[flow] (booth.north east) -- node[lab, above left=0pt, pos=0.62] {commitment, proof of email}
+                                    node[num, below right=1pt, pos=0.5] {2} (reg.west);
+  \draw[flow] (reg.east) -- node[lab, below, sloped, pos=0.5] {root, count, CID}
+                            node[num, above, pos=0.5] {3} (elec.west);
+  \draw[flow] (reg.south) -- node[num, right=2pt] {3} (ipfs.north);
+  \draw[flow] (ipfs.west) -- node[lab, above, pos=0.5] {voter list}
+                             node[num, below, pos=0.5] {4} (booth.east);
+  \draw[flow] (booth.south east) -- node[lab, below left=0pt, pos=0.6] {choice, nullifier, proof}
+                                    node[num, above right=1pt, pos=0.5] {5} (rel.west);
+  \draw[flow] (rel.east) -- node[lab, below, sloped, pos=0.55] {\texttt{castVote}}
+                            node[num, above, pos=0.55] {5} (elec.south west);
+  \draw[flow] (elec.south) -- node[lab, right] {checks proof} (ver.north);
+  \draw[audit] (audit.south) -- (2.0, -7.75) -- (17.85, -7.75) |- (elec.east);
+  \node[lab, fill=white, inner sep=2pt] at (9.6, -7.75)
+    {reads ballots and state through any RPC node, and the list from any IPFS gateway};
+  \node[num] at (2.45, -7.75) {6};
+\end{tikzpicture}

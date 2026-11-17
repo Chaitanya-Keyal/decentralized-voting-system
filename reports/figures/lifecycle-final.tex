@@ -1,0 +1,68 @@
+% DVote election lifecycle as implemented in contracts/src/Election.sol.
+% Bare tikzpicture: \input this inside a figure environment.
+% Redrawn from figures/lifecycle.tex (kept unchanged for the Evaluation 1
+% sources) with the exact guards of each function: who may call it, and
+% between which of the four scheduled times.
+\begin{tikzpicture}[
+    font=\small,
+    nohyph/.style   = {execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000}},
+    phase/.style    = {draw=black, thick, rounded corners=3pt, fill=white,
+                       align=center, inner sep=4pt, text width=5.8cm,
+                       minimum height=1.0cm, nohyph},
+    terminal/.style = {phase, double, double distance=1.1pt},
+    aborted/.style  = {draw=black, thick, rounded corners=3pt, dashed,
+                       fill=black!7, align=center, inner sep=4pt,
+                       text width=2.4cm, minimum height=1.0cm},
+    trans/.style    = {-{Latex[length=2.4mm,width=2mm]}, draw=black,
+                       line width=1.1pt},
+    abort/.style    = {-{Latex[length=2.2mm,width=1.8mm]}, draw=black!65,
+                       semithick, dash pattern=on 2.5pt off 2pt,
+                       rounded corners=3pt},
+    tlab/.style     = {align=left, inner sep=2pt, text width=6.6cm,
+                       font=\footnotesize, nohyph},
+  ]
+
+  % ---- phases ----
+  \node[phase]    (created)  at (6.0, 0)
+    {\textbf{Created}\\the authority may change the schedule until \emph{registrationStart}};
+  \node[phase]    (regn)     at (6.0, -2.5)
+    {\textbf{Registration}\\the registrar publishes the list once,\\from \emph{registrationEnd} until \emph{votingStart}};
+  \node[phase]    (voting)   at (6.0, -5.0)
+    {\textbf{Voting}\\ballots accepted until \emph{votingEnd}};
+  \node[phase]    (tallying) at (6.0, -7.5)
+    {\textbf{Tallying}\\no more ballots};
+  \node[terminal] (final)    at (6.0, -10.0)
+    {\textbf{Finalized}\\tally and winners permanent};
+  \node[aborted]  (cancelled) at (0.3, -1.25) {\textbf{Cancelled}\\no result};
+
+  % ---- forward steps ----
+  \draw[trans] (created.south)  -- (regn.north);
+  \draw[trans] (regn.south)     -- (voting.north);
+  \draw[trans] (voting.south)   -- (tallying.north);
+  \draw[trans] (tallying.south) -- (final.north);
+
+  \node[tlab, anchor=west] at (9.5, -1.25)
+    {\texttt{openRegistration}: anyone, from \emph{registrationStart}.};
+  \node[tlab, anchor=west] at (9.5, -3.75)
+    {\texttt{openVoting}: anyone, from \emph{votingStart} until \emph{votingEnd},
+     and only once the voter list is published.};
+  \node[tlab, anchor=west] at (9.5, -6.25)
+    {\texttt{closeVoting}: anyone, from \emph{votingEnd}. Ballots stop at
+     \emph{votingEnd} whether or not anyone has called it.};
+  \node[tlab, anchor=west] at (9.5, -8.75)
+    {\texttt{finalize}: anyone, at any time. Records the winners.};
+
+  % ---- cancellation ----
+  \draw[abort] (created.west) -- (2.2, 0) -- (2.2, -0.85) -- (cancelled.east |- 0, -0.85);
+  \draw[abort] (regn.west)    -- (2.2, -2.5) -- (2.2, -1.65) -- (cancelled.east |- 0, -1.65);
+  \node[align=center, anchor=north, text width=3.4cm, inner sep=2pt,
+        font=\footnotesize, nohyph] at (0.3, -1.95)
+    {\texttt{cancel}: the authority only, from Created or Registration,
+     unless the list is published and the voting window has begun};
+
+  % ---- legend ----
+  \draw[trans] (9.6, -9.8) -- (10.6, -9.8);
+  \node[anchor=west, font=\footnotesize] at (10.7, -9.8) {anyone may call it once its time comes};
+  \draw[abort] (9.6, -10.3) -- (10.6, -10.3);
+  \node[anchor=west, font=\footnotesize] at (10.7, -10.3) {the authority only};
+\end{tikzpicture}

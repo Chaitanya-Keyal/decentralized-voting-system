@@ -1,48 +1,219 @@
 % ===========================================================================
-\section{Final System Architecture}
-% Source material: docs/architecture.md, as built
+\section{Final System Architecture}\label{sec:architecture}
+% Source material: docs/architecture.md, checked against the code at 3bca300
+% and the contracts deployed from aab48cf.
 % ===========================================================================
 
 \subsection{Architecture as built}
 
-\stub{Present the final architecture diagram and describe the deployed system.
-  Where it differs from the proposal in Evaluation 1, state the difference and the
-  reason for it.}
+The system still has the three parts proposed in Evaluation~1: pages that run
+in the users' own browsers, a few off-chain services that we run, and smart
+contracts on Ethereum Sepolia. Figure~\ref{fig:final-architecture} shows them as
+they were built, following one anonymous (tier 3) election. Everything that
+decides the result sits on the right. The services in the middle make the
+system convenient and let voters vote without a wallet, but none of them can
+change a ballot or the count, and the audit path along the bottom does not
+pass through any of them.
 
 \begin{figure}[htbp]
   \centering
-  \fbox{\parbox[c][5.5cm][c]{0.9\linewidth}{\centering\itshape
-      Figure placeholder: final architecture.}}
-  \caption{Deployed system architecture.}
+  \resizebox{\textwidth}{!}{\input{figures/architecture}}
+  \caption{\projectname{} as built, following an anonymous election. Solid
+    arrows are the numbered steps below; dotted arrows feed the indexer, a
+    cache that only makes pages faster; the dashed arrow is the audit path,
+    which reads only the chain and IPFS. In a wallet election the voter's own
+    wallet sends step~5 to the election, and no relayer is involved.}
   \label{fig:final-architecture}
 \end{figure}
 
-\subsection{Deployment}
+\begin{enumerate}
+  \item \emph{Create.} The Election Authority's wallet calls
+        \texttt{createElection} on the factory of the chosen tier. In the same
+        transaction the factory deploys an EIP-1167 clone~\cite{eip1167} of
+        that tier's election contract, makes the caller its authority, names
+        the registrar, and fixes the counting rule, title, schedule and
+        candidates.
+  \item \emph{Register.} The browser creates a Semaphore
+        identity~\cite{semaphore}, keeps its secret on the device and saves a
+        backup file. The voter then proves an institute email address to the
+        registrar, either with a one-time code sent to that address or by
+        signing in with Google. For Google, the registrar checks the ID token's
+        signature against Google's published keys, its issuer, audience and
+        expiry, and requires its hosted-domain claim to be the institute's
+        domain. The registrar stores the address against the identity's
+        commitment, which is all it ever receives, and returns a receipt
+        signed with EIP-712~\cite{eip712} over that commitment and this
+        election. In a wallet election the voter's wallet signs a message
+        tying it to the email address, and the wallet's address is what gets
+        registered.
+  \item \emph{Publish.} Once registration closes, the registrar does this
+        on its own, without anyone asking. It sorts the commitments, builds the
+        tree, pins the list to IPFS~\cite{ipfs} and calls
+        \texttt{publishVoterList} with the root, the number of voters and the
+        list's IPFS address. That is one transaction whatever the size of the
+        list, and it freezes the list for good.
+  \item \emph{Check.} The booth downloads the list by its IPFS address,
+        rebuilds the tree, compares the root with the one on-chain and confirms
+        that the voter's own commitment is on the list. From here on the
+        registrar is not involved, so it never learns who is about to vote.
+  \item \emph{Vote.} Before proving anything, the booth works out the
+        nullifier its key would produce, so it can tell on loading whether this
+        key has already voted. It downloads the proving files for the tree's
+        depth, checks each against its pinned SHA-256 hash and builds the proof
+        in a Web Worker, which keeps the page responsive. It then sends the
+        choice, the nullifier and the proof to the relayer. The relayer checks
+        that the election is an anonymous election from our factory, that
+        voting is open, that the proof verifies, that the nullifier is unused
+        and not already queued, and that the exact call succeeds in
+        simulation. Only then does it sign a receipt and queue the ballot. It
+        sends \texttt{castVote} to the election itself, and the booth waits
+        until the nullifier appears on-chain. Any wallet can submit the same
+        ballot instead.
+  \item \emph{Audit.} The audit panel on every election page reads the
+        election's events and state through public RPC nodes and the list
+        through IPFS. In the browser, it rebuilds the root, checks every
+        ballot's proof, recounts the tally and compares the winners with the
+        ones the contract declared.
+\end{enumerate}
 
-\stub{Record the deployed contract addresses, the network, the block explorer
-  links, and the commit hash the deployment was built from. A reader should be able
-  to independently verify every claim in Section 6 from this information alone.}
+The browser reads the chain through a list of public RPC nodes, falling back
+from one to the next, and batches its reads into one multicall per block. The
+indexer follows both factories and every election's events into a database,
+waits three blocks before treating a block as settled, and rebuilds itself
+from the deployment block if a block it has seen is replaced. It exists so
+that lists of elections load quickly. Because anyone can create an election
+through a factory, the indexer's list can be limited to elections whose
+authority we recognise, and the registrar serves only elections from our
+factories in which it holds the registrar role.
+
+Table~\ref{tab:components} sets out what each part holds, and what happens if
+it stops or misbehaves. The chain decides the result; the services can only
+fail to help. The one exception is the code of the pages themselves: whoever
+serves them could serve a copy that leaks the voting key, so a voter trusts
+the served copy just as they would trust a web wallet.
 
 \begin{table}[htbp]
   \centering
-  \caption{Deployed contracts.}
-  \label{tab:deployment}
+  \caption{What each off-chain part holds, and what follows if it fails.}
+  \label{tab:components}
   \small
-  \begin{tabular}{@{}L{4.6cm}L{7.4cm}L{3.9cm}@{}}
+  \begin{tabular}{@{}L{2.2cm}L{4.4cm}L{4.8cm}L{5.7cm}@{}}
     \toprule
-    \textbf{Contract}                & \textbf{Address} & \textbf{Network}    \\
+    \textbf{Part} & \textbf{Holds} & \textbf{If it stops} & \textbf{If it is dishonest} \\
     \midrule
-    \note{ElectionFactory}           & \note{0x...}     & \note{Ethereum Sepolia} \\
-    \note{Election (implementation)} & \note{0x...}     & \note{Ethereum Sepolia} \\
-    \note{VoterRegistry}             & \note{0x...}     & \note{Ethereum Sepolia} \\
-    \note{VoteForwarder}             & \note{0x...}     & \note{Ethereum Sepolia} \\
+    Registrar & Each email address and the commitment or wallet it registered; a key that pays for publication & Nobody new can register, and an unpublished list stops voting from opening; the authority can then cancel & It can drop, swap or invent voters. Receipts and the booth's check make dropping or swapping provable before voting opens; invented voters cannot be detected (Section~\ref{sec:trust}) \\
+    \addlinespace[3pt]
+    Relayer & Its own funded key; queued ballots until they are sent, then only the outcome & Voters without gas cannot vote until it returns; anyone can submit a ballot from a wallet & It can drop ballots, but a dropped ballot breaks a signed promise. It cannot change or forge a ballot: the proof binds the choice and the election \\
+    \addlinespace[3pt]
+    Indexer & A copy of the chain's events & The list of elections and each election's table of ballots stop loading; an election's own page still shows its state, tally and audit from the chain & It could show wrong lists of elections or ballots. The audit panel and the contracts never read it \\
+    \addlinespace[3pt]
+    IPFS node & Voter lists and descriptions, pinned by content address & Any other IPFS node with a copy can serve the list & It cannot serve a different list under the same address, and a wrong list fails the root check \\
+    \addlinespace[3pt]
+    Web pages & The voting key, in the browser that made it & Nobody can use our copy; the source is public and can be run elsewhere & A malicious copy could leak the key. This is trust in the served code, as with any web wallet \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\subsection{Divergences from the proposed design}
+\subsection{Deployment}\label{sec:deployment}
 
-\stub{List what changed between the Evaluation 1 proposal and the final system,
-  with the reason for each. This section is worth writing carefully: a design that
-  survived contact with implementation unchanged is usually a design that was not
-  tested hard enough.}
+Table~\ref{tab:deployment} lists the deployed contracts. All six are on
+Ethereum Sepolia (chain ID 11155111) and were created in blocks 12,150,346 to
+12,150,351. Their addresses are recorded in
+\texttt{contracts/deployments/11155111.json}, committed in \texttt{aab48cf}; the
+contract sources have not changed since. Each was compiled with Solidity 0.8.28
+with the optimizer at 200 runs for the Cancun EVM, and Sourcify~\cite{sourcify}
+reports an exact match for every one, for both creation and runtime bytecode.
+Anyone can therefore read the source of what is deployed, compile it and get
+the same bytes. Each address in the table links to the contract on Etherscan.
+\note{If the contracts are redeployed before submission, update this table.}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Deployed contracts on Ethereum Sepolia. Gas is what each creation
+    transaction used under Sepolia's Glamsterdam rules.}
+  \label{tab:deployment}
+  \small
+  \begin{tabular}{@{}L{3.3cm}L{7.0cm}L{4.8cm}R{2.0cm}@{}}
+    \toprule
+    \textbf{Contract} & \textbf{Address} & \textbf{Role} & \textbf{Gas} \\
+    \midrule
+    \texttt{ElectionFactory} & \href{https://sepolia.etherscan.io/address/0x983f62B08b34AF0FeA66589141f64d3ec2eFFd54}{\footnotesize\texttt{0x983f62B08b34AF0FeA66589141f64d3ec2eFFd54}} & Creates tier 2 elections & 3,541,020 \\
+    \texttt{MerkleElection} & \href{https://sepolia.etherscan.io/address/0x18574D1B6432b14C262dCf4Cee4C2604dF2016C3}{\footnotesize\texttt{0x18574D1B6432b14C262dCf4Cee4C2604dF2016C3}} & Tier 2 implementation & 14,659,413 \\
+    \texttt{ElectionFactory} & \href{https://sepolia.etherscan.io/address/0xE2B0121FdC5b8E5359FdE77dE7e44333AAe90690}{\footnotesize\texttt{0xE2B0121FdC5b8E5359FdE77dE7e44333AAe90690}} & Creates tier 3 elections & 3,541,020 \\
+    \texttt{SemaphoreElection} & \href{https://sepolia.etherscan.io/address/0xD04F2BE039C50f78eBa1353A8D4721fEc913A022}{\footnotesize\texttt{0xD04F2BE039C50f78eBa1353A8D4721fEc913A022}} & Tier 3 implementation & 16,462,526 \\
+    \texttt{SemaphoreVerifier} & \href{https://sepolia.etherscan.io/address/0x58Bd456880b0CD225629ECF676c7bF611FFA1A1e}{\footnotesize\texttt{0x58Bd456880b0CD225629ECF676c7bF611FFA1A1e}} & Semaphore's verifier, unmodified & 24,962,067 \\
+    \texttt{VoteForwarder} & \href{https://sepolia.etherscan.io/address/0xd0464A0CEa219C92c40d1A4770D43560aA701257}{\footnotesize\texttt{0xd0464A0CEa219C92c40d1A4770D43560aA701257}} & ERC-2771 forwarder; our relayer skips it & 6,067,286 \\
+    \midrule
+    \multicolumn{3}{@{}l}{Total, at the 0.01 gwei gas price paid: about 0.00069 ETH} & 69,233,332 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\texttt{VoterRegistry} and \texttt{TallyLib}, which Evaluation~1 drew as
+separate contracts, have no address: the first is part of every election
+contract and the second is compiled into it (Section~\ref{sec:divergences}).
+Each factory clones exactly one implementation, which anyone can confirm by
+calling its \texttt{implementation()} function, so a wallet election cannot be
+passed off as an anonymous one.
+
+Deploying code costs far more on Sepolia than under mainnet's current rules.
+Deploying \texttt{MerkleElection} took 14,659,413 gas on Sepolia, about seven
+times the 2,084,623 of the same deployment in our local snapshot, because
+Glamsterdam~\cite{glamsterdam} brought EIP-8037, which charges 1,530 gas for
+every byte of new state, including deployed code~\cite{eip8037}. Section~6
+reports the effect on ordinary election steps.
+
+\subsection{Divergences from the proposed design}\label{sec:divergences}
+
+Section~\ref{sec:req-changes} records the changes that touched the
+requirements: approval voting, both tiers becoming user-facing, the counting
+rule compiled into the election contract, the relayer as a separate process,
+registrations that never move, and dropping server-side proving.
+Table~\ref{tab:divergences} lists the changes to the architecture itself.
+
+\begin{longtable}{@{}>{\RaggedRight\arraybackslash\small}p{2.4cm}>{\RaggedRight\arraybackslash\small}p{3.5cm}>{\RaggedRight\arraybackslash\small}p{4.8cm}>{\RaggedRight\arraybackslash\small}p{6.4cm}@{}}
+  \caption{Where the built architecture differs from Evaluation~1, and why.}\label{tab:divergences}\\
+  \toprule
+  \textbf{Part} & \textbf{Evaluation 1} & \textbf{As built} & \textbf{Why} \\
+  \midrule
+  \endfirsthead
+  \toprule
+  \textbf{Part} & \textbf{Evaluation 1} & \textbf{As built} & \textbf{Why} \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endlastfoot
+  Election contracts & One \texttt{Election} contract & An abstract \texttt{Election} with two implementations, \texttt{MerkleElection} and \texttt{SemaphoreElection}, each cloned by its own factory and reporting its tier & Tier 2 stayed as a choice for open votes. Separate implementations keep each \texttt{castVote} small, and the factory an election came from fixes its tier \\
+  \addlinespace[3pt]
+  Voter list & A separate \texttt{VoterRegistry} contract & An abstract base of \texttt{Election}, so each clone holds its own root, voter count and list address & Every ballot reads the voter count to enforce the cap. Inside the same contract that is one storage read rather than a call to another contract, and an election needs one clone instead of two \\
+  \addlinespace[3pt]
+  Ballot scope & The election's ID & The election's address & A clone's address is unique without a counter. The same address is the verifying contract in every EIP-712 receipt, so a receipt or a nullifier from one election means nothing in another \\
+  \addlinespace[3pt]
+  Tree depth & Not specified & Computed by the contract from the published voter count, in constant time & The depth chooses the verifier's key, so it must not come from the caller. An earlier version computed it in a loop, which added about 210 gas per tree level to every ballot (Section~6) \\
+  \addlinespace[3pt]
+  Relaying & Through \texttt{VoteForwarder}, each ballot signed with a fresh key & The relayer calls \texttt{castVote} itself; the forwarder is deployed and still accepted & \texttt{castVote} never reads the sender, so the signature protected nothing the proof did not already protect. It cost 335,214 gas per ballot against 296,692 directly under mainnet's rules, and more on Sepolia (Section~\ref{sec:req-changes}) \\
+  \addlinespace[3pt]
+  Relayer checks & Check the proof, pay the gas & Also checks the election, the phase and the nullifier, simulates the call, and allows one queued ballot per nullifier before signing a receipt & A ballot the contract would refuse never earns a receipt, and never costs the relayer gas \\
+  \addlinespace[3pt]
+  Proof of email & An emailed one-time code & An emailed code, or Google sign-in limited to the institute's domain & Sending codes needs a mail service that a deployment may not have. Google sign-in needs none, and both lead to the same receipt \\
+  \addlinespace[3pt]
+  Which elections are served & Not specified & The registrar serves only elections from our factories where it holds the registrar role and, if configured, whose authority it recognises; the indexer's list is filtered the same way & The factories are open to anyone, so anyone could create an election naming our registrar. Without the check it would send codes under any title and pay gas to publish any list \\
+  \addlinespace[3pt]
+  Cancelling & Authority only, before voting opens & Also possible when the list never appeared, or the voting window passed without voting opening. The schedule can change only until registration is due, and the candidates until voting is due & An election whose registrar never published would otherwise be stuck for good. The limits go by the clock because a phase is open from its time even if nobody has recorded that on-chain \\
+  \addlinespace[3pt]
+  Keeping the key & A backup file & The backup file, plus a QR code or link that carries the key after the \texttt{\#} in the address, which browsers never send to a server. The booth takes it only after the voter confirms, and never in place of a key it already holds & In the simulated walkthrough (Section~6), a voter who registered on one device and voted on another could not vote. The confirmation and the no-replace rule stop someone else's link from planting their key \\
+  \addlinespace[3pt]
+  Deployment & Not specified & Gas limits taken from the network, not from a local simulation & Glamsterdam's state pricing is not modelled by the local toolchain, so the first attempt ran out of gas (Section~\ref{sec:deployment}) \\
+\end{longtable}
+
+The central decisions held. The voter list is still only a root on-chain, so
+publishing it costs the same at any size: 147,165 gas in tier 2 and 147,319 in
+tier 3, from 2 to 65,536 voters (Section~6). Every phase change after
+configuration is still open to anyone once its time comes, so the authority
+cannot stall the count. The registrar still takes no part in voting, the
+relayer still runs apart from it, and the audit still reads only the chain and
+IPFS. The end-to-end test on Sepolia exercises the last three: it registers
+voters through the real registrar, waits for it to publish, votes through the
+relayer, closes and finalizes the election and runs the in-browser audit. The
+contract tests check that an account with no role can trigger every phase
+change once its time has come (Section~\ref{sec:contract-tests}).

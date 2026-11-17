@@ -28,6 +28,11 @@
 \usepackage{csquotes}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds,calc}
+% Graphs are drawn from the committed CSVs in bench/results, never by hand.
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
 
 \usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
 \addbibresource{references.bib}
@@ -107,6 +112,7 @@
 
 % Fixed-width column types for tables that need wrapping.
 \newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\RaggedLeft\arraybackslash}p{#1}}
 
 \lstset{
   basicstyle=\ttfamily\footnotesize,
