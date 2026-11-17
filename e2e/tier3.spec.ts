@@ -116,7 +116,7 @@ test("an anonymous approval election runs end to end without voter wallets", asy
     await moved.page.goto(`${election}/vote`);
     await expect(moved.page.getByText("doesn't have your voting key yet")).toBeVisible();
     await screenshot(moved.page, "11-booth-no-key");
-    await moved.page.getByLabel("Restore from a backup").setInputFiles({
+    await moved.page.getByLabel("Choose my key file").setInputFiles({
       name: "backup.json",
       mimeType: "application/json",
       buffer: Buffer.from(voters[2]!.backup ?? ""),
@@ -164,7 +164,7 @@ test("an anonymous approval election runs end to end without voter wallets", asy
   await test.step("a voter who has voted is told so, even in a fresh browser", async () => {
     const again = await voterBrowser(browser, errors);
     await again.page.goto(`${election}/vote`);
-    await again.page.getByLabel("Restore from a backup").setInputFiles({
+    await again.page.getByLabel("Choose my key file").setInputFiles({
       name: "backup.json",
       mimeType: "application/json",
       buffer: Buffer.from(voters[0]!.backup ?? ""),
@@ -209,6 +209,13 @@ test("an anonymous approval election runs end to end without voter wallets", asy
   await test.step("the indexer lists every ballot, by nullifier only", async () => {
     await expect(page.locator("tbody tr")).toHaveCount(3);
     await screenshot(page, "15-election-final");
+  });
+
+  await test.step("a voter's own browser marks their ballot in the list", async () => {
+    const { page: own } = voters[0]!;
+    await own.goto(election);
+    await expect(own.locator("tbody tr").filter({ hasText: "yours" })).toHaveCount(1);
+    await screenshot(own, "17-election-final-voter");
   });
 
   for (const voter of voters) await voter.context.close();

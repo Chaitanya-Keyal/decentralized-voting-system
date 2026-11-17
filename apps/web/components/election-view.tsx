@@ -85,7 +85,15 @@ export function ElectionView({ address }: { address: string }) {
 
       <Card
         title="Ballots"
-        description="Each ballot is a transaction on the chain; each row links to it."
+        description={
+          election.tier === 3
+            ? `Every ballot is public, shown by its ballot ID alone, never with who cast it.${
+                election.voterCount > 0
+                  ? ` Each is hidden among the ${election.voterCount} people on the voter list.`
+                  : ""
+              } A ballot this browser cast is marked "yours".`
+            : "Every ballot is public, with the wallet that cast it."
+        }
       >
         <Ballots
           election={election.address}

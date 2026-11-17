@@ -266,13 +266,15 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
       <Notice tone="success">
         You have voted. Your ballot is recorded on the blockchain and included in the count.
       </Notice>
+      <p className="text-sm text-zinc-700 dark:text-zinc-300">
+        Your ballot ID is <Mono value={pad(toHex(BigInt(ballot.nullifier)))} />. In the list of
+        ballots on the election&apos;s page, this browser marks it &ldquo;yours&rdquo;. The ID is
+        the same each time this key votes here, which is how a second ballot is refused, and it says
+        nothing about who you are.
+      </p>
       <details className="text-sm text-zinc-600 dark:text-zinc-400">
         <summary className="cursor-pointer">Details</summary>
         <div className="mt-2 flex flex-col gap-1.5">
-          <p>
-            Nullifier <Mono value={toHex(BigInt(ballot.nullifier))} />: it stops this key voting
-            twice, and says nothing about who you are.
-          </p>
           {ballot.txHash && (
             <p>
               Transaction{" "}
@@ -293,7 +295,7 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
         </div>
       </details>
       <LinkButton href={`/elections/${election.address}`} variant="secondary">
-        See the count
+        See your ballot in the count
       </LinkButton>
     </>
   );
@@ -379,12 +381,28 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
     return (
       <>
         <Notice>
-          This browser doesn&apos;t have your voting key yet. On the device you registered on, open
-          this election&apos;s registration page and scan its QR code with this phone, or send
-          yourself its link. Or restore the key file you downloaded (named dvote-voting-key-…json,
-          usually in Downloads). Keys can&apos;t be recovered, by design: without yours, you
-          can&apos;t vote.
+          This browser doesn&apos;t have your voting key yet. If you have already voted, your ballot
+          still counts; bringing the key here only lets this browser show it.
         </Notice>
+        <div className="flex flex-col gap-2 text-sm">
+          <p className="font-medium">To bring your key here, do one of these:</p>
+          <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-zinc-700 dark:text-zinc-300">
+            <li>
+              Open the link you sent yourself when you registered. It opens this page with your key.
+            </li>
+            <li>
+              Or, on the device you registered on, open this election&apos;s registration page and
+              scan its QR code with this phone.
+            </li>
+            <li>
+              Or choose the key file saved when you registered (its name starts with
+              &ldquo;dvote-voting-key&rdquo;; on a phone, look in Downloads or Files).
+            </li>
+          </ol>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            Nobody can recover a lost key, not even us: that is what keeps your ballot secret.
+          </p>
+        </div>
         <VotingKeyCard election={election} restoreOnly />
       </>
     );

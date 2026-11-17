@@ -32,6 +32,32 @@ import { Button, Card, Mono, Notice } from "./ui";
  * Tier 3's voting key: a secret this browser creates and keeps. It is what proves, later, that the
  * ballot comes from someone on the list without saying who.
  */
+/** What each party can see, for voters who want to know why their ballot stays secret. */
+export function SecrecyNote() {
+  return (
+    <details className="text-zinc-600 dark:text-zinc-400">
+      <summary className="cursor-pointer font-medium text-zinc-800 dark:text-zinc-200">
+        How is my vote kept secret?
+      </summary>
+      <div className="mt-2 flex flex-col gap-2">
+        <p>
+          The registrar sees your email and a public code made from your voting key. That is how it
+          knows who may vote.
+        </p>
+        <p>
+          When you vote, your browser proves that the ballot comes from one of the registered codes,
+          without saying which one. So the registrar, the people running this site and anyone
+          reading the blockchain can see the ballot, but none of them can tell it is yours.
+        </p>
+        <p>
+          Your ballot is hidden among everyone on the voter list, so the more people register, the
+          better hidden it is.
+        </p>
+      </div>
+    </details>
+  );
+}
+
 export function VotingKeyCard({
   election,
   restoreOnly = false,
@@ -81,32 +107,35 @@ export function VotingKeyCard({
   };
 
   return (
-    <Card
-      title="Your voting key"
-      description={
-        restoreOnly
-          ? undefined
-          : "Votes here are anonymous. Your browser makes a voting key that only you hold. The registrar sees your email and a public code made from the key; when you vote, your browser proves the ballot comes from one of the registered codes without saying which. So nobody, the registrar included, can tell which ballot is yours."
-      }
-    >
+    <Card title="Your voting key">
       <div className="flex flex-col gap-3 text-sm">
+        {!restoreOnly && !identity && (
+          <>
+            <ol className="flex list-decimal flex-col gap-1 pl-5">
+              <li>Create your voting key. It stays in this browser.</li>
+              <li>Show that you are a student here, with your institute email.</li>
+              <li>Come back when voting opens, and vote.</li>
+            </ol>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              It is free: no wallet, no cryptocurrency and no fees.
+            </p>
+            <SecrecyNote />
+          </>
+        )}
         {identity ? (
           <>
-            <Notice tone="success">
-              This browser holds your voting key. Its public fingerprint is{" "}
-              <Mono value={identity.commitment.toString()} />.
-            </Notice>
-            <div>
-              <Button
-                variant="secondary"
+            <Notice tone="success">This browser holds your voting key.</Notice>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              A spare copy was saved to your downloads. You need it only if you vote from another
+              device or clear this browser&apos;s data. Keep it private: anyone holding it can cast
+              your ballot.{" "}
+              <button
+                type="button"
+                className="underline"
                 onClick={() => downloadIdentityBackup(chain.id, election.address, identity)}
               >
-                Download a backup of the key
-              </Button>
-            </div>
-            <p className="text-zinc-500">
-              Keep the backup private: anyone holding it can cast your ballot. To vote from another
-              device, restore it there.
+                Save it again
+              </button>
             </p>
           </>
         ) : (
@@ -120,7 +149,7 @@ export function VotingKeyCard({
                     : "inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium focus-within:ring-2 focus-within:ring-zinc-400 dark:border-zinc-700"
                 }
               >
-                Restore from a backup
+                {restoreOnly ? "Choose my key file" : "I already have a key file"}
                 <input
                   type="file"
                   accept="application/json,.json"
@@ -132,7 +161,7 @@ export function VotingKeyCard({
             <p className="text-zinc-500">
               {restoreOnly
                 ? "Use the backup file you downloaded when you registered."
-                : "Creating the key also downloads a backup. Without the key you cannot vote, and nobody can recover it for you."}
+                : "Creating the key also saves a spare copy to your downloads."}
             </p>
           </>
         )}

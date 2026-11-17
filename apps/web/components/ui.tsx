@@ -112,7 +112,7 @@ export function Field({
     <label className="flex flex-col gap-1.5 text-sm">
       <span className="font-medium">{label}</span>
       {children}
-      {hint && <span className="text-xs text-zinc-500">{hint}</span>}
+      {hint && <span className="text-sm text-zinc-600 dark:text-zinc-400">{hint}</span>}
     </label>
   );
 }

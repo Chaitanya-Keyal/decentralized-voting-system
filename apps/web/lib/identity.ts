@@ -42,6 +42,19 @@ export function saveIdentity(chainId: number, election: Address, identity: Ident
   }
 }
 
+/**
+ * Removes this election's voting key from this browser, for a shared computer once the key has
+ * been moved to the voter's own device.
+ */
+export function forgetIdentity(chainId: number, election: Address): void {
+  try {
+    localStorage.removeItem(storageKey(chainId, election));
+    window.dispatchEvent(new Event(CHANGE_EVENT));
+  } catch {
+    // Nothing was stored.
+  }
+}
+
 function read(key: string): string | null {
   try {
     return localStorage.getItem(key);

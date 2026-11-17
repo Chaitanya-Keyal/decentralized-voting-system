@@ -56,7 +56,7 @@ export function auditSteps(election: OnchainElection): AuditStep[] {
     {
       id: "eligibility",
       title: anonymous
-        ? "Every ballot comes from someone on the list, without saying who"
+        ? "Every ballot was cast by someone on the voter list"
         : "Every ballot came from a wallet on the list",
       status: "waiting",
     },
@@ -206,7 +206,7 @@ export async function runAudit(
         checked++;
         report("eligibility", "running", `${checked} of ${ballots.length} proofs checked`);
       }
-      return `${checked} zero-knowledge proofs checked in this browser`;
+      return `${checked} proofs checked in this browser; a proof shows a ballot is from the list, not whose it is`;
     }
     for (const ballot of ballots) {
       const voter = slice(ballot.key, 12).toLowerCase();

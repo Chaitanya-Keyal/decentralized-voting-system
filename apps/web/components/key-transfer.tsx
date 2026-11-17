@@ -5,7 +5,12 @@ import { renderSVG } from "uqr";
 
 import type { OnchainElection } from "@/lib/election";
 import { chain } from "@/lib/env";
-import { downloadIdentityBackup, transferLink, useStoredIdentity } from "@/lib/identity";
+import {
+  downloadIdentityBackup,
+  forgetIdentity,
+  transferLink,
+  useStoredIdentity,
+} from "@/lib/identity";
 
 import { Button, Card } from "./ui";
 
@@ -65,7 +70,7 @@ export function KeyTransfer({ election }: { election: OnchainElection }) {
             </p>
           </div>
         )}
-        <p className="text-zinc-500">
+        <p className="text-zinc-600 dark:text-zinc-400">
           Anyone with this code or link can cast your ballot, so send it only to yourself. You can
           also{" "}
           <button
@@ -76,6 +81,25 @@ export function KeyTransfer({ election }: { election: OnchainElection }) {
             download the key as a file
           </button>
           .
+        </p>
+        <p className="text-zinc-600 dark:text-zinc-400">
+          On a shared computer? Once the key is on your own device, remove it from this browser and
+          delete the downloaded key file.{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Remove the voting key from this browser? Do this only if the key is on your own device: without it you cannot vote.",
+                )
+              ) {
+                forgetIdentity(chain.id, election.address);
+              }
+            }}
+          >
+            Remove the key from this browser
+          </button>
         </p>
       </div>
     </Card>

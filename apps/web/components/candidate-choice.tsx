@@ -42,11 +42,11 @@ export function CandidateChoice({
       {election.candidates.map((candidate, index) => (
         <label
           key={index}
-          className="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 px-4 py-3 text-sm has-[:checked]:border-zinc-900 dark:border-zinc-800 dark:has-[:checked]:border-zinc-100"
+          className="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-300 px-4 py-3 text-sm has-[:checked]:border-2 has-[:checked]:border-zinc-900 has-[:checked]:bg-zinc-100 has-[:checked]:font-medium dark:border-zinc-700 dark:has-[:checked]:border-zinc-100 dark:has-[:checked]:bg-zinc-800"
         >
           <input
             type={approval ? "checkbox" : "radio"}
-            className="size-4 accent-zinc-900 dark:accent-zinc-100"
+            className="size-5 accent-zinc-900 dark:accent-zinc-100"
             name="candidate"
             value={index}
             checked={marks.has(index)}
