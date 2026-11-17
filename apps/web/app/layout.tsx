@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 
 import { Header } from "@/components/header";
 import { ServiceWorker } from "@/components/service-worker";
@@ -44,6 +45,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8">
             {children}
           </main>
+          <footer className="mx-auto w-full max-w-4xl px-4 pb-6 text-sm text-zinc-500 dark:text-zinc-400">
+            <nav aria-label="About DVote" className="flex gap-4">
+              <Link href="/privacy" className="hover:underline">
+                Privacy
+              </Link>
+              <Link href="/terms" className="hover:underline">
+                Terms
+              </Link>
+            </nav>
+          </footer>
         </Providers>
       </body>
     </html>
