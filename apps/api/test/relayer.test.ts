@@ -9,11 +9,11 @@ import {
   semaphoreElectionAbi,
   type AnonymousBallot,
 } from "@dvote/shared";
+import { ensureArtifacts } from "@dvote/shared/semaphore-artifacts";
 import type { FastifyInstance } from "fastify";
 import { recoverTypedDataAddress, type Address } from "viem";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { ensureArtifacts } from "../../../packages/shared/scripts/semaphore-artifacts.mjs";
 import { buildRelayer } from "../src/relayer/main";
 import { contracts, createElection, node, REGISTRAR, warpTo } from "./helpers";
 
@@ -229,6 +229,21 @@ describe("relayer", () => {
       election: wallets.election,
     });
     expect(response.statusCode).toBe(400);
+  }, 60_000);
+
+  it("pays only for the elections of the authorities it serves", async () => {
+    const { election, voters, tree } = await votingElection();
+    const ballot = await ballotFor(voters[0]!, tree, election, 0n);
+    // Anyone can create an anonymous election; this one is not run by any of AUTHORITIES.
+    const outsider = await createElection("Someone else's election", {
+      tier: 3,
+      authority: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    });
+    const response = await submit({
+      ...ballotRequest(election, ballot),
+      election: outsider.election,
+    });
+    expect(response.statusCode).toBe(403);
   }, 60_000);
 
   it("refuses, before promising anything, a proved ballot the election would reject", async () => {

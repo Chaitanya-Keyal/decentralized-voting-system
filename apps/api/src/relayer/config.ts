@@ -1,22 +1,15 @@
 // The relayer's settings. It is a separate process from the registrar, with its own key and its
 // own store (Redis), and needs no access to the registrar's database: the registrar knows who
 // registered, the relayer sees ballots, and keeping them apart keeps that knowledge apart.
-import { existsSync } from "node:fs";
-
-import { deploymentFor } from "@dvote/shared";
+import { addressSchema, deploymentFor } from "@dvote/shared";
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { anvil, sepolia } from "viem/chains";
 import { z } from "zod";
 
-import { loadFileSettings } from "../file-settings";
+import { addressListSchema, loadSettings, optional, privateKeySchema } from "../settings";
 
-const envFile = new URL("../../../../.env", import.meta.url);
-if (existsSync(envFile)) process.loadEnvFile(envFile);
-loadFileSettings();
-
-const optional = <T extends z.ZodType>(schema: T) =>
-  z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
+loadSettings();
 
 const schema = z
   .object({
@@ -28,27 +21,26 @@ const schema = z
     REDIS_URL: z.string().default("redis://127.0.0.1:6380"),
     /** Keeps several relayers, or test runs, apart in one Redis. */
     RELAYER_PREFIX: z.string().default("dvote-relayer"),
-    RELAYER_PRIVATE_KEY: optional(
-      z
-        .string()
-        .regex(/^0x[0-9a-fA-F]{64}$/, "Expected a 32-byte hex key")
-        .transform((key) => key as `0x${string}`),
-    ),
+    RELAYER_PRIVATE_KEY: optional(privateKeySchema),
     /** On Anvil, an account the node has unlocked, used instead of a key. */
-    RELAYER_ADDRESS: optional(
-      z
-        .string()
-        .regex(/^0x[0-9a-fA-F]{40}$/)
-        .transform((address) => address as `0x${string}`),
-    ),
+    RELAYER_ADDRESS: optional(addressSchema),
+    /**
+     * Comma-separated authorities whose elections the relayer pays ballots for, as for the
+     * registrar. Empty pays for any, which is allowed only on Anvil: anyone can create an anonymous
+     * election, and every ballot costs the relayer gas.
+     */
+    AUTHORITIES: addressListSchema,
     /**
      * How many proxies sit in front of the relayer and set X-Forwarded-For, so that the rate limit
      * sees each client's address rather than the proxy's. 0 when clients connect directly. Never
      * more than there really are, or a client could choose its own address.
      */
     RELAYER_TRUSTED_PROXIES: z.coerce.number().int().min(0).default(0),
-    /** Ballots one client may submit per minute. */
-    RELAYER_RATE_LIMIT: z.coerce.number().int().positive().default(10),
+    /**
+     * Ballots one client may submit per minute. A room of voters on one network shares one
+     * address, so this is generous; each ballot is still limited to one per voter.
+     */
+    RELAYER_RATE_LIMIT: z.coerce.number().int().positive().default(120),
     /**
      * Ballots in flight at once. They are still sent one at a time, in nonce order, but the relayer
      * does not wait for one to be mined before sending the next, so a burst of voters shares blocks.
@@ -69,6 +61,9 @@ const schema = z
   })
   .refine((env) => env.RELAYER_PRIVATE_KEY ?? env.RELAYER_ADDRESS, {
     message: "Set RELAYER_PRIVATE_KEY, or RELAYER_ADDRESS for an account Anvil has unlocked",
+  })
+  .refine((env) => env.CHAIN_ID === anvil.id || env.AUTHORITIES.length > 0, {
+    message: "Set AUTHORITIES: on a public chain the relayer pays only for their elections",
   });
 
 const parsed = schema.safeParse(process.env);

@@ -47,9 +47,9 @@ import { env } from "./env";
 import type { Prisma } from "./generated/prisma/client";
 import { verifyGoogleIdToken } from "./google";
 import { HttpError, parse } from "./http";
-import { loggable } from "./redact";
 import { pinJson } from "./ipfs";
 import { sendCode as emailCode } from "./mailer";
+import { loggable } from "./redact";
 
 const CODE_VALID_MINUTES = 10;
 const CODE_RESEND_SECONDS = 60;
@@ -223,7 +223,7 @@ async function checkCode(election: Address, email: string, code: string) {
  * another wallet, a registrar that dropped or swapped a voter's wallet could claim the voter had
  * moved it, and the receipt would prove nothing.
  */
-export async function register(
+async function register(
   election: Address,
   request: {
     email: string;
@@ -310,7 +310,7 @@ export async function register(
  * name or tell which ballot is theirs. As with wallets, an email address registers one identity
  * and the pair never changes.
  */
-export async function registerIdentity(
+async function registerIdentity(
   election: Address,
   request: { email: string; code?: string; googleIdToken?: string; commitment: string },
   known?: ElectionState,

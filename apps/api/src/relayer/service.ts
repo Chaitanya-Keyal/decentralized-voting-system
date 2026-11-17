@@ -13,6 +13,7 @@
 import { createHash } from "node:crypto";
 
 import {
+  AUTHORITY_ROLE,
   electionFactoryAbi,
   Phase,
   relayReceiptTypedData,
@@ -83,9 +84,33 @@ function castVoteCall(election: Address, ballot: AnonymousBallot) {
   } as const;
 }
 
+/** Elections found to be run by one of AUTHORITIES. The role is granted at creation and kept. */
+const served = new Set<Address>();
+
+/**
+ * Whether one of AUTHORITIES runs `election`; with none set, which only Anvil allows, any
+ * election. Anyone can create an anonymous election, so without this check anyone could have the
+ * relayer pay for as many ballots as they liked.
+ */
+async function servesElection(election: Address): Promise<boolean> {
+  if (config.AUTHORITIES.length === 0 || served.has(election)) return true;
+  const held = await Promise.all(
+    config.AUTHORITIES.map((authority) =>
+      publicClient.readContract({
+        address: election,
+        abi: semaphoreElectionAbi,
+        functionName: "hasRole",
+        args: [AUTHORITY_ROLE, authority],
+      }),
+    ),
+  );
+  if (held.includes(true)) served.add(election);
+  return held.includes(true);
+}
+
 /**
  * Accepts a ballot after checking everything that would make it fail on-chain: the target is an
- * anonymous election of this deployment, voting is open, the proof verifies against the published
+ * anonymous election of this deployment, run by one of its authorities, voting is open, the proof verifies against the published
  * root, the nullifier is unused and not already queued, and the call succeeds when simulated. Only
  * then does the relayer promise, with a signed receipt, to submit it.
  *
@@ -109,6 +134,9 @@ export async function acceptBallot(
   });
   if (!created) {
     throw new HttpError(400, "The relayer only submits ballots for anonymous elections.");
+  }
+  if (!(await servesElection(election))) {
+    throw new HttpError(403, "This relayer does not submit ballots for that election.");
   }
 
   const contract = { address: election, abi: semaphoreElectionAbi } as const;

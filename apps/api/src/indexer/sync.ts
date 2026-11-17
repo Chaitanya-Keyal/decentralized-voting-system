@@ -10,6 +10,7 @@ import { anvil } from "viem/chains";
 
 import { chain, deployment, publicClient } from "../chain";
 import { db } from "../db";
+import { env } from "../env";
 import type { Prisma } from "../generated/prisma/client";
 import { loggable } from "../redact";
 
@@ -22,11 +23,16 @@ const CONFIRMATIONS = chain.id === anvil.id ? 0n : 3n;
 
 const POLL_MS = chain.id === anvil.id ? 500 : 4_000;
 
+/**
+ * The elections created in the range. With AUTHORITIES set, only theirs: anyone can create an
+ * election, and following thousands of others would slow the index down for everyone.
+ */
 function readFactoryEvents(fromBlock: bigint, toBlock: bigint) {
   return publicClient.getContractEvents({
     address: electionFactories(deployment),
     abi: electionFactoryAbi,
     eventName: "ElectionCreated",
+    ...(env.AUTHORITIES.length > 0 ? { args: { authority: env.AUTHORITIES } } : {}),
     fromBlock,
     toBlock,
     strict: true,

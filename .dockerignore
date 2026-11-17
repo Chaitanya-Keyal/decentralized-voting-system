@@ -1,9 +1,9 @@
 **/node_modules
 **/.next
 **/.cache
-.git
-.claude
-.env
+# Dotfiles and dot-folders at the root (git, editor and local settings), and env files anywhere.
+.*
+**/.env*
 apps/web/public/semaphore
 contracts/out
 contracts/cache

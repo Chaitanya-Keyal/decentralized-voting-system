@@ -58,28 +58,34 @@ export interface ElectionState {
   isVoterListPublished: boolean;
 }
 
+/** Elections this registrar is known to serve. The roles are granted at creation and kept. */
+const served = new Set<Address>();
+
 /**
  * Reads what the registrar needs to know about an election, and checks that it serves it: the
  * factory created it, this registrar holds its registrar role, and, if AUTHORITIES is set, its
  * authority is one of them. Anyone can create an election naming this registrar, so without
  * these checks it would email codes under anyone's title and pay gas to publish anyone's list.
+ * The checks are made once per election, which keeps each request to a few reads.
  */
 export async function readElection(election: Address): Promise<ElectionState> {
-  if (!(await isElection(election))) throw new HttpError(404, "There is no such election.");
-
   const contract = { address: election, abi: merkleElectionAbi } as const;
-  const hasRole = (role: Hex, account: Address) =>
-    publicClient.readContract({ ...contract, functionName: "hasRole", args: [role, account] });
-  const [isRegistrar, approved] = await Promise.all([
-    hasRole(REGISTRAR_ROLE, registrar.account.address),
-    env.AUTHORITIES.length === 0
-      ? true
-      : Promise.all(env.AUTHORITIES.map((authority) => hasRole(AUTHORITY_ROLE, authority))).then(
-          (held) => held.includes(true),
-        ),
-  ]);
-  if (!isRegistrar || !approved) {
-    throw new HttpError(403, "This registrar does not serve that election.");
+  if (!served.has(election)) {
+    if (!(await isElection(election))) throw new HttpError(404, "There is no such election.");
+    const hasRole = (role: Hex, account: Address) =>
+      publicClient.readContract({ ...contract, functionName: "hasRole", args: [role, account] });
+    const [isRegistrar, approved] = await Promise.all([
+      hasRole(REGISTRAR_ROLE, registrar.account.address),
+      env.AUTHORITIES.length === 0
+        ? true
+        : Promise.all(env.AUTHORITIES.map((authority) => hasRole(AUTHORITY_ROLE, authority))).then(
+            (held) => held.includes(true),
+          ),
+    ]);
+    if (!isRegistrar || !approved) {
+      throw new HttpError(403, "This registrar does not serve that election.");
+    }
+    served.add(election);
   }
 
   const [
@@ -107,7 +113,7 @@ export async function readElection(election: Address): Promise<ElectionState> {
 }
 
 /** Whether one of this deployment's factories created `election`. */
-export async function isElection(election: Address): Promise<boolean> {
+async function isElection(election: Address): Promise<boolean> {
   const created = await Promise.all(
     electionFactories(deployment).map((factory) =>
       publicClient.readContract({

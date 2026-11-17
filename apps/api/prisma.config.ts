@@ -1,14 +1,9 @@
-import { existsSync } from "node:fs";
-
 import { defineConfig } from "prisma/config";
 
-import { loadFileSettings } from "./src/file-settings";
+import { loadSettings } from "./src/settings";
 
-// Prisma does not read .env files itself. The repository keeps one at its root, and variables
-// that are already set take precedence over it.
-const envFile = new URL("../../.env", import.meta.url);
-if (existsSync(envFile)) process.loadEnvFile(envFile);
-loadFileSettings();
+// Prisma does not read .env files itself.
+loadSettings();
 
 export default defineConfig({
   schema: "prisma/schema.prisma",

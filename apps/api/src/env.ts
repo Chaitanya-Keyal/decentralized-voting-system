@@ -1,19 +1,9 @@
-import { existsSync } from "node:fs";
-
 import { addressSchema } from "@dvote/shared";
 import { z } from "zod";
 
-import { loadFileSettings } from "./file-settings";
+import { addressListSchema, loadSettings, optional, privateKeySchema } from "./settings";
 
-// The repository keeps one .env at its root. Variables that are already set take precedence.
-const envFile = new URL("../../../.env", import.meta.url);
-if (existsSync(envFile)) process.loadEnvFile(envFile);
-loadFileSettings();
-
-/** Treats an empty variable, such as `KEY=` in .env, as unset. */
-function optional<T extends z.ZodType>(schema: T) {
-  return z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
-}
+loadSettings();
 
 const schema = z
   .object({
@@ -27,12 +17,7 @@ const schema = z
     RPC_URL: z.url().default("http://127.0.0.1:8545"),
     CHAIN_ID: z.coerce.number().int().default(31337),
     /** On a testnet, the registrar's key. */
-    REGISTRAR_PRIVATE_KEY: optional(
-      z
-        .string()
-        .regex(/^0x[0-9a-fA-F]{64}$/, "Expected a 32-byte hex key")
-        .transform((key) => key as `0x${string}`),
-    ),
+    REGISTRAR_PRIVATE_KEY: optional(privateKeySchema),
     /** On Anvil, an account the node has unlocked, used instead of a key. */
     REGISTRAR_ADDRESS: optional(addressSchema),
     /**
@@ -40,21 +25,13 @@ const schema = z
      * allowed only on Anvil: anyone can create an election naming this registrar, and it pays to
      * publish each one's list.
      */
-    AUTHORITIES: z
-      .string()
-      .default("")
-      .transform((list) => list.split(",").filter((entry) => entry.trim() !== ""))
-      .pipe(z.array(z.string().trim().pipe(addressSchema))),
+    AUTHORITIES: addressListSchema,
 
     /**
      * Comma-separated elections to leave off the list of elections, such as measurement runs whose
      * documents were never published. They stay reachable by their address.
      */
-    HIDDEN_ELECTIONS: z
-      .string()
-      .default("")
-      .transform((list) => list.split(",").filter((entry) => entry.trim() !== ""))
-      .pipe(z.array(z.string().trim().pipe(addressSchema))),
+    HIDDEN_ELECTIONS: addressListSchema,
 
     IPFS_API_URL: z.url().default("http://127.0.0.1:5001"),
 

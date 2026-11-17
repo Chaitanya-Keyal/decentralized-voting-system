@@ -1,8 +1,8 @@
 import { buildApp } from "./app";
 import { db } from "./db";
-import { loggable } from "./redact";
 import { emailProofProblem, env } from "./env";
 import { startPublisher } from "./publisher";
+import { loggable } from "./redact";
 
 // Anyone can create an election naming this registrar, and it pays to publish each one's list, so
 // on a public chain it serves only the elections of the authorities it is told about.

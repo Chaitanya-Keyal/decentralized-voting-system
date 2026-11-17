@@ -11,8 +11,10 @@ const nextConfig: NextConfig = {
   // The shared package is TypeScript source, compiled as part of the app.
   transpilePackages: ["@dvote/shared"],
   partialPrefetching: true,
+  poweredByHeader: false,
   // The pages hold a voting key in the browser: they send no referrer, are not to be framed by
-  // another site, and are not reinterpreted as another content type.
+  // another site, and are not reinterpreted as another content type. The content security policy
+  // also rules out plugins, a changed base URL and forms posting to other sites.
   headers() {
     return Promise.resolve([
       {
@@ -21,6 +23,10 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "no-referrer" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
+          {
+            key: "Content-Security-Policy",
+            value: "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+          },
         ],
       },
       {
