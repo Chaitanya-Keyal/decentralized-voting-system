@@ -15,6 +15,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { buildApp } from "../src/app";
 import { db } from "../src/db";
+import { env } from "../src/env";
 import { publicClient } from "../src/chain";
 import { indexNextBatch } from "../src/indexer/sync";
 import { chain, createElection, newVoter, node, REGISTRAR, warpTo } from "./helpers";
@@ -147,6 +148,23 @@ describe("indexer", () => {
       expect(detail.phase).toBe(Phase.Registration);
     } finally {
       spy.mockRestore();
+    }
+  });
+
+  it("leaves hidden elections off the list, but still answers for them", async () => {
+    const { election } = await createElection("Measurement run");
+    await indexEverything();
+    const listed = async () =>
+      electionListSchema
+        .parse((await app.inject("/elections")).json())
+        .elections.some((summary) => summary.address === election);
+    expect(await listed()).toBe(true);
+    env.HIDDEN_ELECTIONS.push(election);
+    try {
+      expect(await listed()).toBe(false);
+      expect((await app.inject(`/elections/${election}`)).statusCode).toBe(200);
+    } finally {
+      env.HIDDEN_ELECTIONS.pop();
     }
   });
 

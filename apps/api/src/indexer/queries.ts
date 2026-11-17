@@ -36,8 +36,12 @@ function summary(election: Election, ballotsCast: number): ElectionSummary {
  */
 export async function listElections(): Promise<{ elections: ElectionSummary[] }> {
   const authorities = env.AUTHORITIES.map((address) => getAddress(address));
+  const hidden = env.HIDDEN_ELECTIONS.map((address) => getAddress(address));
   const elections = await db.election.findMany({
-    where: authorities.length > 0 ? { authority: { in: authorities } } : {},
+    where: {
+      ...(authorities.length > 0 ? { authority: { in: authorities } } : {}),
+      ...(hidden.length > 0 ? { address: { notIn: hidden } } : {}),
+    },
     orderBy: { createdAtBlock: "desc" },
     include: { _count: { select: { ballots: true } } },
   });

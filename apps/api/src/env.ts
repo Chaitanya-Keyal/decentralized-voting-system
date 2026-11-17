@@ -46,6 +46,16 @@ const schema = z
       .transform((list) => list.split(",").filter((entry) => entry.trim() !== ""))
       .pipe(z.array(z.string().trim().pipe(addressSchema))),
 
+    /**
+     * Comma-separated elections to leave off the list of elections, such as measurement runs whose
+     * documents were never published. They stay reachable by their address.
+     */
+    HIDDEN_ELECTIONS: z
+      .string()
+      .default("")
+      .transform((list) => list.split(",").filter((entry) => entry.trim() !== ""))
+      .pipe(z.array(z.string().trim().pipe(addressSchema))),
+
     IPFS_API_URL: z.url().default("http://127.0.0.1:5001"),
 
     /** Only addresses at this domain can register. */
