@@ -33,14 +33,27 @@ function readFactoryEvents(fromBlock: bigint, toBlock: bigint) {
   });
 }
 
-function readElectionEvents(elections: Address[], fromBlock: bigint, toBlock: bigint) {
-  return publicClient.getContractEvents({
-    address: elections,
-    abi: merkleElectionAbi,
-    fromBlock,
-    toBlock,
-    strict: true,
-  });
+/** Contracts per `eth_getLogs` request: public RPC providers allow at most ten addresses. */
+const ADDRESSES_PER_REQUEST = 10;
+
+/** Every election's events in the range, ten elections to a request. The caller sorts them. */
+async function readElectionEvents(elections: Address[], fromBlock: bigint, toBlock: bigint) {
+  const groups: Address[][] = [];
+  for (let i = 0; i < elections.length; i += ADDRESSES_PER_REQUEST) {
+    groups.push(elections.slice(i, i + ADDRESSES_PER_REQUEST));
+  }
+  const results = await Promise.all(
+    groups.map((group) =>
+      publicClient.getContractEvents({
+        address: group,
+        abi: merkleElectionAbi,
+        fromBlock,
+        toBlock,
+        strict: true,
+      }),
+    ),
+  );
+  return results.flat();
 }
 
 type ChainEvent =

@@ -11,10 +11,11 @@ import {
 import type { FastifyInstance } from "fastify";
 import { pad, type Address, type Hex } from "viem";
 import type { PrivateKeyAccount } from "viem/accounts";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { buildApp } from "../src/app";
 import { db } from "../src/db";
+import { publicClient } from "../src/chain";
 import { indexNextBatch } from "../src/indexer/sync";
 import { chain, createElection, newVoter, node, REGISTRAR, warpTo } from "./helpers";
 
@@ -122,6 +123,31 @@ describe("indexer", () => {
 
     const detail = electionDetailSchema.parse((await app.inject(`/elections/${election}`)).json());
     expect(detail.phase).toBe(Phase.Registration);
+  });
+
+  it("asks for the events of at most ten elections at a time, as public nodes require", async () => {
+    // Public RPC providers refuse eth_getLogs for more than ten addresses; Anvil does not, so the
+    // requests themselves are checked.
+    for (let i = 0; i < 11; i++) await createElection(`Hostel block ${i}`);
+    const spy = vi.spyOn(publicClient, "getContractEvents");
+    try {
+      const last = await createElection("Hostel block 11");
+      await indexEverything();
+      await warpTo(last.schedule.registrationStart);
+      await call(last.election, REGISTRAR, { functionName: "openRegistration" });
+      await indexEverything();
+      const sizes = spy.mock.calls.map(([request]) =>
+        Array.isArray(request.address) ? request.address.length : 1,
+      );
+      expect(Math.max(...sizes)).toBeLessThanOrEqual(10);
+      expect((await db.election.count()) > 10).toBe(true);
+      const detail = electionDetailSchema.parse(
+        (await app.inject(`/elections/${last.election}`)).json(),
+      );
+      expect(detail.phase).toBe(Phase.Registration);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("reports that it has caught up with the chain", async () => {
