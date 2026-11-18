@@ -58,6 +58,7 @@ export async function buildApp(options: { logger?: boolean } = {}): Promise<Fast
     semaphoreFactory: deployment.semaphoreFactory,
     emailDomain: env.EMAIL_DOMAIN,
     googleClientId: env.GOOGLE_CLIENT_ID ?? null,
+    organisers: env.AUTHORITIES,
   }));
 
   // Registrar

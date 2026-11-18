@@ -92,6 +92,12 @@ export function CreateElectionForm() {
 
   const registrarAddress =
     registrar.trim() !== "" ? registrar.trim() : (apiConfig.data?.registrar ?? "");
+  // This site registers voters and pays for ballots only in its organisers' elections.
+  const organisers = apiConfig.data?.organisers ?? [];
+  const notServed =
+    account !== undefined &&
+    organisers.length > 0 &&
+    !organisers.some((organiser) => organiser.toLowerCase() === account.toLowerCase());
 
   function problemWith(parsed: ReturnType<typeof parseSchedule>): string | undefined {
     if (!title.trim()) return "Give the election a title.";
@@ -168,6 +174,12 @@ export function CreateElectionForm() {
 
   return (
     <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-6">
+      {notServed && (
+        <Notice>
+          This demo runs elections only for its organisers. You can create one, but this site
+          won&apos;t register voters for it.
+        </Notice>
+      )}
       <Card title="About the election">
         <div className="flex flex-col gap-4">
           <Field label="Title">

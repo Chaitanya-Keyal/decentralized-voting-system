@@ -26,6 +26,8 @@ export const apiConfigSchema = z.object({
   emailDomain: z.string(),
   /** Google sign-in's client ID, or null where registration is not set up. */
   googleClientId: z.string().nullable(),
+  /** The wallets whose elections this site serves; empty where it serves every election. */
+  organisers: z.array(addressSchema),
 });
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
 

@@ -113,6 +113,13 @@ describe("GET /config", () => {
     });
   });
 
+  it("names the organisers whose elections the site serves", async () => {
+    const { organisers } = (await app.inject("/config")).json<{ organisers: string[] }>();
+    expect(organisers.map((address) => address.toLowerCase())).toEqual([
+      "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    ]);
+  });
+
   it("answers the web app, but not a page on another site", async () => {
     const from = (origin: string) =>
       app.inject({
