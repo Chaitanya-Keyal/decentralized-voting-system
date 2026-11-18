@@ -88,8 +88,8 @@ export default function AboutPage() {
         contract on Blockscout and Etherscan, block explorers run by others that read the blockchain
         for themselves. There you can see every step sent to the election, every ballot (by its
         ballot ID alone), the voter list&apos;s fingerprint, and the totals and winner. Every
-        election of the same kind runs the same contract code, which is verified on Sourcify and
-        readable on Blockscout.
+        election of the same kind runs the same contract code, whose source is verified on Sourcify
+        and Etherscan and readable on both explorers.
       </p>
 
       <p>

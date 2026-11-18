@@ -755,7 +755,7 @@ async function main() {
     s.background = { color: C.navy };
     text(s, "Thank you", { x: 0.5, y: 1.6, w: 9.0, h: 0.9, fontFace: HEAD, fontSize: 44, bold: true, color: C.white, align: "center" });
     text(s, "Questions", { x: 0.5, y: 2.55, w: 9.0, h: 0.6, fontFace: HEAD, fontSize: 24, color: C.amber, align: "center" });
-    text(s, "The contracts are verified on Sourcify; the report gives every address and every measurement's source.", {
+    text(s, "The contracts are verified on Sourcify and Etherscan; the report gives every address and every measurement's source.", {
       x: 1.5, y: 3.6, w: 7.0, h: 0.6, fontSize: 13, color: "C9D3DF", align: "center",
     });
   }

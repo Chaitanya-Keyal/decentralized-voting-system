@@ -50,7 +50,7 @@ Solidity + Foundry · Semaphore v4 (zk-SNARK group membership) · Next.js + wagm
 Fastify + Postgres (registrar, indexer) · BullMQ + Redis (relayer) · IPFS.
 
 Both kinds of election work end to end in the browser, and the contracts are deployed on
-Ethereum Sepolia and verified on Sourcify; their addresses are in
+Ethereum Sepolia and verified on Sourcify and Etherscan; their addresses are in
 [`contracts/deployments/11155111.json`](contracts/deployments/11155111.json).
 
 ## Working on it

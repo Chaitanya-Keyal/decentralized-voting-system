@@ -44,7 +44,8 @@ export function CheckElsewhere({ election }: { election: OnchainElection }) {
             <SourcesLink sources={codeSources(implementation)}>
               The contract&apos;s source code
             </SourcesLink>
-            : the election is a copy of this contract, whose source is verified on Sourcify.
+            : the election is a copy of this contract, whose source is verified on Sourcify and
+            Etherscan.
           </li>
         )}
         {election.voterListCid && (

@@ -91,7 +91,8 @@ of A1.
 
 **Status: done.** Everything below works end to end on a local chain, in a browser test that
 also covers a voter restoring their key on a new browser and a refused second ballot. The
-contracts are on Sepolia and verified on Sourcify (`contracts/deployments/11155111.json`), and a
+contracts are on Sepolia and verified on Sourcify and Etherscan
+(`contracts/deployments/11155111.json`), and a
 browser test runs a whole anonymous election there through the real registrar and relayer
 (`e2e/sepolia.spec.ts`). The public demo runs the same stack on Sepolia.
 Three things changed from the plan. The relayer submits `castVote` itself and there is no

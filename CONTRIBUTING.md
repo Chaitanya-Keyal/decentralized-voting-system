@@ -194,7 +194,10 @@ pnpm --filter @dvote/bench d3 <election address>  # D3: try to link ballots to v
 To Sepolia: set `DEPLOYER_PRIVATE_KEY` (a throwaway key) and `SEPOLIA_RPC_URL`, run
 `pnpm deploy:sepolia`, then `pnpm --filter @dvote/shared generate`. The deploy skips Foundry's
 local simulation, which does not model EIP-8037 and would set gas limits too low, and takes each
-gas limit from the node; it also publishes the source to Sourcify.
+gas limit from the node; it also publishes the source to Sourcify. To publish it to Etherscan
+as well, run `forge verify-contract <address> <contract> --chain sepolia --verifier etherscan` in
+`contracts/` with `ETHERSCAN_API_KEY` set, adding `--constructor-args` for the factories and
+`SemaphoreElection`.
 
 The `Dockerfile` builds one image for every service: the web app, the API, the indexer, the
 relayer and the database migration, each started with the command in the file's header. What

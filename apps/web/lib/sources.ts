@@ -32,13 +32,13 @@ export function eventSources(address: string): Source[] {
   }));
 }
 
-/** A contract's verified source code: on Blockscout, and on Sourcify, which verified it. */
+/** A contract's verified source code: on each public block explorer, and on Sourcify. */
 export function codeSources(address: string): Source[] {
-  const blockscout = explorers.find(({ name }) => name === "Blockscout");
   return [
-    ...(blockscout
-      ? [{ name: "Blockscout", href: `${blockscout.url}/address/${address}?tab=contract` }]
-      : []),
+    ...explorers.map(({ name, url }) => ({
+      name,
+      href: `${url}/address/${address}${name === "Etherscan" ? "#code" : "?tab=contract"}`,
+    })),
     ...(chain.id === sepolia.id
       ? [{ name: "Sourcify", href: `https://repo.sourcify.dev/${chain.id}/${address}` }]
       : []),
