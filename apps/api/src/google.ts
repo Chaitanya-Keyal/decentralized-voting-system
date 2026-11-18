@@ -31,7 +31,7 @@ export async function verifyGoogleIdToken(token: string, nonce: string): Promise
     if (unreachable) {
       throw new HttpError(503, "Google's sign-in keys could not be fetched. Try again shortly.");
     }
-    throw new HttpError(400, "Google sign-in did not check out. Sign in again.");
+    throw new HttpError(400, "Google sign-in couldn't be verified. Sign in again.");
   }
   if (payload.nonce !== nonce) {
     throw new HttpError(400, "That Google sign-in was for another registration. Sign in again.");

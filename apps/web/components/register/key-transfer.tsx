@@ -93,13 +93,13 @@ export function KeyTransfer({ election }: { election: OnchainElection }) {
               WhatsApp or another app
             </p>
             <p className="text-zinc-600 dark:text-zinc-400">
-              Your voting key is in this browser only. Move it there now; it cannot be recovered
-              later.
+              Your voting key is saved only in this browser. Copy it to the other device now. If
+              it&apos;s lost, nobody can give you a new one.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => setShown(true)}>Show a QR code</Button>
               <Button variant="secondary" onClick={() => void share()}>
-                {copied ? "Link copied" : "Send the link to yourself"}
+                {copied ? "Link copied" : "Share or copy the link"}
               </Button>
             </div>
           </div>
@@ -116,16 +116,17 @@ export function KeyTransfer({ election }: { election: OnchainElection }) {
               />
             )}
             <p className="text-zinc-600 dark:text-zinc-400">
-              Scan this with the phone you will vote on. It opens the ballot booth with your key;
-              come back to it when voting opens.
+              Scan this with the phone you will vote on. It opens this election&apos;s voting page
+              on that phone and offers to save your key there. Vote from that phone when voting
+              opens.
             </p>
           </div>
         )}
         <p className="text-zinc-600 dark:text-zinc-400">
-          Anyone with this code or link can cast your ballot, so send it only to yourself. You can
+          Anyone with this QR code or link can vote in your place, so keep it to yourself. You can
           also{" "}
           <TextButton onClick={() => downloadIdentityBackup(chain.id, election.address, identity)}>
-            download the key as a file
+            download your key file
           </TextButton>
           .
         </p>

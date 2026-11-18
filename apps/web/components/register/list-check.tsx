@@ -16,7 +16,7 @@ export function ListCheck({ election, voter }: { election: OnchainElection; vote
   const list = useVoterList(election);
   if (election.voterListCid === "") return null;
   if (list.isPending) {
-    return <Notice busy>Downloading the voter list and checking it against the contract…</Notice>;
+    return <Notice busy>Checking that you&apos;re on the voter list…</Notice>;
   }
   if (list.error) {
     return (
@@ -25,13 +25,13 @@ export function ListCheck({ election, voter }: { election: OnchainElection; vote
   }
   return proofFor(list.data, voter) ? (
     <Notice tone="success">
-      Your wallet is on the published voter list of {list.data.voters.length}. The list matches the
-      root in the contract.
+      Your wallet is on the published voter list ({list.data.voters.length} voters). This browser
+      checked the list against its fingerprint on the blockchain.
     </Notice>
   ) : (
     <Notice tone="error">
-      Your wallet is not on the published voter list. If you registered it, its receipt is evidence
-      that the registrar left you out.
+      Your wallet is not on the published voter list. If you registered it, download your receipt
+      and send it to the organiser. It proves the registrar left you out.
     </Notice>
   );
 }
@@ -46,7 +46,7 @@ export function IdentityListCheck({
 }) {
   const list = useIdentityList(election);
   if (list.isPending) {
-    return <Notice busy>Downloading the voter list and checking it against the contract…</Notice>;
+    return <Notice busy>Checking that you&apos;re on the voter list…</Notice>;
   }
   if (list.error) {
     return (
@@ -55,13 +55,13 @@ export function IdentityListCheck({
   }
   return list.data.commitments.includes(commitment) ? (
     <Notice tone="success">
-      Your voting key is on the published list of {list.data.commitments.length}. The list matches
-      the root in the contract.
+      Your voting key is on the published voter list ({list.data.commitments.length} voters). This
+      browser checked the list against its fingerprint on the blockchain.
     </Notice>
   ) : (
     <Notice tone="error">
-      Your voting key is not on the published list. If you registered it, your receipt is evidence
-      that the registrar left you out.
+      Your voting key is not on the published voter list. If you registered it, download your
+      receipt and send it to the organiser. It proves the registrar left you out.
     </Notice>
   );
 }

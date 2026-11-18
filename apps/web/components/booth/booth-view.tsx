@@ -58,8 +58,8 @@ function Ballot({ election, proof }: { election: OnchainElection; proof: Hex[] }
         }}
       >
         <Notice>
-          Your vote will be public: anyone can see which wallet chose whom. Sending it costs a
-          little gas.
+          Your vote will be public: anyone can see which wallet chose whom. Sending it costs a small
+          network fee (gas) from your wallet.
         </Notice>
         <CandidateChoice election={election} marks={marks} onChange={setMarks} />
         <div>
@@ -98,17 +98,13 @@ function Booth({ election, account }: { election: OnchainElection; account: Addr
   }, [block, refetch]);
 
   if (list.isPending) {
-    return (
-      <Notice busy>
-        Downloading the voter list from IPFS and checking it against the contract…
-      </Notice>
-    );
+    return <Notice busy>Checking that you&apos;re on the voter list…</Notice>;
   }
   if (list.error) {
     return (
       <Notice tone="error">
-        The voter list could not be checked, so the booth will not use it:{" "}
-        {describeError(list.error)}
+        Couldn&apos;t check the voter list, so you can&apos;t vote yet. Reload the page to try
+        again. Details: {describeError(list.error)}
       </Notice>
     );
   }
@@ -117,15 +113,15 @@ function Booth({ election, account }: { election: OnchainElection; account: Addr
   if (!proof) {
     return (
       <Notice tone="error">
-        This wallet is not on the voter list. If you registered it, its receipt is evidence that the
-        registrar left you out.
+        This wallet is not on the voter list. If you registered it, download your receipt from the
+        registration page and send it to the organiser. It proves the registrar left you out.
       </Notice>
     );
   }
 
   const checked = (
     <Notice tone="success">
-      You&apos;re on the voter list, checked in this browser against the contract.
+      You&apos;re on the voter list, checked in this browser against the list&apos;s fingerprint.
     </Notice>
   );
 
@@ -169,8 +165,8 @@ function Booth({ election, account }: { election: OnchainElection; account: Addr
         ) : now < votingEnd ? (
           <>
             <Notice>
-              Voting is due to open, but nobody has opened it on-chain yet. Anyone can, from the
-              election&apos;s page.
+              Voting should be open by now, but someone still has to switch it on. Anyone with a
+              wallet can do it from the election page.
             </Notice>
             <LinkButton href={`/elections/${election.address}`} variant="secondary">
               Go to the election

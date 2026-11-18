@@ -195,12 +195,12 @@ export async function runAudit(
         await fetchFromIpfs(identityListSchema, election.voterListCid),
         expected,
       );
-      return `${list.size} identity commitments, root ${toHex(list.root).slice(0, 12)}…`;
+      return `${list.size} public codes, fingerprint ${toHex(list.root).slice(0, 12)}…`;
     }
     const list = await fetchFromIpfs(voterListSchema, election.voterListCid);
     verifyVoterList(list, expected);
     voters = new Set(list.voters.map((voter) => voter.toLowerCase()));
-    return `${list.voters.length} wallets, root ${election.voterRoot.slice(0, 12)}…`;
+    return `${list.voters.length} wallets, fingerprint ${election.voterRoot.slice(0, 12)}…`;
   });
 
   let ballots: Awaited<ReturnType<typeof readBallots>> = [];
@@ -209,10 +209,10 @@ export async function runAudit(
     const snapshot = await readSnapshot(client, election.address);
     ({ ballots, tally } = snapshot);
     const keys = new Set(ballots.map((ballot) => ballot.key));
-    if (keys.size !== ballots.length) throw new Error("A ballot key appears twice.");
+    if (keys.size !== ballots.length) throw new Error("The same ballot ID appears twice.");
     if (ballots.length !== snapshot.count) {
       throw new Error(
-        `The log holds ${ballots.length} ballots, the contract counts ${snapshot.count}.`,
+        `The blockchain records ${ballots.length} ballots, but the contract's count is ${snapshot.count}.`,
       );
     }
     if (ballots.length > election.voterCount) {
@@ -222,7 +222,7 @@ export async function runAudit(
   });
 
   await step("eligibility", async () => {
-    if (!listOk || !ballotsOk) throw new Error("Needs the two checks above.");
+    if (!listOk || !ballotsOk) throw new Error("Skipped: the two checks above must pass first.");
     if (election.tier === 3) {
       let checked = 0;
       for (const ballot of ballots) {
@@ -252,7 +252,7 @@ export async function runAudit(
 
   const recount = election.candidates.map(() => 0);
   const tallyOk = await step("tally", () => {
-    if (!ballotsOk) throw new Error("Needs the ballots.");
+    if (!ballotsOk) throw new Error("Skipped: the ballot check must pass first.");
     for (const ballot of ballots) {
       for (const index of choiceCandidates(
         election.countingRule,
@@ -273,7 +273,7 @@ export async function runAudit(
 
   if (election.phase === Phase.Finalized) {
     await step("result", () => {
-      if (!tallyOk) throw new Error("Needs the recount.");
+      if (!tallyOk) throw new Error("Skipped: the recount must pass first.");
       const top = Math.max(0, ...recount);
       const winners =
         top === 0 ? [] : recount.flatMap((votes, index) => (votes === top ? [index] : []));

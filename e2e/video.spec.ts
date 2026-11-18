@@ -342,7 +342,9 @@ test("the backup video of the demo", async ({ browser }) => {
     await expect(page.getByText("Every check passed")).toBeVisible({ timeout: 60_000 });
   });
   await say("passed", () =>
-    page.getByText("Every check passed, using only the chain and IPFS").scrollIntoViewIfNeeded(),
+    page
+      .getByText("Every check passed, using only the blockchain and IPFS")
+      .scrollIntoViewIfNeeded(),
   );
 
   await card(page, true);

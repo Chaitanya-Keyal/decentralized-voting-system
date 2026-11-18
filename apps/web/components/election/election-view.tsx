@@ -7,7 +7,7 @@ import { useDocumentTitle } from "@/lib/document-title";
 import { useElection } from "@/lib/election";
 import { explorerAddress } from "@/lib/env";
 import { useMarkWalletForOrganisers } from "@/lib/header-wallet";
-import { useChainNow } from "@/lib/time";
+import { useChainNow, useTimeZoneNote } from "@/lib/time";
 
 import { Card, ExternalLink, Mono } from "../ui";
 import { Audit } from "./audit";
@@ -25,6 +25,7 @@ export function ElectionView({ address }: { address: string }) {
   const valid = isAddress(address);
   const { data: election, error } = useElection(valid ? getAddress(address) : undefined);
   const now = useChainNow();
+  const timeZoneNote = useTimeZoneNote();
   useDocumentTitle(election?.title);
   useMarkWalletForOrganisers(election?.tier === 3);
 
@@ -57,7 +58,7 @@ export function ElectionView({ address }: { address: string }) {
         <Card title="Now">
           <NextStep election={election} now={now} />
         </Card>
-        <Card title="Schedule">
+        <Card title="Schedule" description={timeZoneNote}>
           <Timeline schedule={election.schedule} now={now} />
         </Card>
       </div>
@@ -66,8 +67,8 @@ export function ElectionView({ address }: { address: string }) {
         title="Candidates and votes"
         description={
           election.tally.length > 0
-            ? `${election.ballotsCast} of ${election.voterCount} registered voters have voted. The count is kept by the contract.`
-            : "Votes are counted by the contract once voting opens."
+            ? `${election.ballotsCast} of ${election.voterCount} registered voters have voted. The blockchain keeps the count.`
+            : "Votes are counted on the blockchain once voting opens."
         }
       >
         <Results election={election} />
@@ -78,7 +79,7 @@ export function ElectionView({ address }: { address: string }) {
       {election.voterListCid !== "" && (
         <Card
           title="Audit this election"
-          description="Recount the election yourself, in this browser, from the chain and IPFS alone."
+          description="Recount every vote yourself, in this browser, from public records only (the blockchain and IPFS)."
         >
           <Audit election={election} />
           <CheckElsewhere election={election} />
@@ -90,7 +91,7 @@ export function ElectionView({ address }: { address: string }) {
           title="Ballots"
           description={
             election.tier === 3
-              ? 'Each ballot is shown by its ballot ID alone, never with who cast it. One cast in this browser is marked "yours".'
+              ? 'Each ballot is shown by its ballot ID alone, never with who cast it. If you voted from this browser, your ballot is marked "yours".'
               : "Each ballot is shown with the wallet that cast it."
           }
         >

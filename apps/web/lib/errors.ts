@@ -25,7 +25,7 @@ const CONTRACT_ERRORS: Record<string, string> = {
   InvalidVoterList: "The voter list is empty or incomplete.",
   InvalidChoice: "That is not a valid choice of candidates.",
   InvalidProof: "The ballot's proof does not check out against the published voter list.",
-  AlreadyVoted: "This wallet has already voted in this election.",
+  AlreadyVoted: "You have already voted in this election.",
   BallotCapReached: "Every registered voter has already voted.",
   NotEligible: "This wallet is not on the voter list.",
   ZeroAddress: "An address is missing.",
@@ -45,8 +45,8 @@ export function describeError(error: unknown): string {
     if (error.walk((cause) => cause instanceof ChainMismatchError)) return WRONG_CHAIN;
     if (error instanceof WaitForTransactionReceiptTimeoutError) {
       return (
-        "The transaction has not been mined yet. It may still go through, so check the page " +
-        "again in a few minutes before sending it again."
+        "The transaction hasn't gone through yet. It may still, so check this page in a few " +
+        "minutes before you try again."
       );
     }
     const reverted = error.walk((cause) => cause instanceof ContractFunctionRevertedError);

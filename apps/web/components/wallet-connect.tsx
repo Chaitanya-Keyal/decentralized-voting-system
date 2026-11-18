@@ -94,8 +94,8 @@ export function HeaderConnectButton({ label, className }: { label: ReactNode; cl
               No wallet in this browser
             </h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Only organisers need a wallet, to create and run elections. To vote in an anonymous
-              election you need none.
+              Organisers need a wallet, and so do voters in wallet-ballot elections. You don&apos;t
+              need one to vote in an anonymous election.
             </p>
             <NoWalletNote />
             <div className="flex justify-end">

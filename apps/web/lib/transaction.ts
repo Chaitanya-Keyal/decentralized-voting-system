@@ -37,7 +37,9 @@ export function useTransaction() {
         chainId: chain.id,
         timeout: RECEIPT_TIMEOUT_MS,
       });
-      if (receipt.status !== "success") throw new Error("The transaction reverted.");
+      if (receipt.status !== "success") {
+        throw new Error("The transaction failed. Nothing was changed.");
+      }
       setState({ status: "done", hash, receipt });
       return receipt;
     } catch (error) {

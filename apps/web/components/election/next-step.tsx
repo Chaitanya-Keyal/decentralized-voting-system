@@ -54,12 +54,12 @@ function VoterList({ election }: { election: OnchainElection }) {
   return (
     <p className="text-sm text-zinc-600 dark:text-zinc-400">
       The voter list has {election.voterCount} {election.voterCount === 1 ? "voter" : "voters"}.
-      Root <Mono value={election.voterRoot} />,{" "}
-      <ExternalLink href={ipfsUrl(election.voterListCid)}>full list on IPFS</ExternalLink>
+      Fingerprint <Mono value={election.voterRoot} />.{" "}
+      <ExternalLink href={ipfsUrl(election.voterListCid)}>Full list on IPFS</ExternalLink>
       {elsewhere && (
         <>
           {" "}
-          (also on <ExternalLink href={elsewhere}>Pinata&apos;s gateway</ExternalLink>)
+          (<ExternalLink href={elsewhere}>another copy</ExternalLink>)
         </>
       )}
       .
@@ -70,8 +70,8 @@ function VoterList({ election }: { election: OnchainElection }) {
 function PublishingMessage({ election }: { election: OnchainElection }) {
   const { data } = useRegistrationCount(election);
   return data?.count === 0
-    ? "Registration closed with nobody registered, so there is no voter list to publish and this election cannot go ahead. Its authority can cancel it."
-    : "Registration has closed, and the registrar is publishing the voter list.";
+    ? "Registration closed with nobody registered, so there is no voter list to publish and this election cannot go ahead. The organiser can cancel it."
+    : "Registration has closed. The registrar publishes the voter list automatically. If it hasn't appeared after a few minutes, ask it to publish now.";
 }
 
 interface Step {
@@ -90,7 +90,7 @@ function awaitingList(election: OnchainElection, now: number): Step {
   if (now >= election.schedule.votingStart) {
     return {
       message:
-        "The voter list was not published before voting was due to open, so this election cannot go ahead. Its authority can cancel it.",
+        "The voter list was not published before voting was due to open, so this election cannot go ahead. The organiser can cancel it.",
     };
   }
   return {
@@ -163,7 +163,7 @@ function currentStep(election: OnchainElection, now: number): Step {
       if (now >= schedule.votingEnd) {
         return {
           message:
-            "The voting window passed without voting opening, so this election cannot go ahead. Its authority can cancel it.",
+            "The voting window passed without voting opening, so this election cannot go ahead. The organiser can cancel it.",
           details: <VoterList election={election} />,
         };
       }

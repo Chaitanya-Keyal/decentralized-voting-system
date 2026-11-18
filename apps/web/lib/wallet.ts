@@ -14,9 +14,9 @@ export function useWallet() {
   const ready = address !== undefined && chainId === chain.id;
   const blocker =
     address === undefined
-      ? "Connect a wallet first"
+      ? "Connect a wallet"
       : ready
         ? undefined
-        : `Switch your wallet to ${chain.name} first`;
+        : `Switch your wallet to ${chain.name}`;
   return { account: address, ready, blocker };
 }

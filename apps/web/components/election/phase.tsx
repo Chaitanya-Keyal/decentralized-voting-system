@@ -2,6 +2,13 @@ import { Phase, phaseName, CountingRule } from "@dvote/shared";
 
 import { Badge } from "../ui";
 
+/** Plain names for the phases whose contract names mean little to voters. */
+const DISPLAY_NAMES: Partial<Record<number, string>> = {
+  [Phase.Voting]: "Voting open",
+  [Phase.Tallying]: "Voting closed",
+  [Phase.Finalized]: "Final result",
+};
+
 /** What to call the phase now: the clock moves an election on before anyone records it. */
 function phaseLabel(
   phase: number,
@@ -29,7 +36,7 @@ function phaseLabel(
         : phase === Phase.Cancelled
           ? "muted"
           : "neutral";
-  return { label: phase === Phase.Voting ? "Voting open" : phaseName(phase), tone };
+  return { label: DISPLAY_NAMES[phase] ?? phaseName(phase), tone };
 }
 
 export function PhaseBadge({

@@ -12,7 +12,7 @@ import { api } from "@/lib/api";
 import { deployment, factoryAbi } from "@/lib/election";
 import { chain, simulateAt } from "@/lib/env";
 import { describeError } from "@/lib/errors";
-import { toLocalInput, useChainNow } from "@/lib/time";
+import { toLocalInput, useChainNow, useTimeZoneNote } from "@/lib/time";
 import { useTransaction } from "@/lib/transaction";
 import { useWallet } from "@/lib/wallet";
 
@@ -83,6 +83,7 @@ export function CreateElectionForm() {
   const now = useChainNow();
   const [edited, setSchedule] = useState<ScheduleDraft>();
   const schedule = edited ?? defaultSchedule(now);
+  const timeZoneNote = useTimeZoneNote();
   const [registrar, setRegistrar] = useState("");
   const [tier, setTier] = useState<2 | 3>(3);
   const [countingRule, setCountingRule] = useState<number>(CountingRule.Plurality);
@@ -236,21 +237,24 @@ export function CreateElectionForm() {
 
       <Card
         title="Schedule"
-        description="Each step needs its time to have passed and someone to trigger it. The gap between registration closing and voting opening lets voters check they are on the published list."
+        description="Registration opens and closes on its own, and the registrar then publishes the voter list. After that, Open voting, Close voting and Finalize the result each need someone with a wallet to press that button on the election page once its time comes. Leave a gap between registration closing and voting opening so voters can check they are on the list."
       >
-        <ScheduleEditor value={schedule} onChange={setSchedule} />
+        <div className="flex flex-col gap-3">
+          <ScheduleEditor value={schedule} onChange={setSchedule} />
+          <p className={`text-sm ${muted}`}>{timeZoneNote}</p>
+        </div>
       </Card>
 
       <Disclosure card summary="Advanced: the registrar">
         <p>
           The registrar checks voters&apos; email addresses and publishes the voter list. Most
-          elections use this deployment&apos;s own.
+          elections use DVote&apos;s own registrar.
         </p>
         <Field
           label="Registrar's address"
           hint={
             apiConfig.data
-              ? `Leave empty to use this deployment's registrar, ${apiConfig.data.registrar}.`
+              ? `Leave empty to use DVote's registrar, ${apiConfig.data.registrar}.`
               : undefined
           }
         >

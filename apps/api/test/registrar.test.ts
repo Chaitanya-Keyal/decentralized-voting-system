@@ -382,7 +382,7 @@ describe("publishing the voter list", () => {
     try {
       const first = await post(`/elections/${test.election}/voter-list`, {});
       expect(first.statusCode).toBe(409);
-      expect(first.json<{ message: string }>().message).toMatch(/waiting to be mined/);
+      expect(first.json<{ message: string }>().message).toMatch(/hasn't gone through yet/);
       const second = await post(`/elections/${test.election}/voter-list`, {});
       expect(second.statusCode).toBe(409);
       expect(await node.getTransactionCount({ address: REGISTRAR, blockTag: "pending" })).toBe(

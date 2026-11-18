@@ -152,7 +152,7 @@ async function register(
   if (isAddressEqual(voter, zeroAddress)) throw new HttpError(400, "That is not a wallet address.");
   const state = known ?? (await readElection(election));
   if (state.tier === 3) {
-    throw new HttpError(400, "This election registers identities, not wallets.");
+    throw new HttpError(400, "This election registers voting keys, not wallets.");
   }
   await requireRegistrationOpen(state);
   await proveEmail(election, email, request.googleIdToken, voter);
@@ -195,8 +195,8 @@ async function register(
     if (existing && !isAddressEqual(existing.voter as Address, voter)) {
       throw new HttpError(
         409,
-        `This email address is registered with the wallet ${existing.voter}, which stays its ` +
-          "wallet for this election. Register with that wallet to get your receipt again.",
+        `This email address is already registered with wallet ${existing.voter}, and that ` +
+          "can't change. Connect that wallet to get your receipt again.",
       );
     }
     const record = {
@@ -230,7 +230,7 @@ async function registerIdentity(
   requireInstituteEmail(email);
   const state = known ?? (await readElection(election));
   if (state.tier !== 3) {
-    throw new HttpError(400, "This election registers wallets, not identities.");
+    throw new HttpError(400, "This election registers wallets, not voting keys.");
   }
   await requireRegistrationOpen(state);
   await proveEmail(election, email, request.googleIdToken, commitment);
@@ -256,7 +256,7 @@ async function registerIdentity(
       where: { election_voter: { election, voter: commitment } },
     });
     if (holder && holder.email !== email) {
-      throw new HttpError(409, "This identity is already registered with another email address.");
+      throw new HttpError(409, "This voting key is already registered with another email address.");
     }
     const existing = await tx.registration.findUnique({
       where: { election_email: { election, email } },
@@ -264,8 +264,9 @@ async function registerIdentity(
     if (existing && existing.voter !== commitment) {
       throw new HttpError(
         409,
-        "This email address is registered with another identity, which stays its identity for " +
-          "this election. Restore that identity from its backup to get your receipt again.",
+        "This email address already registered a different voting key, and that can't change. " +
+          "Bring that key to this browser: open your key file, or use the link or QR code from " +
+          "the device you registered on.",
       );
     }
     const record = {
@@ -324,7 +325,7 @@ async function publish(election: Address, log: FastifyBaseLogger): Promise<Publi
     throw new HttpError(
       409,
       "Voting was due to open before the voter list was published, so it can no longer be " +
-        "published. The election's authority can cancel the election.",
+        "published. The organiser can cancel the election.",
     );
   }
 
@@ -335,7 +336,11 @@ async function publish(election: Address, log: FastifyBaseLogger): Promise<Publi
     const outcome = await outcomeOf(earlier.txHash as Hex);
     if (outcome === "success") return publishedList(election);
     if (outcome === "pending") {
-      throw new HttpError(409, "The voter list was sent to the chain and is waiting to be mined.");
+      throw new HttpError(
+        409,
+        "The voter list is being published, but the transaction hasn't gone through yet. " +
+          "Check again in a minute.",
+      );
     }
     log.warn({ election, txHash: earlier.txHash, outcome }, "Sending the voter list again");
   }
@@ -520,7 +525,7 @@ async function confirm(hash: Hex) {
     if (error instanceof WaitForTransactionReceiptTimeoutError) {
       throw new HttpError(
         409,
-        "The registrar's transaction is waiting to be mined. Try again soon.",
+        "The registrar's transaction hasn't gone through yet. Try again in a minute.",
       );
     }
     throw error;

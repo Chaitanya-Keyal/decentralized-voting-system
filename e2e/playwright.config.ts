@@ -12,6 +12,10 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_WEB_URL ?? "http://localhost:3000",
     browserName: "chromium",
+    // A fixed locale and time zone, so times in screenshots and the demo video read as they do
+    // for voters in India.
+    locale: "en-IN",
+    timezoneId: "Asia/Kolkata",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },

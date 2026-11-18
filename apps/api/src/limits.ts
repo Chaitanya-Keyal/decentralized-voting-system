@@ -40,7 +40,9 @@ export function perDay(kind: string, max: number) {
     }
     entry.count++;
     if (entry.count > max) {
-      return Promise.reject(new HttpError(429, "The registrar has taken all it can for today."));
+      return Promise.reject(
+        new HttpError(429, "DVote has reached today's limit for this. Try again tomorrow."),
+      );
     }
     return Promise.resolve();
   };

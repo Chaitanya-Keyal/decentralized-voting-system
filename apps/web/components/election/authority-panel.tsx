@@ -211,7 +211,7 @@ export function AuthorityPanel({ election, now }: { election: OnchainElection; n
   if (!isAuthority || !(can.configure || can.candidates || can.cancel)) return null;
 
   return (
-    <Card title="Authority" description="You manage this election from this wallet.">
+    <Card title="Organiser" description="You manage this election from this wallet.">
       {editing === "details" && can.configure ? (
         <EditDetails election={election} onDone={() => setEditing(undefined)} />
       ) : editing === "candidates" && can.candidates ? (

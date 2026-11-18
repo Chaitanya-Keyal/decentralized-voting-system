@@ -60,7 +60,7 @@ export function VotingKeyCard({
   const [problem, setProblem] = useState<string>();
 
   const cannotKeep =
-    "This browser would not keep the key, as happens in private browsing. Open this page in a normal window.";
+    "This browser can't save your voting key. This happens in private or incognito windows. Open this page in a normal window and try again.";
 
   const create = () => {
     setProblem(undefined);
@@ -91,7 +91,7 @@ export function VotingKeyCard({
           <>
             <ol role="list" className="flex list-decimal flex-col gap-1 pl-5">
               <li>Create your voting key. It stays in this browser.</li>
-              <li>Confirm your institute email address.</li>
+              <li>Sign in with your institute Google account.</li>
               <li>Come back when voting opens, and vote.</li>
             </ol>
             <p className="text-zinc-600 dark:text-zinc-400">
@@ -104,13 +104,12 @@ export function VotingKeyCard({
           <>
             <Notice tone="success">This browser holds your voting key.</Notice>
             <p className="text-zinc-600 dark:text-zinc-400">
-              A spare copy was saved to your downloads. You need it only if you vote from another
-              device or clear this browser&apos;s data. Keep it private: anyone holding it can cast
-              your ballot.{" "}
+              You need your key file only if you vote from another device or clear this
+              browser&apos;s data. Keep it private: anyone who has it can vote in your place.{" "}
               <TextButton
                 onClick={() => downloadIdentityBackup(chain.id, election.address, identity)}
               >
-                Save it again
+                Download the key file
               </TextButton>
             </p>
           </>
@@ -130,11 +129,9 @@ export function VotingKeyCard({
                 />
               </label>
             </div>
-            <p className={muted}>
-              {restoreOnly
-                ? "Use the backup file you downloaded when you registered."
-                : "Creating the key also saves a spare copy to your downloads."}
-            </p>
+            {!restoreOnly && (
+              <p className={muted}>Creating the key also saves your key file to your downloads.</p>
+            )}
           </>
         )}
         {problem && <Notice tone="error">{problem}</Notice>}
@@ -183,7 +180,7 @@ export function IdentityRegistrationForm({
   return (
     <Card
       title="Register your voting key"
-      description={`Registration closes ${formatTime(election.schedule.registrationEnd)}. Your email address stays with the registrar and is never put on-chain. No wallet is needed.`}
+      description={`Registration closes ${formatTime(election.schedule.registrationEnd)}. Your email address stays with the registrar and is never published on the blockchain. No wallet is needed.`}
     >
       <div className="flex flex-col gap-4">
         <InstituteSignIn
@@ -205,13 +202,15 @@ export function IdentityReceiptCard({ receipt }: { receipt: IdentityReceipt }) {
   const check = useReceiptCheck(receipt);
   const valid = check.data?.valid;
   return (
-    <Disclosure card summary="Proof of registration">
+    <Disclosure card summary="Your registration receipt">
       <p>
-        Optional. If your voting key were missing from the published list, this receipt would show
-        that the registrar accepted it. It names your key&apos;s public code, not your ballot.
+        The registrar&apos;s signed confirmation that it accepted your voting key. You don&apos;t
+        need it to vote. If your key is ever missing from the published voter list, this receipt
+        proves the registrar left you out. It shows only your key&apos;s public code, so it says
+        nothing about how you vote.
       </p>
       <p className="text-zinc-900 dark:text-zinc-100">
-        Voting key <Mono value={receipt.commitment} /> was registered on{" "}
+        Your key&apos;s public code <Mono value={receipt.commitment} /> was registered on{" "}
         {formatTime(receipt.issuedAt)}.
       </p>
       {valid === true && (
@@ -220,11 +219,14 @@ export function IdentityReceiptCard({ receipt }: { receipt: IdentityReceipt }) {
             aria-hidden
             className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
           />
-          The receipt is signed by this election&apos;s registrar, as recorded in the contract.
+          Checked: signed by the registrar named in this election&apos;s contract.
         </p>
       )}
       {valid === false && (
-        <Notice tone="error">This receipt is not signed by the election&apos;s registrar.</Notice>
+        <Notice tone="error">
+          This receipt is not signed by this election&apos;s registrar, so it doesn&apos;t prove you
+          registered.
+        </Notice>
       )}
       <div>
         <Button variant="secondary" onClick={() => downloadReceipt(receipt)}>

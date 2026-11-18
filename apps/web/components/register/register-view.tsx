@@ -103,7 +103,7 @@ function RegistrationForm({
   return (
     <Card
       title="Register this wallet"
-      description={`Registration closes ${formatTime(election.schedule.registrationEnd)}. Your email address stays with the registrar and is never put on-chain.`}
+      description={`Registration closes ${formatTime(election.schedule.registrationEnd)}. Your email address stays with the registrar and is never published on the blockchain.`}
     >
       <div className="flex flex-col gap-4">
         <InstituteSignIn
@@ -194,8 +194,9 @@ export function RegisterView({ address }: { address: string }) {
         <>
           {receipt && (
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              You are registered with this wallet. Registering it again with the same email address
-              gives you a fresh receipt; a registration cannot move to another wallet.
+              This wallet is registered. There&apos;s nothing more to do. Registering again with the
+              same email only gives you a new receipt. You can&apos;t move a registration to another
+              wallet.
             </p>
           )}
           <RegistrationForm election={election} onRegistered={setFresh} />

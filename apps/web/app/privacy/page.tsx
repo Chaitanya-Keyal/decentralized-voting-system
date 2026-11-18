@@ -22,13 +22,13 @@ export default function PrivacyPage() {
           we keep no name or photo.
         </li>
         <li>
-          <strong>What you register with</strong>: in an anonymous election, the public part of a
+          <strong>What you register with</strong>: in an anonymous election, the public code of a
           voting key made on your device; in a wallet election, your wallet address. It is kept with
           your email address.
         </li>
         <li>
-          <strong>Your voting key stays on your device.</strong> Nobody else, us included, can vote
-          with it or tell which ballot is yours.
+          <strong>Your voting key stays on your devices.</strong> We never see it, so we can&apos;t
+          vote with it or tell which ballot is yours.
         </li>
       </ul>
 
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
       <ul>
         <li>
           The voter list, on IPFS and fixed on the blockchain when registration closes. It holds the
-          public keys or wallet addresses, never email addresses.
+          voting keys&apos; public codes or the wallet addresses, never email addresses.
         </li>
         <li>
           Ballots, on the blockchain. In an anonymous election a ballot carries a proof, not who

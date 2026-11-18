@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useBlockNumber, usePublicClient } from "wagmi";
 
 import { isLocalChain } from "./env";
@@ -61,6 +61,30 @@ const shortFormat = new Intl.DateTimeFormat(undefined, {
 /** "16 Nov, 21:41": for lists, where space is short. */
 export function formatShort(seconds: number): string {
   return shortFormat.format(new Date(seconds * 1000));
+}
+
+/**
+ * The browser's time zone as a long name, such as "India Standard Time": the zone every time on
+ * this site is shown in. Falls back to the zone's identifier, such as "Asia/Kolkata".
+ */
+export function timeZoneName(): string {
+  const name = new Intl.DateTimeFormat(undefined, { timeZoneName: "long" })
+    .formatToParts(new Date())
+    .find((part) => part.type === "timeZoneName" && part.value !== "")?.value;
+  return name ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+const neverChanges = () => () => undefined;
+
+/** `timeZoneName()`, but empty while rendering on the server, so the server's zone never shows. */
+export function useTimeZoneName(): string {
+  return useSyncExternalStore(neverChanges, timeZoneName, () => "");
+}
+
+/** "Times are in your time zone, India Standard Time." */
+export function useTimeZoneNote(): string {
+  const zone = useTimeZoneName();
+  return zone ? `Times are in your time zone, ${zone}.` : "Times are in your time zone.";
 }
 
 /** "in 5 min", "1 h 10 min ago", "in 2 days" and so on: precise enough to plan by. */

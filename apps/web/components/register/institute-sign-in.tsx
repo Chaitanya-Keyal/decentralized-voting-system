@@ -53,7 +53,7 @@ export function InstituteSignIn({
   if (googleClientId === null) {
     return (
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Registration is not set up on this deployment yet: it has no Google sign-in.
+        Registration isn&apos;t available on this site yet. Tell the organiser.
       </p>
     );
   }
@@ -87,7 +87,7 @@ export function InstituteSignIn({
   return (
     <div className="flex flex-col gap-3 text-sm">
       <p className="text-zinc-600 dark:text-zinc-400">
-        Sign in with your @{emailDomain} Google account to show you are a student here.
+        Sign in with your @{emailDomain} Google account to show you belong to the institute.
       </p>
       {subject ? (
         <GoogleSignInButton
@@ -96,7 +96,7 @@ export function InstituteSignIn({
           onSignedIn={({ email, idToken }) => setSignIn({ email, googleIdToken: idToken })}
         />
       ) : (
-        <p className={muted}>{disabled ?? "Make your voting key first."}</p>
+        <p className={muted}>{disabled ?? "Create your voting key first."}</p>
       )}
     </div>
   );

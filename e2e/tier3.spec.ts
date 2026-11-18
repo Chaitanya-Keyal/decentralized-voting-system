@@ -78,9 +78,9 @@ test("an anonymous approval election runs end to end without voter wallets", asy
       if (index === 0) await screenshot(voter.page, "07-register-signed-in");
       await voter.page.getByRole("button", { name: "Register my voting key" }).click();
       await expect(voter.page.getByText("You're registered")).toBeVisible();
-      await voter.page.getByText("Proof of registration").click();
+      await voter.page.getByText("Your registration receipt", { exact: true }).click();
       await expect(
-        voter.page.getByText("The receipt is signed by this election's registrar"),
+        voter.page.getByText("Checked: signed by the registrar named in this election's contract"),
       ).toBeVisible();
       if (index === 0) await screenshot(voter.page, "08-register-done");
     });
@@ -127,7 +127,7 @@ test("an anonymous approval election runs end to end without voter wallets", asy
   await test.step("the second voter moves to a new browser with the private link", async () => {
     const { page: source } = voters[1]!;
     await source.goto(`${election}/register`);
-    await source.getByRole("button", { name: "Send the link to yourself" }).click();
+    await source.getByRole("button", { name: "Share or copy the link" }).click();
     await expect(source.getByRole("button", { name: "Link copied" })).toBeVisible();
     const link = await source.evaluate(() => navigator.clipboard.readText());
     expect(link).toContain("#key=");

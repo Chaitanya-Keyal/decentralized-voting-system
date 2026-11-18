@@ -183,7 +183,10 @@ export async function acceptBallot(
       error instanceof BaseError &&
       error.walk((cause) => cause instanceof ContractFunctionRevertedError) !== null;
     if (!reverted) {
-      throw new HttpError(503, "The relayer cannot reach the chain just now. Try again shortly.");
+      throw new HttpError(
+        503,
+        "DVote can't reach the blockchain right now. Try again in a minute.",
+      );
     }
     throw new HttpError(400, `The ballot would be refused on-chain: ${revertReason(error)}`);
   }

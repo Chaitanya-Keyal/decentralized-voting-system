@@ -90,7 +90,7 @@ export function Audit({ election }: { election: OnchainElection }) {
         >
           {failed
             ? "The audit found a problem. Each failed check says what did not match."
-            : "Every check passed, using only the chain and IPFS."}
+            : "Every check passed, using only the blockchain and IPFS."}
         </p>
       )}
       <div>

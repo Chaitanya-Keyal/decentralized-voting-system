@@ -44,7 +44,7 @@ test("an election runs end to end in the browser", async ({ page }) => {
       if (index === 2) await screenshot(page, "20-wallet-register");
       await page.getByRole("button", { name: /Sign with my wallet and register/ }).click();
       await expect(
-        page.getByText("The receipt is signed by this election's registrar"),
+        page.getByText("Checked: signed by the registrar named in this election's contract"),
       ).toBeVisible();
     });
   }

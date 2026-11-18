@@ -32,8 +32,8 @@ export default function AboutPage() {
         <li>
           <strong>Voters register.</strong> Each voter&apos;s browser makes a voting key, and they
           sign in with their institute Google account. The registrar checks that the address is an
-          institute one and records the public part of the key. The key itself never leaves the
-          device.
+          institute one and records the key&apos;s public code. The key itself never leaves the
+          voter&apos;s devices.
         </li>
         <li>
           <strong>The voter list is fixed.</strong> When registration closes, the registrar puts the
@@ -60,8 +60,8 @@ export default function AboutPage() {
       <h2>What is public, and what stays private</h2>
       <ul>
         <li>
-          <strong>Public:</strong> the candidates, the voter list (public keys only, never names or
-          email addresses), every ballot and the count.
+          <strong>Public:</strong> the candidates, the voter list (the voting keys&apos; public
+          codes only, never names or email addresses), every ballot and the count.
         </li>
         <li>
           <strong>Private:</strong> who cast which ballot. The registrar knows who registered but
@@ -77,9 +77,9 @@ export default function AboutPage() {
       <h2>What you still have to trust</h2>
       <p>
         The registrar decides who may vote, so it could add voters who should not be there.
-        Publishing the list fixes it for everyone to see, but comparing it with the real roll is up
-        to people outside the system. Everything after that, from the ballots to the count, anyone
-        can check.
+        Publishing the list freezes it where everyone can see it, but checking it against the
+        institute&apos;s own records is up to people outside DVote. Everything after that, from the
+        ballots to the count, anyone can check.
       </p>
 
       <h2>Checking it without trusting this site</h2>
@@ -87,16 +87,16 @@ export default function AboutPage() {
         You do not have to take this site&apos;s word for anything. Each election page links to its
         contract on Blockscout, a block explorer run by others that reads the blockchain for itself.
         There you can see every step sent to the election, every ballot (by its ballot ID alone),
-        the voter list&apos;s fingerprint, and the totals and winner. Each kind of election shares
-        one contract, whose source code is verified on Sourcify and readable on Blockscout.
+        the voter list&apos;s fingerprint, and the totals and winner. Every election of the same
+        kind runs the same contract code, which is verified on Sourcify and readable on Blockscout.
       </p>
 
       <p>
         Voter lists, descriptions and manifestos are on IPFS, where a document&apos;s address is a
         hash of its contents. Besides this site&apos;s own IPFS node, the registrar copies them to
         Pinata, a pinning service that offers them to the whole IPFS network, so any IPFS gateway or
-        node can fetch them. A copy from anywhere either matches the address the contract records or
-        it is not the published document.
+        node can fetch them. If a copy doesn&apos;t match the address recorded in the contract, it
+        isn&apos;t the published document.
       </p>
 
       <h2>Two kinds of election</h2>
@@ -105,8 +105,8 @@ export default function AboutPage() {
           <strong>Anonymous ballots</strong>, as above.
         </li>
         <li>
-          <strong>Wallet ballots:</strong> voters register a wallet and vote from it, paying a
-          little gas. They cost less to run, but anyone can see which wallet voted for whom.
+          <strong>Wallet ballots:</strong> voters register a wallet and vote from it, paying a small
+          network fee (gas). They cost less to run, but anyone can see which wallet voted for whom.
         </li>
       </ul>
 

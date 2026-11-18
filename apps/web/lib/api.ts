@@ -49,7 +49,7 @@ export async function call<T extends z.ZodType>(
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch {
-    throw new ApiError(0, `Could not reach ${base}. Is it running?`);
+    throw new ApiError(0, "Couldn't reach DVote's server. Check your connection and try again.");
   }
   const data: unknown = await response.json().catch(() => undefined);
   if (!response.ok) {

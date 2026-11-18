@@ -14,7 +14,7 @@ export function ReceiptCard({ receipt }: { receipt: Receipt }) {
   return (
     <Card
       title="Your registration receipt"
-      description="Keep a copy. If this wallet is missing from the published voter list, the receipt shows that the registrar accepted it."
+      description="The registrar's signed confirmation that it accepted this wallet. If the wallet is ever missing from the published voter list, this receipt proves the registrar left it out."
     >
       <div className="flex flex-col gap-3 text-sm">
         <p>
@@ -27,12 +27,13 @@ export function ReceiptCard({ receipt }: { receipt: Receipt }) {
               aria-hidden
               className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
             />
-            The receipt is signed by this election&apos;s registrar, as recorded in the contract.
+            Checked: signed by the registrar named in this election&apos;s contract.
           </p>
         )}
         {check.data?.valid === false && (
           <Notice tone="error">
-            This receipt is not signed by the registrar the contract names.
+            This receipt is not signed by this election&apos;s registrar, so it doesn&apos;t prove
+            you registered.
           </Notice>
         )}
         <div>

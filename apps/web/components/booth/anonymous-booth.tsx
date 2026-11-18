@@ -77,13 +77,13 @@ async function waitUntilCounted(args: {
     }
     if (status?.status === "failed") {
       throw new Error(
-        `The relayer could not submit the ballot (${status.error ?? "no reason given"}). Try again, or submit it from a wallet.`,
+        `DVote couldn't send your ballot (${status.error ?? "no reason given"}). Try again, or send it from your own wallet under Advanced.`,
       );
     }
     await sleep(1500);
   }
   throw new Error(
-    "The relayer has not submitted the ballot yet. Wait a little and reload, or submit it from a wallet.",
+    "Your ballot isn't recorded yet. Wait a minute and reload this page. If it still isn't recorded, send it from your own wallet under Advanced.",
   );
 }
 
@@ -102,7 +102,7 @@ function AnonymousBallotForm({
   const transaction = useTransaction();
   const [marks, setMarks] = useState<Marks>(new Set());
   const [step, setStep] = useState<Step>({ kind: "idle" });
-  const [proved, setProved] = useState<{ ballot: AnonymousBallot; provingMs: number }>();
+  const [proved, setProved] = useState<AnonymousBallot>();
   const choice = choiceFor(election, marks);
   const closingSoon = election.schedule.votingEnd - now < DEADLINE_MARGIN;
   const relayer = useQuery({ queryKey: ["relayer-config"], queryFn: relayerApi.config, retry: 1 });
@@ -111,24 +111,24 @@ function AnonymousBallotForm({
   /** Proves the ballot once; a retry, or a switch to direct submission, reuses the proof. */
   async function prove(): Promise<AnonymousBallot> {
     if (!identity || choice === undefined) throw new Error("Choose a candidate first.");
-    if (proved?.ballot.choice === choice) return proved.ballot;
-    const result = await proveInBrowser({
+    if (proved?.choice === choice) return proved;
+    const { ballot } = await proveInBrowser({
       identity,
       commitments,
       election: election.address,
       choice,
       onStage: (stage) => setStep({ kind: "proving", stage }),
     });
-    if (!client) throw new Error("Not connected to the chain.");
+    if (!client) throw new Error("Not connected to the blockchain.");
     const used = await client.readContract({
       address: election.address,
       abi: semaphoreElectionAbi,
       functionName: "ballotKeyUsed",
-      args: [pad(toHex(result.ballot.nullifier))],
+      args: [pad(toHex(ballot.nullifier))],
     });
     if (used) throw new Error("This voting key has already voted in this election.");
-    setProved(result);
-    return result.ballot;
+    setProved(ballot);
+    return ballot;
   }
 
   const record = (ballot: AnonymousBallot, extra: Partial<CastBallot>) =>
@@ -140,7 +140,7 @@ function AnonymousBallotForm({
 
   async function castThroughRelayer() {
     try {
-      if (!client) throw new Error("Not connected to the chain.");
+      if (!client) throw new Error("Not connected to the blockchain.");
       const ballot = await prove();
       setStep({ kind: "relaying" });
       const { id, receipt } = await relayBallot({ election: election.address, ballot });
@@ -201,8 +201,9 @@ function AnonymousBallotForm({
         <CandidateChoice election={election} marks={marks} onChange={setMarks} />
         {closingSoon && (
           <Notice tone="warning">
-            Voting closes {formatRelative(election.schedule.votingEnd, now)}. A relayed ballot may
-            not be mined in time; submitting from a wallet is quicker.
+            Voting closes {formatRelative(election.schedule.votingEnd, now)}. A ballot can take a
+            few minutes to be recorded, so vote now. Sending from your own wallet (under Advanced)
+            is quicker.
           </Notice>
         )}
         <div className="flex flex-wrap gap-3">
@@ -213,30 +214,24 @@ function AnonymousBallotForm({
         {step.kind === "proving" && (
           <Notice busy>
             {step.stage === "downloading"
-              ? "Downloading the proving files and checking their hashes…"
-              : "Making the zero-knowledge proof on this device. This takes a few seconds…"}
+              ? "Preparing your ballot (one-time download)…"
+              : "Making the proof that you're on the voter list without showing who you are. This takes a few seconds…"}
           </Notice>
         )}
         {step.kind === "relaying" && (
-          <Notice busy>Handing the ballot to the relayer, which checks it and pays the gas…</Notice>
+          <Notice busy>Sending your ballot. DVote checks it and pays the fee…</Notice>
         )}
         {step.kind === "queued" && (
-          <Notice busy>
-            The relayer accepted the ballot and signed a receipt. Waiting for it to be mined…
-          </Notice>
+          <Notice busy>Your ballot was accepted. Waiting for the blockchain to record it…</Notice>
         )}
         {step.kind === "error" && <Notice tone="error">{step.message}</Notice>}
-        {proved && (
-          <p className={`text-xs ${muted}`}>
-            Proved in {(proved.provingMs / 1000).toFixed(1)} s on this device.
-          </p>
-        )}
 
         <Disclosure summary="Advanced: send it from a wallet of your own instead">
           <p>
-            If the relayer is down{relayer.isError ? " (it is not answering now)" : ""}, any wallet
-            can submit your ballot and pay its gas. The proof still hides who you are, but the
-            wallet is shown as having submitted a ballot, so use one that is not linked to you.
+            If DVote can&apos;t send your ballot
+            {relayer.isError ? " (it isn't answering right now)" : ""}, any crypto wallet can send
+            it and pay the small fee. Your vote stays secret, but anyone can see that this wallet
+            sent a ballot, so use one that isn&apos;t linked to you.
           </p>
           {wallet.account ? (
             <div>
@@ -268,13 +263,12 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
   return (
     <>
       <Notice tone="success">
-        You have voted. Your ballot is recorded on the blockchain and included in the count. It cost
-        you nothing.
+        You have voted. Your ballot is recorded on the blockchain and included in the count.
       </Notice>
       <p className="text-sm text-zinc-700 dark:text-zinc-300">
-        Your ballot ID is <Mono value={id} />. Nobody can connect it to your name. On the
-        election&apos;s page this browser marks your ballot &ldquo;yours&rdquo;; note the ID to find
-        it from another device. <CopyButton value={id}>Copy the ballot ID</CopyButton>
+        Your ballot ID is <Mono value={id} />. Nobody can connect it to your name. On the election
+        page, this browser marks your ballot &ldquo;yours&rdquo;. To find it from another device,
+        copy the ballot ID and keep it. <CopyButton value={id}>Copy the ballot ID</CopyButton>
       </p>
       {(transaction ?? events) && (
         <p className="text-sm text-zinc-700 dark:text-zinc-300">
@@ -288,8 +282,7 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
               the election&apos;s events on {explorer?.name}
             </ExternalLink>
           )}
-          : its <code className="font-mono text-xs">VoteCast</code> event shows this ballot ID and
-          your choice.
+          : its <code className="font-mono text-xs">VoteCast</code> event lists your ballot ID.
         </p>
       )}
       <LinkButton href={`/elections/${election.address}`} variant="secondary">
@@ -379,8 +372,8 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
     return (
       <>
         <Notice>
-          This browser doesn&apos;t have your voting key yet. If you have already voted, your ballot
-          still counts; bringing the key here only lets this browser show it.
+          This browser doesn&apos;t have your voting key yet. Bring it here to vote. If you already
+          voted on another device, your vote counts and there&apos;s nothing to do.
         </Notice>
         <div className="flex flex-col gap-2 text-sm">
           <p className="font-medium">To bring your key here, do one of these:</p>
@@ -422,33 +415,29 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
     );
   }
   if (list.isPending) {
-    return (
-      <Notice busy>
-        Downloading the voter list from IPFS and checking it against the contract…
-      </Notice>
-    );
+    return <Notice busy>Checking that you&apos;re on the voter list…</Notice>;
   }
   if (list.error) {
     return (
       <Notice tone="error">
-        The voter list could not be checked, so the booth will not use it:{" "}
-        {describeError(list.error)}
+        Couldn&apos;t check the voter list, so you can&apos;t vote yet. Reload the page to try
+        again. Details: {describeError(list.error)}
       </Notice>
     );
   }
   if (!list.data.commitments.includes(identity.commitment.toString())) {
     return (
       <Notice tone="error">
-        Your voting key is not on the voter list. If you registered it, your receipt is evidence
-        that the registrar left you out.
+        Your voting key is not on the voter list. If you registered it, download your receipt from
+        the registration page and send it to the organiser. It proves the registrar left you out.
       </Notice>
     );
   }
 
   const checked = (
     <Notice tone="success">
-      You&apos;re on the voter list, checked in this browser against the contract. Your ballot
-      won&apos;t reveal who you are.
+      You&apos;re on the voter list, checked in this browser against the list&apos;s fingerprint.
+      Your ballot won&apos;t reveal who you are.
     </Notice>
   );
 
@@ -466,8 +455,8 @@ export function AnonymousBooth({ election }: { election: OnchainElection }) {
         ) : now < votingEnd ? (
           <>
             <Notice>
-              Voting is due to open, but nobody has opened it on-chain yet. Anyone can, from the
-              election&apos;s page.
+              Voting should be open by now, but someone with a crypto wallet still has to switch it
+              on. The organiser usually does. Check back in a few minutes.
             </Notice>
             <LinkButton href={`/elections/${election.address}`} variant="secondary">
               Go to the election
