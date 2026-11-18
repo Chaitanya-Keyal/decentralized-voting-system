@@ -1,9 +1,10 @@
 import { CountingRule, Phase } from "@dvote/shared";
 
 import type { OnchainElection } from "@/lib/election";
-import { ipfsUrl } from "@/lib/ipfs";
+import { documentSources } from "@/lib/sources";
 
-import { Badge, ExternalLink } from "../ui";
+import { Badge } from "../ui";
+import { SourcesLink } from "../sources-link";
 
 /** The candidates and the tally as the contract holds it: it changes only when a ballot is accepted. */
 export function Results({ election }: { election: OnchainElection }) {
@@ -31,7 +32,14 @@ export function Results({ election }: { election: OnchainElection }) {
               <span className="flex items-center gap-3 text-zinc-600 dark:text-zinc-400">
                 {candidate.manifestoCid && (
                   <span className="text-xs">
-                    <ExternalLink href={ipfsUrl(candidate.manifestoCid)}>Manifesto</ExternalLink>
+                    <SourcesLink
+                      sources={documentSources(
+                        candidate.manifestoCid,
+                        Boolean(election.voterListCid),
+                      )}
+                    >
+                      Manifesto
+                    </SourcesLink>
                   </span>
                 )}
                 {counting &&

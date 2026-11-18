@@ -57,21 +57,16 @@ export const publicIpfsGateway =
   chain.id === sepolia.id ? "https://gateway.pinata.cloud" : undefined;
 
 /**
- * A public block explorer, run by others, where the chain has one. On Sepolia, Blockscout rather
- * than the chain's default, Etherscan: it reads the contracts' verified source from Sourcify, so it
- * shows their code and names every call and event, where Etherscan shows raw data.
+ * Public block explorers, run by others, where the chain has them. On Sepolia, Blockscout reads the
+ * contracts' verified source from Sourcify, so it shows their code and names every call and event;
+ * Etherscan is a second, independent view of the same chain.
  */
-export const explorer =
+export const explorers: { name: string; url: string }[] =
   chain.id === sepolia.id
-    ? { name: "Blockscout", url: "https://eth-sepolia.blockscout.com" }
-    : chain.blockExplorers?.default;
-
-/** A block explorer link for a transaction, where the chain has an explorer. */
-export function explorerTx(hash: string): string | undefined {
-  return explorer ? `${explorer.url}/tx/${hash}` : undefined;
-}
-
-/** A block explorer link for a contract or wallet, where the chain has an explorer. */
-export function explorerAddress(address: string): string | undefined {
-  return explorer ? `${explorer.url}/address/${address}` : undefined;
-}
+    ? [
+        { name: "Blockscout", url: "https://eth-sepolia.blockscout.com" },
+        { name: "Etherscan", url: "https://sepolia.etherscan.io" },
+      ]
+    : chain.blockExplorers
+      ? [chain.blockExplorers.default]
+      : [];

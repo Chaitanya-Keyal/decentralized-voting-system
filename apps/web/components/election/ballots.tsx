@@ -4,12 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { slice, type Address, type Hex } from "viem";
 
 import { api } from "@/lib/api";
-import { chain, explorerTx } from "@/lib/env";
+import { chain } from "@/lib/env";
+import { eventSources, transactionSources } from "@/lib/sources";
 import { describeError } from "@/lib/errors";
 import { useCastBallot } from "@/lib/identity";
 import { formatTime } from "@/lib/time";
 
-import { Badge, ExternalLink, Loading, Mono, muted, Notice } from "../ui";
+import { Badge, Loading, Mono, muted, Notice } from "../ui";
+import { SourcesLink } from "../sources-link";
 
 /**
  * In tier 2 a ballot's key is the voter's address, left-padded to 32 bytes. In tier 3 it is the
@@ -25,15 +27,20 @@ function useOwnBallot(election: Address): bigint | undefined {
   return cast?.counted ? BigInt(cast.nullifier) : undefined;
 }
 
-/** Every accepted ballot, from the indexer. Each one links to its transaction on-chain. */
+/**
+ * Every accepted ballot, from the indexer. Each one links to its transaction on-chain. `cast` is
+ * the contract's own count, so an election the indexer does not follow is never shown as empty.
+ */
 export function Ballots({
   election,
   candidates,
   tier,
+  cast,
 }: {
   election: Address;
   candidates: string[];
   tier: number;
+  cast: number;
 }) {
   const own = useOwnBallot(election);
   const { data, error } = useQuery({
@@ -44,6 +51,15 @@ export function Ballots({
 
   if (error) return <Notice tone="error">{describeError(error)}</Notice>;
   if (!data) return <Loading>Loading the ballots…</Loading>;
+  if (data.ballots.length === 0 && cast > 0) {
+    return (
+      <p className={`text-sm ${muted}`}>
+        This site doesn&apos;t list this election&apos;s ballots. Each one is a VoteCast event on
+        the blockchain: <SourcesLink sources={eventSources(election)}>see them</SourcesLink> on a
+        public block explorer.
+      </p>
+    );
+  }
   if (data.ballots.length === 0) return <p className={`text-sm ${muted}`}>No ballots yet.</p>;
 
   return (
@@ -68,7 +84,6 @@ export function Ballots({
         </thead>
         <tbody>
           {data.ballots.map((ballot) => {
-            const link = explorerTx(ballot.txHash);
             return (
               <tr key={ballot.key} className="border-t border-zinc-100 dark:border-zinc-900">
                 <td className="py-2 pr-4">
@@ -87,13 +102,9 @@ export function Ballots({
                   {formatTime(ballot.timestamp)}
                 </td>
                 <td className="hidden py-2 sm:table-cell">
-                  {link ? (
-                    <ExternalLink href={link}>
-                      <Mono value={ballot.txHash} />
-                    </ExternalLink>
-                  ) : (
+                  <SourcesLink sources={transactionSources(ballot.txHash)}>
                     <Mono value={ballot.txHash} />
-                  )}
+                  </SourcesLink>
                 </td>
               </tr>
             );

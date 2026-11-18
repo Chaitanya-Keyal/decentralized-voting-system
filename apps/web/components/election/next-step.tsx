@@ -7,10 +7,11 @@ import type { ReactNode } from "react";
 import { api } from "@/lib/api";
 import type { OnchainElection } from "@/lib/election";
 import { describeError } from "@/lib/errors";
-import { ipfsUrl, publicIpfsUrl } from "@/lib/ipfs";
+import { documentSources } from "@/lib/sources";
 import { formatRelative, formatTime } from "@/lib/time";
 
-import { Button, ExternalLink, LinkButton, Mono, Notice, Spinner } from "../ui";
+import { Button, LinkButton, Mono, Notice, Spinner } from "../ui";
+import { SourcesLink } from "../sources-link";
 import { ActionButton } from "./action-button";
 import { SkipAhead } from "./skip-ahead";
 
@@ -50,18 +51,13 @@ function RegistrationCount({ election, closed }: { election: OnchainElection; cl
 }
 
 function VoterList({ election }: { election: OnchainElection }) {
-  const elsewhere = publicIpfsUrl(election.voterListCid);
   return (
     <p className="text-sm text-zinc-600 dark:text-zinc-400">
       The voter list has {election.voterCount} {election.voterCount === 1 ? "voter" : "voters"}.
       Fingerprint <Mono value={election.voterRoot} />.{" "}
-      <ExternalLink href={ipfsUrl(election.voterListCid)}>Full list on IPFS</ExternalLink>
-      {elsewhere && (
-        <>
-          {" "}
-          (<ExternalLink href={elsewhere}>another copy</ExternalLink>)
-        </>
-      )}
+      <SourcesLink sources={documentSources(election.voterListCid, true)}>
+        Full list on IPFS
+      </SourcesLink>
       .
     </p>
   );

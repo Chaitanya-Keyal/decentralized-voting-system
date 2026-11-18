@@ -5,11 +5,12 @@ import { getAddress, isAddress } from "viem";
 
 import { useDocumentTitle } from "@/lib/document-title";
 import { useElection } from "@/lib/election";
-import { explorerAddress } from "@/lib/env";
+import { addressSources } from "@/lib/sources";
 import { useMarkWalletForOrganisers } from "@/lib/header-wallet";
 import { useChainNow, useTimeZoneNote } from "@/lib/time";
 
-import { Card, ExternalLink, Mono } from "../ui";
+import { Card, Mono } from "../ui";
+import { SourcesLink } from "../sources-link";
 import { Audit } from "./audit";
 import { AuthorityPanel } from "./authority-panel";
 import { Ballots } from "./ballots";
@@ -43,15 +44,11 @@ export function ElectionView({ address }: { address: string }) {
         </div>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           Contract{" "}
-          {explorerAddress(election.address) ? (
-            <ExternalLink href={explorerAddress(election.address)!}>
-              <Mono value={election.address} short={false} />
-            </ExternalLink>
-          ) : (
+          <SourcesLink sources={addressSources(election.address)}>
             <Mono value={election.address} short={false} />
-          )}
+          </SourcesLink>
         </p>
-        <Description cid={election.metadataCid} />
+        <Description cid={election.metadataCid} copied={Boolean(election.voterListCid)} />
       </div>
 
       <div className="grid items-start gap-6 md:grid-cols-[3fr_2fr]">
@@ -99,6 +96,7 @@ export function ElectionView({ address }: { address: string }) {
             election={election.address}
             candidates={election.candidates.map((candidate) => candidate.name)}
             tier={election.tier}
+            cast={election.ballotsCast}
           />
         </Card>
       )}

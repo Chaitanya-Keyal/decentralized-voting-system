@@ -85,10 +85,11 @@ export default function AboutPage() {
       <h2>Checking it without trusting this site</h2>
       <p>
         You do not have to take this site&apos;s word for anything. Each election page links to its
-        contract on Blockscout, a block explorer run by others that reads the blockchain for itself.
-        There you can see every step sent to the election, every ballot (by its ballot ID alone),
-        the voter list&apos;s fingerprint, and the totals and winner. Every election of the same
-        kind runs the same contract code, which is verified on Sourcify and readable on Blockscout.
+        contract on Blockscout and Etherscan, block explorers run by others that read the blockchain
+        for themselves. There you can see every step sent to the election, every ballot (by its
+        ballot ID alone), the voter list&apos;s fingerprint, and the totals and winner. Every
+        election of the same kind runs the same contract code, which is verified on Sourcify and
+        readable on Blockscout.
       </p>
 
       <p>

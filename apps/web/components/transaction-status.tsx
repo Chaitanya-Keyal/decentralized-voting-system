@@ -1,16 +1,14 @@
-import { explorerTx } from "@/lib/env";
+import { transactionSources } from "@/lib/sources";
 import type { TransactionState } from "@/lib/transaction";
 
-import { ExternalLink, Mono, Notice } from "./ui";
+import { SourcesLink } from "./sources-link";
+import { Mono, Notice } from "./ui";
 
 function TransactionLink({ hash }: { hash: string }) {
-  const href = explorerTx(hash);
-  return href ? (
-    <ExternalLink href={href}>
+  return (
+    <SourcesLink sources={transactionSources(hash)}>
       <Mono value={hash} />
-    </ExternalLink>
-  ) : (
-    <Mono value={hash} />
+    </SourcesLink>
   );
 }
 

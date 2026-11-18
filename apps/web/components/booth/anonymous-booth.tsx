@@ -8,7 +8,8 @@ import { useBlockNumber, useConfig, usePublicClient, useReadContract } from "wag
 import { simulateContract, writeContract } from "wagmi/actions";
 
 import type { OnchainElection } from "@/lib/election";
-import { chain, explorer, explorerAddress, explorerTx, simulateAt } from "@/lib/env";
+import { chain, simulateAt } from "@/lib/env";
+import { eventSources, transactionSources } from "@/lib/sources";
 import { describeError } from "@/lib/errors";
 import { useHideWallet } from "@/lib/header-wallet";
 import {
@@ -28,17 +29,8 @@ import { useWallet } from "@/lib/wallet";
 import { CopyButton } from "../copy-button";
 import { VotingKeyCard } from "../register/identity-registration";
 import { TransactionStatus } from "../transaction-status";
-import {
-  Button,
-  Card,
-  Disclosure,
-  ExternalLink,
-  LinkButton,
-  Mono,
-  muted,
-  Notice,
-  Spinner,
-} from "../ui";
+import { SourcesLink } from "../sources-link";
+import { Button, Card, Disclosure, LinkButton, Mono, muted, Notice, Spinner } from "../ui";
 import { ConnectWallet } from "../wallet-connect";
 import { CandidateChoice, choiceFor, type Marks } from "./candidate-choice";
 
@@ -258,8 +250,9 @@ function AnonymousBallotForm({
 
 function CastBallotCard({ election, ballot }: { election: OnchainElection; ballot: CastBallot }) {
   const id = pad(toHex(BigInt(ballot.nullifier)));
-  const transaction = ballot.txHash ? explorerTx(ballot.txHash) : undefined;
-  const events = explorerAddress(election.address);
+  const sources = ballot.txHash
+    ? transactionSources(ballot.txHash)
+    : eventSources(election.address);
   return (
     <>
       <Notice tone="success">
@@ -270,19 +263,14 @@ function CastBallotCard({ election, ballot }: { election: OnchainElection; ballo
         page, this browser marks your ballot &ldquo;yours&rdquo;. To find it from another device,
         copy the ballot ID and keep it. <CopyButton value={id}>Copy the ballot ID</CopyButton>
       </p>
-      {(transaction ?? events) && (
+      {sources.length > 0 && (
         <p className="text-sm text-zinc-700 dark:text-zinc-300">
           To check it without this site, open{" "}
-          {transaction ? (
-            <ExternalLink href={transaction}>
-              your ballot&apos;s transaction on {explorer?.name}
-            </ExternalLink>
-          ) : (
-            <ExternalLink href={`${events}?tab=logs`}>
-              the election&apos;s events on {explorer?.name}
-            </ExternalLink>
-          )}
-          : its <code className="font-mono text-xs">VoteCast</code> event lists your ballot ID.
+          <SourcesLink sources={sources}>
+            {ballot.txHash ? "your ballot's transaction" : "the election's events"}
+          </SourcesLink>{" "}
+          on a public block explorer: its <code className="font-mono text-xs">VoteCast</code> event
+          lists your ballot ID.
         </p>
       )}
       <LinkButton href={`/elections/${election.address}`} variant="secondary">

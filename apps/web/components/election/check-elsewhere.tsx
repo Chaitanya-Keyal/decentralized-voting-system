@@ -3,10 +3,9 @@ import { getAddress, type Address } from "viem";
 import { usePublicClient } from "wagmi";
 
 import type { OnchainElection } from "@/lib/election";
-import { explorer, explorerAddress } from "@/lib/env";
-import { publicIpfsUrl } from "@/lib/ipfs";
+import { codeSources, documentSources, eventSources } from "@/lib/sources";
 
-import { ExternalLink } from "../ui";
+import { SourcesLink } from "../sources-link";
 
 /** An EIP-1167 clone's code: these ten bytes, the implementation's address, then fifteen more. */
 const CLONE_PREFIX = "0x363d3d373d3d3d363d73";
@@ -26,36 +25,35 @@ function useImplementation(election: Address) {
   });
 }
 
-/** Where to check the election without this site: a block explorer and a gateway run by others. */
+/** Where to check the election without trusting this site: block explorers and IPFS. */
 export function CheckElsewhere({ election }: { election: OnchainElection }) {
   const { data: implementation } = useImplementation(election.address);
-  const contract = explorerAddress(election.address);
-  if (!explorer || !contract) return null;
-  const list = election.voterListCid ? publicIpfsUrl(election.voterListCid) : undefined;
+  const events = eventSources(election.address);
+  if (events.length === 0) return null;
   return (
     <div className="mt-4 flex flex-col gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-      <p>To check without this site at all, use services run by others:</p>
+      <p>To check it without trusting this site:</p>
       <ul className="flex list-disc flex-col gap-1 pl-5">
         <li>
-          <ExternalLink href={`${contract}?tab=logs`}>
-            The election&apos;s events on {explorer.name}
-          </ExternalLink>
-          : the voter list&apos;s fingerprint, each ballot by its ballot ID, and the final tally and
-          winners.
+          <SourcesLink sources={events}>The election&apos;s events</SourcesLink> on a public block
+          explorer: the voter list&apos;s fingerprint, each ballot by its ballot ID, and the final
+          tally and winners.
         </li>
         {implementation && (
           <li>
-            <ExternalLink href={`${explorerAddress(implementation)}?tab=contract`}>
+            <SourcesLink sources={codeSources(implementation)}>
               The contract&apos;s source code
-            </ExternalLink>
+            </SourcesLink>
             : the election is a copy of this contract, whose source is verified on Sourcify.
           </li>
         )}
-        {list && (
+        {election.voterListCid && (
           <li>
-            <ExternalLink href={list}>The voter list on Pinata&apos;s IPFS gateway</ExternalLink>.
-            Its IPFS address is a hash of its contents, recorded in the contract, so a changed list
-            would not match.
+            <SourcesLink sources={documentSources(election.voterListCid, true)}>
+              The voter list on IPFS
+            </SourcesLink>
+            . Its IPFS address is a hash of its contents, recorded in the contract, so a copy from
+            any gateway can be checked against it.
           </li>
         )}
       </ul>

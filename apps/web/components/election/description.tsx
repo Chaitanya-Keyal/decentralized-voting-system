@@ -3,11 +3,14 @@
 import { electionMetadataSchema } from "@dvote/shared";
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchFromIpfs, ipfsUrl } from "@/lib/ipfs";
+import { fetchFromIpfs } from "@/lib/ipfs";
+import { documentSources } from "@/lib/sources";
 
-import { ExternalLink, muted } from "../ui";
+import { SourcesLink } from "../sources-link";
+import { muted } from "../ui";
 
-export function Description({ cid }: { cid: string }) {
+/** The election's description, from IPFS. `copied` once its documents are on Pinata too. */
+export function Description({ cid, copied }: { cid: string; copied: boolean }) {
   const { data, error } = useQuery({
     queryKey: ["ipfs", cid],
     queryFn: () => fetchFromIpfs(electionMetadataSchema, cid),
@@ -19,7 +22,7 @@ export function Description({ cid }: { cid: string }) {
     return (
       <p className={`text-sm ${muted}`}>
         The description could not be loaded from{" "}
-        <ExternalLink href={ipfsUrl(cid)}>IPFS</ExternalLink>.
+        <SourcesLink sources={documentSources(cid, copied)}>IPFS</SourcesLink>.
       </p>
     );
   }
