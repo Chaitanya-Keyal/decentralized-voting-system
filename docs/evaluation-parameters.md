@@ -6,11 +6,9 @@ must fail.
 
 This list was written for Evaluation 1, before anything was built, so it sets no
 numeric targets. Predictions are about the shape of a result (for example, flat as
-the roll grows).
+the voter list grows).
 
-Section 6 of the Evaluation 2 report is now the authoritative version: it gives a
-measured value for each parameter, including predictions that turned out wrong. Keep
-the two in agreement.
+Section 6 of the Evaluation 2 report gives the measured value of each parameter.
 
 ## A. Cost
 
@@ -37,31 +35,33 @@ Both report the 95th percentile beside the median: the voter who waited is the
 one who abandons the ballot. A device that cannot finish a proof at all counts as
 a B2 failure, not a slow result.
 
-B2 was to decide the proving go/no-go in the roadmap. The C2 timings settled it
-first and the phone confirmed it: proving stays on the voter's device.
+Proving runs on the voter's device: on an Android phone it takes under two seconds
+for lists up to 4,096 voters (B2).
 
 ## C. Scalability
 
 | # | Parameter | Measurement | Expected shape |
 |---|---|---|---|
-| C1 | Gas vs voter-roll size | Registration, tier 2 ballot, tier 3 ballot over a range of roll sizes | Registration and tier 3 flat; tier 2 rising slowly |
-| C2 | Booth time vs roll size | Tree rebuild and proving, timed separately, across the same roll sizes | Rebuild grows with the roll; proving grows only with tree depth |
+| C1 | Gas vs voter-list size | Registration, tier 2 ballot, tier 3 ballot over a range of list sizes | Registration and tier 3 flat; tier 2 rising slowly |
+| C2 | Booth time vs list size | Tree rebuild and proving, timed separately, across the same list sizes | Rebuild grows with the list; proving grows only with tree depth |
 | C3 | Concurrent-voter ceiling | Load until failure on a local node | The component that fails first |
 
 C1 is the central claim, and it is narrower than "gas does not grow with the
-electorate". Two operations are constant in roll size: publishing a roll, and
+electorate". Two operations are constant in the size of the list: publishing it, and
 casting a tier 3 ballot. Total election gas still grows with ballots cast, and
-off-chain work still grows with the roll.
+off-chain work still grows with the list.
 
 C2 checks that the cost did not simply move to the client. The booth rebuilds the
 tree locally so the registrar never learns who is voting, and that work is
-linear in the roll; proving grows only with the tree's depth. This is the most likely place for the design to fail.
+linear in the size of the list; proving grows only with the tree's depth. This is where the design
+is weakest: on one ARM64 core, rebuilding costs more than proving somewhere between 4,096 and
+8,192 voters.
 
 ## D. Security and correctness
 
 | # | Property | How it is demonstrated |
 |---|---|---|
-| D1 | Double-vote resistance | A replayed nullifier must revert, as must a ballot past the declared roll size |
+| D1 | Double-vote resistance | A replayed nullifier must revert, as must a ballot past the declared voter count |
 | D2 | Eligibility enforcement | A valid proof against the wrong root, and a tampered proof, must revert |
 | D3 | Ballot secrecy | Deanonymization attempt over all chain data; the operator condition reported beside the result |
 | D4 | Verifiability | A voter finds their own ballot; an observer recomputes the tally with our backend off |
@@ -70,13 +70,13 @@ linear in the roll; proving grows only with the tree's depth. This is the most l
 D2 holds only under the trusted setup assumption. D3 is conditional: against the
 chain nothing should be linkable, but against the operator secrecy holds only
 while the relayer runs separately from the registrar, or the voter submits
-directly. D3 also reports the anonymity set size, which is small in a small roll.
+directly. D3 also reports the anonymity set size, which is small in a small election.
 
-A failure in D1, D2 or D5 is a design defect and blocks the live demonstration.
+A failure in D1, D2 or D5 would be a design defect.
 
-Static analysis, coverage and reorg handling are on the M3 checklist. They
-are engineering hygiene rather than evaluation parameters, so they are not
-reported as results.
+Static analysis, coverage and reorg handling are engineering checks rather than
+evaluation parameters. Section 5 of the report gives the static analysis and
+coverage results.
 
 ## E. Usability and adoption
 
@@ -106,7 +106,7 @@ with the 95th percentile.
 - **Client timings (B2, C2)**: C2 on one ARM64 core in Node.js, and B2 in the
   browser on a laptop (Intel Core Ultra 7 256V) and an Android phone (Nothing
   Phone (3a)), each named in its result file.
-- **End-to-end latency (B1)** runs on Ethereum Sepolia during the measurement phase.
+- **End-to-end latency (B1)** runs on Ethereum Sepolia.
 
 Every number carries its controls: gas price and block number, RPC provider,
 commit hash, deployed addresses, and the device for client numbers.

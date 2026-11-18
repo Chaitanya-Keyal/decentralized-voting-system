@@ -4,18 +4,18 @@
 
 | Actor | On-chain identity | Can do | Explicitly *cannot* do |
 |---|---|---|---|
-| **Election Authority** | `AUTHORITY_ROLE` | Configure an election before registration opens (windows, metadata CID); change its candidates and cancel it until voting opens | Cast or alter a ballot, change the voter root after registration closes, delay or block the count |
-| **Registrar** | `REGISTRAR_ROLE` | Verify eligibility off-chain (an institute email address, by Google sign-in for the institute's domain), collect identity commitments (wallet addresses in tier 2) into an off-chain tree, publish the root, the roll size and the leaf-set CID | Add voters after the root is frozen; learn which leaf is voting, because the booth derives its own authentication path |
-| **Voter** | *none* (anonymous) | Register an identity commitment, check that commitment appears in the published leaf set, cast exactly one ballot, verify their own ballot landed | Vote twice, vote without being in the committed set |
+| **Election Authority** | `AUTHORITY_ROLE` | Configure an election before registration opens (windows, metadata CID); change its candidates and cancel it until voting opens | Cast a ballot unless it is on the voter list, alter a ballot, change the published voter list, delay or block the count |
+| **Registrar** | `REGISTRAR_ROLE` | Verify eligibility off-chain (an institute email address, by Google sign-in for the institute's domain), collect identity commitments (wallet addresses in tier 2) into an off-chain tree, publish the root, the voter count and the voter list's CID | Add voters after the root is frozen; learn which leaf is voting, because the booth derives its own authentication path |
+| **Voter** | *none* (anonymous) | Register an identity commitment, check that commitment appears in the published voter list, cast exactly one ballot, verify their own ballot landed | Vote twice, vote without being on the published list |
 | **Candidate** | address (optional) | Be listed on a ballot, publish a manifesto to IPFS | Anything privileged |
-| **Auditor / Observer** | *none* (permissionless) | Re-derive the full tally from chain events, verify every ZK proof, recompute the root from the published leaf set, trigger any phase change once its time has passed | Alter anything |
+| **Auditor / Observer** | *none* (permissionless) | Re-derive the full tally from chain events, verify every ZK proof, recompute the root from the published voter list, trigger any phase change once its time has passed | Alter anything |
 | **Relayer** | its own funded address | Pay gas on a voter's behalf by submitting the ballot itself; it also reads the candidate choice in every ballot it receives and decides whether to submit it | Forge or modify a ballot, because the proof binds the nullifier and the candidate signal; replay one, because the nullifier is already spent |
 
 Two rows in that table need their reasoning spelled out.
 
 The Registrar's row stops at "learn which leaf is voting" and does not extend to "see how anyone
-voted." The same operator runs the registrar and the relayer in this design, so one party could
-hold both halves of the join. Section 2 therefore states ballot secrecy as conditional rather than
+voted." If one operator ran both the registrar and the relayer, it would hold both halves of the
+join. Section 2 therefore states ballot secrecy as conditional rather than
 absolute, and says what the condition is.
 
 The Authority's row denies it any power over the count. The design earns that by making every
@@ -35,16 +35,16 @@ registrar that is down, or that silently serves nothing to one named voter, woul
 casting at all. Refusing a path is quieter than refusing a ballot, because it looks like a bug,
 and direct submission is no help against it, since it bypasses the relayer and not the registrar.
 
-The ballot path in section 4 keeps the registrar out of vote time for that reason. The leaf set
+The ballot path in section 4 keeps the registrar out of vote time for that reason. The voter list
 is published to IPFS with its content identifier written on-chain in the same transaction as the
 root, and the booth rebuilds the tree and derives its own path. Each dependency has an escape:
 IPFS reconstruction for the registrar, direct submission for the relayer.
 
 ### Selective censorship by the relayer
 
-The relayer reads the candidate choice, and the relayer decides what to forward. Those are not
-two mild costs; combined they are one result-altering attack. A relayer can drop only the
-ballots for the candidate it dislikes, and this is invisible, because turnout below roll size
+The relayer reads the candidate choice, and the relayer decides what to forward. Together they
+let the relayer change the result. A relayer can drop only the
+ballots for the candidate it dislikes, and this is invisible, because turnout below the voter count
 is the normal state of every election and an aggregate observer therefore sees nothing wrong.
 
 The escape hatch does not rescue the population this design targets. Parameter E2 sets the
@@ -74,8 +74,8 @@ choice it cannot attribute.
 - *Ballot secrecy against the chain*: no on-chain data links an address or an identity to a
   ballot. Secrecy against the operator is conditional and is listed under non-guarantees.
 - *A ceiling on accepted ballots*: `castVote` requires that the count of spent nullifiers never
-  exceeds the roll size stored beside the root in `VoterRegistry`. This is enforced by the
-  contract, not inferred from circuit soundness. It does not make the declared roll size
+  exceeds the voter count stored beside the root in `VoterRegistry`. This is enforced by the
+  contract, not inferred from circuit soundness. It does not make the declared voter count
   honest, which is a separate non-guarantee.
 - *Individual verifiability*: a voter can locate their own ballot transaction.
 - *Universal verifiability*: anyone can recompute the tally from public data.
@@ -89,49 +89,48 @@ than running our own ceremony. Their SHA-256 hashes are pinned in
 `packages/shared/src/semaphore-artifacts.json`, checked against the
 `@zk-kit/semaphore-artifacts` npm package, whose tarball matched the registry's integrity hash,
 and against the published copies; the browser refuses any proving file that does not match. If every
-contributor to that ceremony colluded, forged membership proofs against a roll the forger was
+contributor to that ceremony colluded, forged membership proofs against a voter list the forger was
 never on would verify, with arbitrary nullifiers, and we would not detect them from the proofs
 alone. That is part of why the on-chain ballot ceiling above matters: it converts a
 cryptographic assumption into a bound the contract checks.
 
 **What ballot secrecy means here**
 
-Secrecy here is anonymity within the roll, not secrecy of ballot content. Every `VoteCast`
+Secrecy here is anonymity within the voter list, not secrecy of ballot content. Every `VoteCast`
 carries the candidate choice in the clear and increments a public counter, so what is hidden is
-which member of the roll authored a given ballot. The hiding is worth exactly the number of
+which member of the list authored a given ballot. The hiding is worth exactly the number of
 plausible authors at that moment, and the running tally and block timestamps erode that
 continuously. For the first ballot cast and the last ballot cast in a small election the
-anonymity set has one member and secrecy is zero. At demonstration scale the roll is a room, so
+anonymity set has one member and secrecy is zero. At demonstration scale the voter list is one room of people, so
 we state the size beside the claim rather than speaking in general terms.
 
-**What we do not guarantee (and will state plainly in the report)**
+**What we do not guarantee**
 
-- *Roll correctness*: we do not guarantee that the published roll corresponds to the people who
-  actually registered. The registrar chooses the roll size, and registration is voluntary, so
-  nobody independently knows the true figure and a roll padded with phantom commitments looks
-  exactly like an honest one. Publishing the roll size does not make stuffing detectable, because
+- *Voter list correctness*: we do not guarantee that the published voter list corresponds to the people who
+  actually registered. The registrar chooses the voter count, and registration is voluntary, so
+  nobody independently knows the true figure and a list padded with phantom commitments looks
+  exactly like an honest one. Publishing the voter count does not make stuffing detectable, because
   the quantity any such check compares against is supplied by the party the check is meant to
   catch. What publication does buy is weaker: the capacity to stuff is fixed and published before
   any ballot exists, so a dishonest registrar must commit to a number before it knows which way the
   vote is going, and that number is public forever. A hosted system lets rows be added at the close
   of poll knowing the gap. That is a real difference, and it is not detection. Two attacks pass
   every check we have. Substitution, swapping one real voter's commitment for the registrar's own,
-  leaves both the root recomputation and the roll size consistent. Exclusion, dropping fifty
-  commitments, is quieter still and cheaper than fabricating two hundred. Two mitigations make both
+  leaves both the root recomputation and the voter count consistent. Exclusion, dropping real
+  voters' commitments, is quieter still. Two mitigations make both
   provable rather than preventing them, and neither costs gas: the registrar signs a receipt over
-  the accepted commitment and the election id at registration time, so an excluded voter holds
-  transferable evidence that contradicts the published leaf set; and the leaf set is published when
+  the accepted commitment and the election's address at registration time, so an excluded voter holds
+  transferable evidence that contradicts the published voter list; and the list is published when
   registration closes while voting opens later, so there is a window in which every voter checks
   that their own commitment is in the list and, if it is not, can show the receipt before any
   ballot is cast. The genuine remedy, which this project does not build, is to stop trusting a single
-  registrar: split the role across parties who each hold a share of the enrolment, or require
-  candidate-appointed observers to co-sign the leaf set before the root is frozen. We record that
-  as future work.
-- *Sybil resistance at the registrar*: a dishonest registrar can enrol identities whose secrets
+  registrar: split the role across parties who each hold a share of the registrations, or require
+  candidate-appointed observers to co-sign the voter list before the root is frozen.
+- *Sybil resistance at the registrar*: a dishonest registrar can register identities whose secrets
   it holds. Combined with the public running tally below, it can pre-load phantom leaves, watch
   the live count and spend them in the last hour for whichever candidate needs them. That is the
   reserve-of-unused-eligibility attack we use to condemn the hosted web application, and nothing
-  we build catches it. See roll correctness above for what publication does and does not buy.
+  we build catches it. See voter list correctness above for what publication does and does not buy.
 - *Ballot secrecy from the operator*: unconditional against the chain, conditional against us.
   The relayer reads the candidate choice in every ballot it submits and sees the network address
   it arrives from. If the registrar and the relayer shared one deployment and one database, one
@@ -154,15 +153,14 @@ we state the size beside the claim rather than speaking in general terms.
   and checkable by a stranger at scale, which a paper ballot is not, since a coerced voter in a
   booth can lie. On this axis DVote is worse than the hosted system it replaces, not merely
   incomplete, and we say so. MACI-style key rotation, where a voter invalidates an earlier ballot
-  with a key the coercer does not hold, is the known remedy and needs a coordinator and far more
-  circuit work than this schedule allows.
+  with a key the coercer does not hold, is the known remedy; it needs a coordinator and much more
+  circuit work, and is outside this project's scope.
 - *Credential transfer and organised vote farming*: the identity secret is a bearer credential
   with nothing binding it to a person. A campus operator can generate the secrets, register on
-  the voters' behalf and cast the ballots itself, and gasless, four-step, zero-cryptocurrency
+  the voters' behalf and cast the ballots itself, and gasless, wallet-free
   voting makes that farm cheap. Anonymity then removes the forensic trail afterwards, where a
   centralized system at least leaves logs an investigator could pull. Anonymity has a real cost
-  here and the report counts it as one; it is listed separately from coercion because it is a
-  different attack.
+  here. This is listed separately from coercion because it is a different attack.
 - *Credential loss*: the identity secret lives in browser storage, and a cleared browser, a new
   device, private browsing or an evicted origin destroys it. The root is frozen on purpose, so
   after the close of registration there is no recovery and the voter is disenfranchised. We build
@@ -170,14 +168,14 @@ we state the size beside the claim rather than speaking in general terms.
   browser, and the booth offers to restore one when the browser holds no key. The backup is a
   bearer credential, so it is also one more way to hand the vote to someone else. The stronger
   mitigation, deriving the identity deterministically from a wallet signature over a fixed
-  message including the election id, is not built. Either way the boundary is that
+  message including the election's address, is not built. Either way the boundary is that
   re-registration with the same identity works until the root freezes and never after.
 - *Secrecy of the running tally*: votes are counted on-chain as they arrive, so a partial result
   is visible while voting is open and can influence late voters. Hiding it needs homomorphic or
   commit-reveal tallying, which is out of scope.
 
-The honest summary of this section: DVote removes the operator from the ballot box and from the
-count, and leaves one party in control of the franchise.
+DVote removes the operator from the ballot box and from the count, and leaves one party, the
+registrar, in control of who may vote.
 
 ## 3. Component layout
 
@@ -214,7 +212,7 @@ count, and leaves one party in control of the franchise.
 └────────────────────────────────────────────────────────────────────┘
 ```
 The ballot booth talks to the backend to register and to hand a finished ballot to the relayer.
-It does not read the tree from the backend at vote time: it fetches the published leaf set from
+It does not read the tree from the backend at vote time: it fetches the published voter list from
 IPFS at the CID recorded on-chain and rebuilds the tree in the browser.
 
 Registrar and relayer share the backend codebase but run as separate processes with separate
@@ -226,10 +224,10 @@ and never to our API or indexer. It rebuilds the root from the published list, r
 from the contract's own `VoteCast` events, re-verifies every tier 3 proof in the browser (or, in
 tier 2, checks every voting wallet is on the list), and recounts the tally and the winners. If our
 server is down, or lying, the result is still verifiable; the list can come from any gateway that
-has it, since it is checked against the root. With the leaf set on IPFS a voter can also still
+has it, since it is checked against the root. With the voter list on IPFS a voter can also still
 build a proof without us. Casting it is the weaker half: with the relayer down,
 submission costs the voter their own gas, which section 1 concedes most of them will not have. This
-is the single most important architectural property to show in Eval 2: **the audit recounts the
+is the system's most important architectural property: **the audit recounts the
 tally from the chain and IPFS alone, and passes with our backend unreachable.**
 
 ## 4. Smart contracts
@@ -237,22 +235,21 @@ tally from the chain and IPFS alone, and passes with our backend unreachable.**
 | Contract | Responsibility | Notes |
 |---|---|---|
 | `ElectionFactory.sol` | Deploys and registers elections | EIP-1167 minimal proxy clones, one factory per tier, each cloning its own implementation. It records only `isElection`; its `ElectionCreated` events list every election. In the tier 2 gas snapshot, creating an election, clone and set-up with three candidates, costs 595,090 gas; deploying a full copy of the election contract costs 2,080,541 |
-| `Election.sol` | Lifecycle state machine, candidate roster, ballot acceptance, tally storage | Abstract base of both tiers; one clone per election. The counting rule is fixed when the election is created. Accepting a ballot reverts once spent ballot keys reach the roll size |
+| `Election.sol` | Lifecycle state machine, candidate roster, ballot acceptance, tally storage | Abstract base of both tiers; one clone per election. The counting rule is fixed when the election is created. Accepting a ballot reverts once spent ballot keys reach the voter count |
 | `MerkleElection.sol` | Tier 2 `castVote(choice, proof)` | Checks a keccak Merkle proof that the sender's address is on the list; the ballot key is the address |
-| `SemaphoreElection.sol` | Tier 3 `castVote(choice, nullifier, points)` | Calls Semaphore's verifier with the stored root, the election's own address as the scope and the tree depth the contract computes, in constant time, from the stored roll size; never with values from the caller. The ballot key is the nullifier |
-| `VoterRegistry.sol` | Merkle root, roll size and leaf-set CID per election | A base of `Election`. No commitment is stored on-chain. All three values are written in one transaction and never change afterwards |
+| `SemaphoreElection.sol` | Tier 3 `castVote(choice, nullifier, points)` | Calls Semaphore's verifier with the stored root, the election's own address as the scope and the tree depth the contract computes, in constant time, from the stored voter count; never with values from the caller. The ballot key is the nullifier |
+| `VoterRegistry.sol` | Merkle root, voter count and voter list CID per election | A base of `Election`. No commitment is stored on-chain. All three values are written in one transaction and never change afterwards |
 | `SemaphoreVerifier` | Groth16 verification of the membership proof | Semaphore's standalone verifier, called with our own root, not Semaphore's group contracts. The tree depth selects the verification key, which is why the depth is pinned in the contract |
 | `TallyLib.sol` | Counting rules: plurality and approval | Under approval a choice is a non-empty bitmask of candidates, each of which gets a vote; ties give several winners |
 
-There is no ERC-2771 forwarder, although Evaluation 1 planned one. It would be easy to credit
-with a protection it does not give: it is the proof, not a signature on the call, that stops a
-relayer altering a ballot. The proof commits to the nullifier and the candidate signal, so any
+There is no ERC-2771 forwarder, although Evaluation 1 planned one. A forwarder would add no
+protection: it is the proof, not a signature on the call, that stops a relayer altering a
+ballot. The proof commits to the nullifier and the candidate signal, so any
 tampering invalidates it, and the nullifier blocks replay. `castVote` never reads the sender at
-all, so a relayer simply submits the ballot itself. Measured on Sepolia, which runs Glamsterdam,
+all, so a relayer simply submits the ballot itself, and the booth signs nothing. Measured on Sepolia, which runs Glamsterdam,
 forwarding cost about 127,000 gas more per ballot, most of it a new nonce slot for the fresh key
 each forwarded ballot was signed with, which EIP-8037 prices as new state
-(`bench/results/sepolia-gas-202611170127.csv`). So the relayer submits `castVote` itself and the
-booth signs nothing.
+(`bench/results/sepolia-gas-202611170127.csv`).
 
 ### Lifecycle
 
@@ -262,47 +259,47 @@ Created ──▶ Registration ──▶ Voting ──▶ Tallying ──▶ Fin
    └─────────────┴──▶ Cancelled   (authority only, before voting opens)
 ```
 
-Transitions are time-gated by block timestamp *and* require an explicit call, so the
-authority can never rewind a phase. Caller permissions are part of the design and are stated
+Transitions are time-gated by block timestamp *and* require an explicit call, and no function
+moves an election back to an earlier phase. Caller permissions are part of the design and are stated
 here rather than left to be inferred:
 
 - Configuration belongs to the authority, and only until registration is due to open. The
   candidates can change until voting is due to open, so a ballot's meaning never changes after it
   is cast. Both limits go by the clock as well as the phase, because registration is open from its
   start time even if nobody has recorded that on-chain yet.
-- Cancellation belongs to the authority until voting is due to open. Once the leaf set is
+- Cancellation belongs to the authority until voting is due to open. Once the voter list is
   published and the voting window has begun, the authority can no longer stop the vote; an
-  election whose leaf set never appeared, or whose voting window passed without voting opening,
+  election whose voter list never appeared, or whose voting window passed without voting opening,
   can still be cancelled.
-- The transition into `Voting` additionally requires a non-empty leaf-set CID alongside the
-  root, so a registrar that withholds the roll stops the election rather than going unnoticed,
+- The transition into `Voting` additionally requires a non-empty voter list CID alongside the
+  root, so a registrar that withholds the list stops the election rather than going unnoticed,
   and it must happen before the voting window ends.
 - Every other transition, from opening registration to finalizing, is permissionless once its
   timestamp has passed: any observer may call it. The time gate prevents a transition happening
   earlier than announced, so if these were authority-only the authority could delay them
   indefinitely, which is exactly the silent veto we claim not to have.
 
-Once `Voting` opens, the voter root is immutable.
+Once published, the voter list's root never changes.
 
 ### The ballot path
 
-This is the tier 3 path. Tier 2, built first, follows the same steps without the anonymity: the
-voter registers their wallet address instead of an identity commitment, the leaf set is the list
-of registered addresses, and the ballot is `castVote(choice, proof)` sent from that wallet with
+This is the tier 3 path. Tier 2 follows the same steps without the anonymity: the
+voter registers their wallet address instead of an identity commitment, the voter list holds the
+registered addresses, and the ballot is `castVote(choice, proof)` sent from that wallet with
 an ordinary Merkle proof, so the chain shows which wallet voted for whom.
 
 1. The voter's browser generates a Semaphore identity, keeps it, and downloads a backup of it.
    Only the commitment is sent to the registrar, which returns a receipt signed over the
    commitment and the election.
-2. At the close of registration the registrar publishes the full leaf set to IPFS, and the root,
-   the roll size and the content identifier are written on-chain in one transaction. Publication
+2. At the close of registration the registrar publishes the full voter list to IPFS, and the root,
+   the voter count and the content identifier are written on-chain in one transaction. Publication
    serves two purposes: auditors recompute the root, and voters build proofs without talking to
    the registrar.
 3. Before voting opens, the booth checks that the voter's own commitment appears in the published
-   leaf set and warns them if it does not. Root recomputation alone proves only that the leaves
+   voter list and warns them if it does not. Root recomputation alone proves only that the leaves
    match the root; this is the check that makes leaf substitution detectable by the person it
    targets.
-4. At vote time the booth downloads the leaf set at the on-chain CID, reconstructs the tree in
+4. At vote time the booth downloads the voter list at the on-chain CID, reconstructs the tree in
    the browser and derives its own authentication path. The backend is never told which leaf is
    voting. Fetching the path from the registrar instead would be a break rather than a detail:
    the path identifies the leaf, the registrar knows which leaf belongs to which person, and the
@@ -315,21 +312,21 @@ an ordinary Merkle proof, so the chain shows which wallet voted for whom.
    and a proof for one election is useless in any other.
 7. The relayer, or any wallet, sends `castVote(choice, nullifier, points)`. It verifies the proof
    against the frozen root, reverts if the nullifier was seen before, reverts if the count of
-   spent nullifiers has already reached the stored roll size, records the nullifier, and adds the
+   spent nullifiers has already reached the stored voter count, records the nullifier, and adds the
    ballot to the tally.
-8. Result: double voting is impossible, accepted ballots cannot outnumber the declared roll, and
+8. Result: double voting is impossible, accepted ballots cannot outnumber the declared voter count, and
    no on-chain field links a ballot to a person, within the anonymity-set bound section 2 puts on
    what that hides.
 
 ### Gas strategy
 
-The design goal is **O(1) gas per operation in the size of the voter roll**. Per operation, not per
+The design goal is **O(1) gas per operation in the size of the voter list**. Per operation, not per
 election, and on the ballot side in tier 3 rather than in both tiers. A tier 3 ballot costs the
-same whether the roll is ten or a hundred thousand, publishing the roll costs the same either way
+same whether the list holds ten voters or a hundred thousand, publishing the list costs the same either way
 in both tiers, and tier 2's ballot is the logarithmic exception treated below. The total cost of an
 election is linear in the ballots cast, and no on-chain voting system avoids that, including this
 one. A hundred thousand ballots at roughly 300k gas each is a hundred thousand transactions and the
-bill scales with turnout, not with the roll.
+bill scales with turnout, not with the size of the list.
 
 The per-operation property depends on one decision: **the membership tree is built off-chain and
 only its root is written on-chain.**
@@ -338,81 +335,75 @@ This means deliberately *not* using Semaphore's on-chain group management, where
 `addMember` call inserts a leaf and costs gas per voter. That is the baseline worth naming,
 because it is the one this design actually beats: registration goes from a transaction per voter
 to a single write. The registrar maintains the tree, and `VoterRegistry` stores one `bytes32`
-root, one roll size and one CID per election, so a roll of 10 and a roll of 100,000 cost the
+root, one voter count and one CID per election, so a list of 10 and a list of 100,000 cost the
 same.
 
-That flatness is true by construction, and the report presents it as such rather than as a
-finding. One `SSTORE` of a root is one `SSTORE` at any roll size, and tier 2 already has flat
+That flatness is true by construction. One `SSTORE` of a root is one `SSTORE` at any list size, and tier 2 already has flat
 registration gas without any zero knowledge, because tier 2 also publishes a root and nothing
 else. Parameter C1 on the registration side is therefore a regression guard, catching an
 implementation that accidentally introduced an O(n) term such as emitting the leaf array in an
 event or storing commitments on-chain, rather than a hypothesis that could come out otherwise.
 
 Where the anonymity layer does change the shape is the ballot. In tier 2 the authentication path
-travels in calldata, so ballot gas is logarithmic in the roll. The sweep in
-`bench/results/gas.csv` measured 73,462 gas at a roll of 2 and 84,703 at 65,536, about 750 gas per
+travels in calldata, so ballot gas is logarithmic in the size of the list. The sweep in
+`bench/results/gas.csv` measured 73,462 gas at a list of 2 and 84,703 at 65,536, about 750 gas per
 tree level. In tier 3 the path becomes a private witness inside a Groth16 proof whose size is
-fixed at every tree depth, so the line should be flat. The first sweep was not quite: it rose by
-about 210 gas per level, which turned out to be the contract computing the tree depth in a loop
-that re-read the roll size from storage. The depth is now computed in constant time. The line is
-also higher, about 297,000 gas per ballot because of the pairing check, so the tier 3 line sits
-above the tier 2 line at every roll size measured, and the curves never cross in any realistic
+fixed at every tree depth, and the contract computes the tree depth from the stored voter count in
+constant time, so the line is flat: a tier 3 ballot costs between 296,634 and 296,670 gas from 4
+to 65,536 voters. The line is also higher, about 297,000 gas per ballot because of the pairing check, so the tier 3 line sits
+above the tier 2 line at every list size measured, and the curves never cross in any realistic
 range. That is the price of anonymity, not a cost win.
 
 These figures are under mainnet's current rules, which Foundry's local EVM implements. Sepolia
 runs Glamsterdam, whose EIP-8037 prices new state at 1,530 gas per byte, so a new storage slot
 is charged 97,920 gas for its state on top of the write itself, and deploying code costs about
 1,530 gas per byte instead of 200. Every ballot writes at least one new slot (its nullifier or
-address), so a typical tier 3 ballot cost 393,866 gas there. The shape in the roll size is
+address), so a typical tier 3 ballot cost 393,866 gas there. The shape against the list size is
 unchanged.
 
-The two tiers do not share a tree, and the move from one to the other is a replacement rather
-than an upgrade. Tier 2 is keccak256 over sorted pairs with OpenZeppelin `MerkleProof`; tier 3
+The two tiers use different trees. Tier 2 is keccak256 over sorted pairs with OpenZeppelin `MerkleProof`; tier 3
 is Poseidon in a LeanIMT, because that is what the Semaphore circuit constrains, and a keccak
-root is not even a valid circuit input since it is not constrained below the field modulus. The
-tree builder, the verification path and the registry's notion of a root are replaced rather than
-extended. The tier 2 work still earns its place, because it gives us the lifecycle, the factory,
-the indexer and a gas baseline, but the cryptographic code does not carry over.
+root is not even a valid circuit input since it is not constrained below the field modulus. They
+share the lifecycle, the factory design, the registrar and the indexer.
 
-The real tradeoff is not auditor inconvenience, it is relocation: the O(n) work moved off-chain
-to the registrar and the auditor. A roll of 100,000 is roughly 3.2 MB of commitments and about
+The O(n) work is relocated off-chain, to the registrar and the auditor. A list of 100,000 is roughly 3.2 MB of commitments and about
 200,000 Poseidon hashes, and every auditor pays that independently, so verification is O(n) per
 auditor rather than O(n) once. Moving it is still worth doing, because a Poseidon hash off-chain
 costs microseconds where a storage slot on-chain costs 22,100 gas, and the auditor's share is a
 download rather than a fee paid to a network. But measuring only the on-chain side would be
 measuring the cheap side, so C2 times rebuilding the tree from the published list, which every
-booth and every audit does, across the same roll sizes as C1: about 16 s at 65,536 voters on one
-ARM64 core in Node.js. A flat on-chain curve next to an unreported hundred-megabyte audit
-artifact would be a misleading graph, and if checking the roll at 100,000 voters turns out to be
-impractical in a browser then universal verifiability degrades even though the gas line stayed
-flat.
+booth and every audit does, across the same list sizes as C1: about 16 s at 65,536 voters on one
+ARM64 core in Node.js. A flat on-chain curve next to an unreported off-chain cost would be a
+misleading graph. In a browser, B2 measured the rebuild of a list of 65,536 at 3.88 s on a laptop
+and 7.74 s on an Android phone.
 
 One check turns an observation into an invariant the contract enforces. `castVote` compares the
-count of spent nullifiers against the roll size stored beside the root, and reverts when it would
-exceed it. Under EIP-2929 it costs a cold read of the roll size, 2,100 gas, plus the counter it is
+count of spent nullifiers against the voter count stored beside the root, and reverts when it would
+exceed it. Under EIP-2929 it costs a cold read of the voter count, 2,100 gas, plus the counter it is
 compared with: a cold read of 2,100 and an update of 2,900, or 20,000 for the first ballot, which
 moves the counter off zero. In the tier 2 snapshot the first ballot costs 114,397 gas and later
 ones 80,221, almost all of the difference being that write and the candidate's count leaving zero
 (A1). Without it, the statement that accepted ballots can never
-outnumber the declared enrolment would rest on circuit soundness with no line of code behind it:
-the root and the roll size are two independent values written by the same registrar, and a Merkle
+outnumber the declared voter count would rest on circuit soundness with no line of code behind it:
+the root and the voter count are two independent values written by the same registrar, and a Merkle
 root does not commit to a leaf count. With it, silent tree stuffing becomes a visible revert. It
-still does not make the declared number honest, which is the roll correctness non-guarantee.
+still does not make the declared number honest, which is the voter list correctness non-guarantee.
 
 ## 5. Backend
 
-Not a source of truth; it is a convenience and liveness layer. Four services:
+Not a source of truth; it is a convenience and liveness layer. Three services: the API, which
+holds the registrar and the metadata routes, the relayer and the indexer.
 
 - **Registrar**: off-chain eligibility check: the voter proves an institute email address by
   signing in with its Google account, and the registrar checks the ID token's
   signature against Google's published keys, its issuer, audience and expiry, and requires its
   `hd` (hosted domain) claim to be the institute's domain. The token must also carry the nonce the
   web app gave Google for this election and this commitment or wallet, and be at most ten minutes
-  old, so a token that leaked could not register someone else's key under the voter's address.
-  Per-client limits guard the routes that register, publish and pin. It builds the Semaphore group (in tier
-  2, the list of registered wallet addresses), returns a signed receipt over each accepted
+  old, so a token that leaked could not register someone else's key under the voter's email address.
+  Per-client limits guard the routes that register, publish and pin. It builds the voter list (in tier
+  2, the registered wallet addresses), returns a signed receipt over each accepted
   commitment and the election, binds an email address to one commitment or wallet for good,
-  and at the close of registration publishes the root, the roll size and the leaf-set CID in one
+  and at the close of registration publishes the root, the voter count and the voter list's CID in one
   transaction, by itself. Personal data stays in Postgres, never on-chain. It is not involved at
   vote time. Since anyone can create an election naming it, it serves only elections where it
   holds the registrar role and, when configured, whose authority it recognises.
@@ -426,16 +417,16 @@ Not a source of truth; it is a convenience and liveness layer. Four services:
   releases the nullifier for resubmission elsewhere if it gives up. A ballot not mined within
   three minutes is sent again at the same nonce with higher fees, and every ballot offers a tip of
   at least 0.1 gwei (`RELAYER_MIN_PRIORITY_FEE_WEI`): on Sepolia, ballots offering the few wei a
-  node suggested waited an extra block or two more often. In the C3 load test, 256
+  node suggested missed the next block more often, one of them by about four blocks. In the C3 load test, 256
   simultaneous ballots were all counted within six 12-second blocks, and the relayer accepted
   about nine ballots a second on one core. Off-chain verification with snarkjs needs no chain
   access, and checks the root, the scope and the signal at once. Without it, ten thousand ballots
   carrying fresh random nullifiers and garbage proofs all pass a nullifier check, get sponsored,
   fail the pairing check on-chain and revert, and the relayer pays for roughly 250k gas each; a
   daily cap does not prevent that, it only sets the price of shutting down the gasless path on
-  the morning of the demonstration. With it, the relayer's worst-case lifetime exposure is
-  bounded by the roll size of the deployment's own elections: it relays only for elections run by
-  the authorities it is configured with, a valid proof requires an enrolled identity, and each
+  election day. With it, the relayer's worst-case lifetime exposure is
+  bounded by the voter counts of the deployment's own elections: it relays only for elections run by
+  the authorities it is configured with, a valid proof requires a registered identity, and each
   identity yields exactly one usable nullifier per election. Rate limiting per source and per nullifier
   sits on top of that bound rather than substituting for it.
 - **Indexer**: tails both factories' `ElectionCreated` and each election's events
@@ -443,19 +434,20 @@ Not a source of truth; it is a convenience and liveness layer. Four services:
   materializes them into Postgres so pages load quickly. It stays a few blocks behind the head on
   a public chain, notices a replaced block by its hash and rebuilds from the deployment block;
   the tests exercise that rebuild.
-- **Metadata**: pins ballot descriptions, manifestos and the published leaf set to IPFS, and
-  stores the CIDs on-chain.
+- **Metadata**: pins ballot descriptions and manifestos to IPFS; the authority's own transactions
+  record their CIDs on-chain. With `PINATA_JWT` set, the registrar also copies each published voter
+  list and its election's documents to Pinata.
 
 ## 6. Frontend
 
-Three surfaces, one codebase:
+Four surfaces, one codebase:
 
 - **Admin console**: create election, manage roster, open/close phases, watch registration.
   This surface needs a wallet.
 - **Registration and ballot booth**: in an anonymous election no wallet is required, to register
   or to vote; eligibility comes entirely from the proof, so a wallet is needed only for the admin
   console, wallet elections and the direct-submission escape hatch. Registration makes the
-  voter's key in the browser and downloads its backup. The booth fetches the leaf set from IPFS,
+  voter's key in the browser and downloads its backup. The booth fetches the voter list from IPFS,
   rebuilds the tree, checks the voter's own commitment is present, derives the authentication
   path, downloads the proving files and checks their pinned hashes, generates the proof in a Web
   Worker so the UI stays alive, hands the ballot to the relayer, and shows the nullifier, the
@@ -466,8 +458,8 @@ Three surfaces, one codebase:
   it, for parameters B2 and C2, and offers the results as CSV.
 
 Proving time and tree rebuild time are measured in `bench/results/timings-*.csv`. On one ARM64
-core, in Node.js on one thread, proving took about 0.6 s at a roll of 2 and 1.5 s at 65,536,
-growing only with the tree's depth, while rebuilding the tree grew with the roll: about 2 s at
+core, in Node.js on one thread, proving took about 0.6 s at a list of 2 and 1.5 s at 65,536,
+growing only with the tree's depth, while rebuilding the tree grew with the list: about 2 s at
 8,192 voters and 16 s at 65,536. C2 is therefore where the design struggles: on that core, past a
 few thousand voters, rebuilding the list costs the booth more than proving does. B2 ran the same
 code in the browser with `/bench`. An Android phone, a Nothing Phone (3a), took about twice as
@@ -479,10 +471,10 @@ rebuild the list at 65,536. In the browser, proving stayed the larger cost at ev
 | Network | Role | Why |
 |---|---|---|
 | **Ethereum Sepolia** | Deployment and live demo | The Ethereum Foundation's recommended testnet for application and contract development; deepest faucet and tooling support. It runs Glamsterdam ahead of mainnet, so its gas differs (below) |
-| **Local Foundry node (Anvil)** | Development, gas parameters, throughput, reorg test | Gas is deterministic, so a local sweep over roll sizes is exact, instant and free; throughput runs without network noise, and the reorg test needs a manipulable chain |
+| **Local Foundry node (Anvil)** | Development, gas parameters, throughput, reorg test | Gas is deterministic, so a local sweep over list sizes is exact, instant and free; throughput runs without network noise, and the reorg test needs a manipulable chain |
 
 Gas parameters (A1, C1) are measured locally, because gas is deterministic given the same
-bytecode and calldata and a sweep over roll sizes from 2 to 65,536 would
+bytecode and calldata and a sweep over list sizes from 2 to 65,536 would
 otherwise drain testnet faucets. Only end-to-end latency and the live demonstration need
 Sepolia itself. One qualification: since 6 October 2026 Sepolia runs Glamsterdam, whose EIP-8037
 charges far more for new state than mainnet's current rules, which is what Foundry's local EVM
@@ -490,6 +482,6 @@ implements. A1 is therefore reported twice, under mainnet's rules from the local
 under Glamsterdam's from transactions on Sepolia, and the Sepolia deploy takes its gas limits from
 the node rather than from a local simulation. Cost is graded as gas (A1) only. A fiat cost per vote is not a parameter,
 because converting gas to money needs a gas price and an exchange rate the project does not
-control; where the report quotes a rupee figure it is a stated illustration, not a target.
+control.
 
 See [tech-stack.md](tech-stack.md) for the testbed reasoning in full.

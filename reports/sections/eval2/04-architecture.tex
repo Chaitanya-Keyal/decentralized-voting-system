@@ -41,7 +41,7 @@ pass through any of them.
         expiry, and requires its hosted-domain claim to be the institute's
         domain. The token must also carry a nonce that names this election and
         this commitment, and be at most ten minutes old, so a token that leaked
-        could not register another key under the voter's address. The registrar stores the address against the identity's
+        could not register another key under the voter's email address. The registrar stores the email address against the identity's
         commitment, which is all it ever receives, and returns a receipt
         signed with EIP-712~\cite{eip712} over that commitment and this
         election. In a wallet election the voter's wallet signs a message
@@ -122,9 +122,7 @@ the served copy just as they would trust a web wallet.
 Table~\ref{tab:deployment} lists the deployed contracts. All five are on
 Ethereum Sepolia (chain ID 11155111) and were created in blocks 12,157,500 to
 12,157,504. Their addresses are recorded in
-\texttt{contracts/deployments/11155111.json}, which also names the two factories
-of an earlier deployment, whose elections the site still reads. Each contract
-was compiled with Solidity 0.8.28 with the optimizer at 200 runs for the Cancun
+\texttt{contracts/deployments/11155111.json}. Each contract was compiled with Solidity 0.8.28 with the optimizer at 200 runs for the Cancun
 EVM, and Sourcify~\cite{sourcify} reports an exact match for every one, for
 both creation and runtime bytecode. Anyone can therefore read the source of
 what is deployed, compile it and get the same bytes. Each address in the table
@@ -168,10 +166,7 @@ reports the effect on ordinary election steps.
 \subsection{Divergences from the proposed design}\label{sec:divergences}
 
 Section~\ref{sec:req-changes} records the changes that touched the
-requirements: approval voting, both tiers becoming user-facing, the counting
-rule compiled into the election contract, the relayer as a separate process,
-registrations that never move, and dropping server-side proving.
-Table~\ref{tab:divergences} lists the changes to the architecture itself.
+requirements. Table~\ref{tab:divergences} lists the changes to the architecture itself.
 
 \begin{longtable}{@{}>{\RaggedRight\arraybackslash\small}p{2.4cm}>{\RaggedRight\arraybackslash\small}p{3.5cm}>{\RaggedRight\arraybackslash\small}p{4.8cm}>{\RaggedRight\arraybackslash\small}p{6.4cm}@{}}
   \caption{Where the built architecture differs from Evaluation~1, and why.}\label{tab:divergences}\\
@@ -207,9 +202,7 @@ Table~\ref{tab:divergences} lists the changes to the architecture itself.
   \addlinespace[3pt]
   Cancelling & Authority only, before voting opens & Also possible when the list never appeared, or the voting window passed without voting opening. The schedule can change only until registration is due, and the candidates until voting is due & An election whose registrar never published would otherwise be stuck for good. The limits go by the clock because a phase is open from its time even if nobody has recorded that on-chain \\
   \addlinespace[3pt]
-  Keeping the key & A backup file & The backup file, plus a QR code or link that carries the key after the \texttt{\#} in the address, which browsers never send to a server. The booth takes it only after the voter confirms, and never in place of a key it already holds & Voters often register on one device and vote on another, as the simulated walkthrough showed (Section~6), and need the key there. The confirmation and the no-replace rule stop someone else's link from planting their key \\
-  \addlinespace[3pt]
-  Deployment & Not specified & Gas limits taken from the network, not from a local simulation & Glamsterdam's state pricing is not modelled by the local toolchain, so limits from a local simulation would be too low (Section~\ref{sec:deployment}) \\
+  Keeping the key & A backup file & The backup file, plus a QR code or link that carries the key after the \texttt{\#} in the address, which browsers never send to a server. The booth takes it only after the voter confirms, and never in place of a key it already holds & A voter may register on one device and vote on another, and needs the key there. The confirmation and the no-replace rule stop someone else's link from planting their key \\
 \end{longtable}
 
 The central decisions held. The voter list is still only a root on-chain, so

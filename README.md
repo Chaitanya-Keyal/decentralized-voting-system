@@ -10,22 +10,22 @@ without trusting the people who ran the election.
 ## The problem
 
 Conventional e-voting asks you to trust a single operator with four things at once:
-the voter roll, the ballot box, the counting, and the audit log. That operator can
+the voter list, the ballot box, the counting, and the audit log. That operator can
 silently add voters, drop ballots, miscount, or rewrite history, and a voter has no
 way to detect it. Paper ballots trade this for a different problem: slow, expensive,
 and unverifiable by the individual voter once the ballot enters the box.
 
 DVote splits those four responsibilities apart, so that no single party holds all of them:
 
-| Trust assumption in a centralized system | How DVote removes it |
+| Trust assumption in a centralized system | What DVote does about it |
 |---|---|
-| "The roll is correct" | Voter roll is committed as a Merkle root on-chain before voting opens; it cannot be changed afterwards |
+| "The voter list is correct" | The voter list is committed as a Merkle root on-chain before voting opens; it cannot be changed afterwards |
 | "No one voted twice" | Each anonymous ballot carries a ZK **nullifier**; the contract rejects duplicates without learning who voted |
 | "My ballot was counted" | Every ballot is an on-chain transaction the voter can point to |
 | "The count is honest" | Tallies are incremented by contract code, not by an operator |
 | "The log wasn't edited" | The log *is* the chain |
 
-The registrar is still trusted with who is on the roll; [docs/architecture.md](docs/architecture.md),
+The registrar is still trusted with who is on the voter list; [docs/architecture.md](docs/architecture.md),
 section 2, says what that leaves open.
 
 ## What it does
@@ -62,5 +62,3 @@ Ethereum Sepolia and verified on Sourcify; their addresses are in
 - [docs/roadmap.md](docs/roadmap.md): what was built, milestone by milestone
 - [reports/eval2.pdf](reports/eval2.pdf) and [reports/eval2-slides.pptx](reports/eval2-slides.pptx):
   the Evaluation 2 report and slides; [docs/demo.md](docs/demo.md): the demo walkthrough
-- [Issue #2](https://github.com/Chaitanya-Keyal/decentralized-voting-system/issues/2): the
-  checklist of everything left, kept up to date

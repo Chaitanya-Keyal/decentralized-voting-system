@@ -1,7 +1,6 @@
 # Technology Stack and Justification
 
-The assignment is graded partly on *justifying design decisions*, so every choice below
-carries its reasoning and the alternative it beat.
+Each choice below gives its reason and the alternative considered.
 
 ## Smart contract layer
 
@@ -11,7 +10,7 @@ carries its reasoning and the alternative it beat.
 | **Foundry** (forge/cast/anvil) | Hardhat 3, Truffle | Tests are written *in Solidity*, so there is no context-switching, and the course is about Solidity. Foundry's gas snapshot cheatcodes record the gas of each step in a test (`contracts/snapshots/`), and gas is one of our graded evaluation parameters (A1). Built-in fuzzing gives us adversarial ballot tests cheaply. Single toolchain, one language. |
 | **OpenZeppelin Contracts 5.x** | Hand-rolled | Audited `AccessControl`, `MerkleProof`, `Clones`. A security-focused project should not write its own access control. |
 | **EIP-1167 minimal proxies** | Deploy a fresh `Election` each time | Each election is a tiny clone that forwards to one shared implementation, so creating an election costs a small fraction of a full deployment; A1 measures the actual figure. The implementation cannot be upgraded, so the rules cannot change mid-vote. |
-| **Semaphore v4** | Custom circom circuits, MACI | Audited, maintained, has the exact primitive we need (anonymous group membership + nullifier). Writing our own circuits would consume the entire project budget. We use its verifier and nullifier scheme but **not** its on-chain group management; the tree is built off-chain so registration stays O(1) in gas. Groth16 needs a circuit-specific trusted setup, so the eligibility guarantee rests on one: we take the published phase-two ceremony artifacts for the Semaphore circuits rather than running a ceremony of our own, and pin their SHA-256 hashes, checked against the `@zk-kit/semaphore-artifacts` npm package and the published copies; the browser refuses a file that does not match. If every contributor to that ceremony colluded, forged membership proofs would verify, which is why the contract also caps accepted ballots at the declared roll size. MACI adds coercion resistance but needs a coordinator and far more infrastructure than the schedule allows. |
+| **Semaphore v4** | Custom circom circuits, MACI | Audited, maintained, has the exact primitive we need (anonymous group membership + nullifier). Writing our own circuits would consume the entire project budget. We use its verifier and nullifier scheme but **not** its on-chain group management; the tree is built off-chain so registration stays O(1) in gas. Groth16 needs a circuit-specific trusted setup, so the eligibility guarantee rests on one: we take the published phase-two ceremony artifacts for the Semaphore circuits rather than running a ceremony of our own, and pin their SHA-256 hashes, checked against the `@zk-kit/semaphore-artifacts` npm package and the published copies; the browser refuses a file that does not match. If every contributor to that ceremony colluded, forged membership proofs would verify, which is why the contract also caps accepted ballots at the declared voter count. MACI adds coercion resistance but needs a coordinator and far more infrastructure than the schedule allows. |
 
 > **Note on Hardhat:** Hardhat 3's Rust rewrite closed most of the speed gap and it wins
 > when contracts are tightly coupled to a TypeScript codebase. We still chose Foundry
@@ -31,7 +30,7 @@ dearer. Gas measured on Sepolia is therefore what a future mainnet would charge,
 we report it beside the local figures rather than in place of them.
 
 **Local: a Foundry node (Anvil).** Development, and the gas parameters. Gas is
-deterministic given the same bytecode and calldata, so a local sweep over roll sizes from
+deterministic given the same bytecode and calldata, so a local sweep over list sizes from
 2 to 65,536 (C1) is exact, instant and free, where the same run on a testnet
 would drain faucets. The throughput and ceiling runs go here too, so network noise is not
 mistaken for a system property, and the reorg test needs a chain the harness can
@@ -40,8 +39,7 @@ manipulate. Only end-to-end latency and the live demonstration need Sepolia itse
 Cost is graded as gas (A1), which depends only on the bytecode, the calldata and the chain's gas
 rules. A fiat cost per vote is not a
 parameter, because converting gas to money needs a gas price and an exchange rate the
-project does not control; Ethereum mainnet gas is not cheap, so any rupee figure the report
-quotes is a stated illustration rather than a target.
+project does not control.
 
 ## Frontend
 
@@ -93,7 +91,7 @@ quotes is a stated illustration rather than a target.
 
 ## Deliberately out of scope
 
-Recording these keeps the report honest and gives us a real "future work" section.
+Section 7 of the report discusses the main ones as future work.
 
 - **MACI-style coercion resistance**: needs a coordinator, key rotation, and a much
   larger circuit budget.
@@ -102,12 +100,12 @@ Recording these keeps the report honest and gives us a real "future work" sectio
   its own.
 - **Ranked-choice / quadratic voting**: `TallyLib` is structured so these can be added;
   we ship plurality and approval voting.
-- **Real government-grade identity**: we use the institute email address, proved by Google
-  sign-in for the institute's domain. Production would need
-  Aadhaar/DigiLocker-class verification, which we discuss but do not build.
-- **Splitting the registrar**: one party controls enrolment, and committing the roll size
+- **Production identity**: we use the institute email address, proved by Google sign-in for the
+  institute's domain. A production deployment would connect to the institute's own single
+  sign-on instead (report Section 7).
+- **Splitting the registrar**: one party controls registration, and committing the voter count
   before any ballot exists bounds that power rather than checking it. The genuine remedies
-  are distributing the registrar across parties that each hold a share of the enrolment, or
-  requiring candidate-appointed observers to co-sign the leaf set before the root freezes.
-  Neither is built here; see the roll correctness non-guarantee in
+  are distributing the registrar across parties that each hold a share of the registrations, or
+  requiring candidate-appointed observers to co-sign the voter list before the root freezes.
+  Neither is built here; see the voter list correctness non-guarantee in
   [architecture.md](architecture.md).

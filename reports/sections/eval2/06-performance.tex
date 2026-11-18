@@ -47,9 +47,7 @@ it comes from. The scripts are in \texttt{bench/}, the raw results in
 \texttt{bench/results/}, and the contract commit for all gas figures is the one
 deployed in Section~4. The security parameters D1, D2 and D5 come from the
 contract tests at that commit, D3 from the public data of two test elections
-on Sepolia, and D4 from the local browser test. B1 and D3 used elections made
-by the previous deployment, whose ballot path and public data are the same as
-the current one's. E1 counts the actions in the
+on Sepolia, and D4 from the local browser test. E1 counts the actions in the
 interface as built, and E2 is read off the browser tests.
 
 \subsection{Explanation of Results per evaluation parameters}
@@ -93,8 +91,7 @@ The Sepolia column is one run on the deployment of Section~4, in blocks
 12,157,523 to 12,157,613 at a gas price of 20 to 21~wei
 (\nolinkurl{bench/results/sepolia-gas-202611172302.csv}). It cast one wallet
 ballot, so it has no typical one. Its election had a longer title than the
-local one, so it wrote slightly more state; locally creating an election costs
-595,068 gas, and the Sepolia figure is about five times that.
+local one, so it wrote slightly more state.
 
 Glamsterdam's EIP-8037 charges 1,530 gas for each byte of new state: a new
 storage slot is charged 97,920 gas for its state, on top of the cost of the
@@ -102,7 +99,7 @@ write itself, and deployed code $(120 + \textit{length}) \times 1{,}530$ gas
 instead of 200 per byte. Every ballot creates at least one slot, for its
 nullifier; measured, a typical anonymous ballot rose by 97,196 gas. Creating an
 election writes a clone and its configuration, and costs about five times as
-much. Deploying the contracts rose more still: \texttt{MerkleElection} took
+much as locally. Deploying the contracts rose more still: \texttt{MerkleElection} took
 14.63 million gas on Sepolia against 2.08 million locally.
 
 A fiat cost per vote is deliberately not a parameter: it would measure a gas
@@ -120,26 +117,26 @@ on Sepolia, and the booth confirming the nullifier on-chain.
 
 \begin{itemize}
   \item \emph{One voter at a time, offering the tip a node suggests} (two
-        runs, 16 ballots): median 11.1\,s, fastest
-        9.2\,s, slowest 31.5\,s; 11 of the 16 were counted within 15\,s,
+        runs, 16 ballots): median 10.6\,s, fastest
+        7.2\,s, slowest 55.5\,s; 12 of the 16 were counted within 15\,s,
         about one 12-second slot.
   \item \emph{One voter at a time, with a minimum tip of 0.1\,gwei, the
-        relayer's default} (two runs, 16 ballots): median 10.7\,s, fastest 8.2\,s,
-        slowest 18.4\,s, which with 16 samples is also the nearest-rank 95th
+        relayer's default} (two runs, 16 ballots): median 9.3\,s, fastest 5.2\,s,
+        slowest 20.0\,s, which with 16 samples is also the nearest-rank 95th
         percentile; 14 of the 16 were counted within 15\,s.
   \item \emph{Ten voters at once}: all ten ballots
-        landed in one block, counted 32.6 to 35.6\,s after the click (median
-        33.1\,s). The ten browsers ran on one four-core machine and proved
+        landed in one block, counted 26.9 to 32.3\,s after the click (median
+        27.5\,s). The ten browsers ran on one four-core machine and proved
         their ballots at the same moment, so proving competed for the CPU;
         B2 below gives the time on a phone.
 \end{itemize}
 
 The test also recorded when the block holding each ballot was produced, found
 through the ballot's nullifier. Once a ballot was in
-a block, the booth reported it counted 1.4 to 4.4\,s later, so the slow ballots
+a block, the booth reported it counted 1.1 to 7.7\,s later, so the slow ballots
 were slow to be included, not slow to be noticed. Sepolia's nodes suggested a
-tip of 2~wei per gas, and ballots offering that waited an extra block or two
-more often; with a minimum of 0.1\,gwei, at a cost of about 0.00004 Sepolia
+tip of 2~wei per gas, and ballots offering that missed the next block more
+often, one of them by about four blocks; with a minimum of 0.1\,gwei, at a cost of about 0.00004 Sepolia
 ETH a ballot, no ballot waited more than one extra block. With 16 ballots on
 each side this is suggestive rather than settled, and the minimum is the
 relayer's default (\texttt{RELAYER\_MIN\_PRIORITY\_FEE\_WEI}).
@@ -183,8 +180,7 @@ proving code is loaded.
 
 The phone takes about twice as long as the laptop at every size. A voter on
 a list of up to 4,096 waits under two and a half seconds for both steps
-together (1.4\,s at 1,024), well inside the 10.7\,s median that B1 measured
-for the chain to count a ballot. At 65,536 voters the phone needs 9.1\,s to
+together (1.4\,s at 1,024), well inside one 12-second slot. At 65,536 voters the phone needs 9.1\,s to
 prove and 7.7\,s to rebuild the list, about 17\,s in all; the booth shows its
 progress while it works. Its runs agree closely: from 1,024 voters up, every
 time is within 6\% of the median; below that, the first proof is slower while
@@ -357,13 +353,13 @@ nullifier to a commitment needs the identity's secret, which never leaves the
 voter's device. Against the operator, secrecy holds under the condition in
 Section~\ref{sec:trust}. The anonymity set is the published list, which in a
 small election is small. An attempt over all the public data of two test
-elections on Sepolia, with six and ten voters (\texttt{bench/src/d3.ts}),
+elections on Sepolia, with eight and ten voters (\texttt{bench/src/d3.ts}),
 found nothing that narrows a ballot below the voters on its list. One sender,
 the relayer, sent every ballot; every ballot's calldata is the same size; gas
 differs only by which storage writes come first and by the proof's zero bytes;
 the list is sorted by value, so it does not reveal who registered when; and
 each proof verifies against the list's root and names no member. Tallies of
-three to three and five to five forced no one's choice, though a unanimous
+four to four and five to five forced no one's choice, though a unanimous
 result would reveal every choice by itself.
 
 \paragraph{D4, verifiability: holds.}
@@ -372,9 +368,8 @@ events and the list on IPFS, re-verifies every tier~3 proof, and compares
 totals and winners with the contract's. In the local browser test it runs
 with every request to our API, which also serves the indexer's data, and to
 the relayer blocked, and still passes; the list must still be reachable on
-IPFS. Each published list is also copied to Pinata, and on the live demo an
-election whose list our own node never held passes its audit with the list
-read from Pinata's gateway. Both local browser tests and the Sepolia test run
+IPFS. Each published list is also copied to Pinata, and the audit passes with
+the list read from Pinata's gateway when our own node cannot serve it. Both local browser tests and the Sepolia test run
 it to completion. A
 voter confirms their own ballot through the booth, which checks on-chain that
 the ballot's nullifier is recorded. The election page's table of ballots,
@@ -419,7 +414,7 @@ Table~\ref{tab:e3} gives the results.
 
 \begin{table}[htbp]
   \centering
-  \caption{Simulated usability test (E3): ten participants, in the final walkthrough.}
+  \caption{Simulated usability test (E3) with ten participants.}
   \label{tab:e3}
   \small
   \begin{tabular}{@{}R{2.6cm}R{2.4cm}R{2.4cm}R{2.4cm}R{2.6cm}@{}}
@@ -434,12 +429,12 @@ Table~\ref{tab:e3} gives the results.
 Every participant registered unaided and was sure their ballot counted, having
 found it marked ``yours'' in the public list. Two needed help to bring the key
 to another browser: the student whose link opened inside WhatsApp, and the one
-who moved from the library to a phone. The walkthrough shaped the interface:
-registration is three numbered steps that say it is free and needs no wallet,
-the page asks where the voter will vote and offers a QR code or a private link
-to carry the key to another device, the booth shows the ballot ID in the same
-form as the public list, and a voter in an app's browser is told to open the
-page in the browser they registered in. No participant was fully convinced
+who moved from the library to a phone. In the interface, registration is three
+numbered steps that say it is free and needs no wallet; the page asks where the
+voter will vote and offers a QR code or a private link to carry the key to
+another device; the booth shows the ballot ID in the same form as the public
+list; and a voter in an app's browser is told to open the page in the browser
+they registered in. No participant was fully convinced
 that their ballot was secret. All ten said ``partly'', most because the example
 election has three voters and the page says plainly that a small list hides
 each ballot less well; that is a fair reading, and it is the anonymity set
@@ -464,7 +459,7 @@ proof, is the slow step, and it is the price of not taking the registrar's word
 for the list.
 
 Latency on Sepolia is mostly the chain's own. A typical ballot was counted
-within one slot of the click, and the booth noticed it within four and a half seconds of
+within one slot of the click, and the booth noticed it within eight seconds of
 its block; the slower ballots waited for a later block. Under load, the limit
 is the relayer's own proof checking, far below the chain's capacity: a room of
 voters casting at once is counted in the next block.

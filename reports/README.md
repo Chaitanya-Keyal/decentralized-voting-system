@@ -11,8 +11,8 @@ make watch2   # rebuild on save
 ```
 
 Evaluation 1 has been submitted. The exact files we handed in are kept in
-`submitted/` as a read-only record and are never rebuilt: `make` no longer has
-an `eval1` target, and the slide generator writes to `slides/build/` (ignored
+`submitted/` as a read-only record and are never rebuilt: `make` has no
+`eval1` target, and the slide generator writes to `slides/build/` (ignored
 by git) and refuses to write into `submitted/`.
 
 The Evaluation 2 slides are generated, not drawn: from `reports/`, with

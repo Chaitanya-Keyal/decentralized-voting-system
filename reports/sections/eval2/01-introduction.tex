@@ -62,24 +62,22 @@ Under Ethereum mainnet's current rules, measured locally, a tier 2 ballot costs
 80,221 gas and a tier 3 ballot 296,670 gas: anonymity costs about 216,000 gas
 per ballot. The tier 3 ballot's cost does not depend on the size of the voter
 list: from 4 to 65,536 voters it stays between 296,634 and 296,670 gas, and
-publishing the list costs the same at every size. Sepolia, however, now runs
-the Glamsterdam upgrade~\cite{glamsterdam}, whose EIP-8037~\cite{eip8037}
-charges 1,530 gas for every byte of new state. Creating state there costs
-several times more: deploying the tier 2 election contract took 14.63 million
-gas against 2.08 million under mainnet's rules, and creating an election about
-2.97 million against about 0.6 million. Section~6 therefore reports gas under
-both rule sets.
+publishing the list costs the same at every size. Sepolia runs the Glamsterdam
+upgrade~\cite{glamsterdam}, whose EIP-8037~\cite{eip8037} prices new state far
+higher: creating an election there took about 2.97 million gas against about
+0.6 million under mainnet's rules, so Section~6 reports gas under both rule
+sets.
 
 The work that does grow with the list moves to the voter's device. Proving a
 ballot takes 0.57\,s at two voters and 1.52\,s at 65,536 on one ARM64 CPU
-core, while rebuilding the list to check it grows to 15.8\,s at 65,536. On
+core, while rebuilding the list to check it grows to 15.8\,s at 65,536. On an
+Android phone a ballot is proved in under two seconds for any list up to 4,096
+voters, and in 9.1\,s at 65,536. On
 Sepolia, with voters casting one at a time, a ballot was counted a median of
-10.7\,s after the voter pressed Cast (16 ballots; slowest 18.4\,s). Under
+9.3\,s after the voter pressed Cast (16 ballots; slowest 20.0\,s). Under
 load, 64 voters casting at the same moment were all counted in the next block.
 In a simulated usability test with ten participants played by language models,
 all ten registered and voted, two of them with help.
-On an Android phone a ballot is proved in under two seconds for any list up
-to 4,096 voters, and in 9.1\,s at 65,536.
 
 The contracts pass all 90 Foundry tests, which cover every line and branch, and Slither reports no findings once its timestamp
 detector, which flags the deliberate time-gated phases, is set aside. On a
@@ -103,8 +101,8 @@ privacy from the relayer, are set out together in Section~\ref{sec:trust}.
 
 The rest of this report is organised as follows. Section~2 revisits the
 problem and existing systems in the light of what was built. Section~3 restates
-the requirements and the trust model and records what changed during
-implementation. Section~4 describes the deployed architecture, Section~5 the
+the requirements and the trust model, and where the built system differs from
+Evaluation~1. Section~4 describes the deployed architecture, Section~5 the
 contracts, and Section~6 the measurements against the evaluation parameters of
 the Evaluation~1 report. Section~7 compares the plan as executed with the plan
 as proposed, and Section~8 concludes.

@@ -99,8 +99,8 @@ no coordinator or tallying authority. The price is that it trusts a single
 registrar for the voter list, and it does not resist coercion.
 
 The Voatz finding applies to \projectname{} as much as to any other system: the
-chain protects a ballot only once it is on the chain. Building the system made
-the parts before that point concrete. They are the booth that makes the proof,
+chain protects a ballot only once it is on the chain. In \projectname{} the parts
+before that point are the booth that makes the proof,
 the proving files it downloads, the relayer that submits the ballot, and the
 registrar that decides who is on the list. Sections~\ref{sec:trust}
 and~\ref{sec:architecture} describe how each is constrained: the proving files
@@ -170,8 +170,6 @@ public data. The cost claim is about each operation: a tier 3 ballot should cost
 the same gas whether the voter list is small or large, even though the total
 cost of an election still grows with the number of ballots cast. Section~6
 tests this claim (parameter C1). One qualification applies: the gas an
-operation costs is set by the network's rules as well as by the design. Sepolia's adoption of
-EIP-8037~\cite{eip8037}, which prices every new byte of state at 1,530 gas,
-multiplies the cost of creating elections and of each ballot's new storage
-without changing the code, so the same contracts have two gas profiles, one
-under mainnet's current rules and one under Glamsterdam's~\cite{glamsterdam}.
+operation costs is set by the network's rules as well as by the design.
+Sepolia's Glamsterdam rules price new state far higher than mainnet's, so the
+same contracts have two gas profiles, and Section~6 reports both.

@@ -171,9 +171,10 @@ dislikes how the vote is going gains nothing by refusing to act. What the
 authority keeps is the ability to cancel, and only while that cannot stop a
 vote already under way. An election whose registrar never published a list,
 or whose voting window passed without anyone opening voting, can still be
-cancelled, so it does not stay open for good. In practice, the registrar opens
-registration itself if nobody has when it comes to publish, and the election
-page offers the next step as a button to anyone with a wallet.
+cancelled, so it does not stay open for good. In practice, if registration is
+not yet open on-chain when the registrar publishes, the registrar opens it
+first, and the election page offers the next step as a button to anyone with a
+wallet.
 
 \subsection{Anonymous eligibility and nullifiers}\label{sec:zk}
 
@@ -252,8 +253,8 @@ gas snapshot committed in \texttt{contracts/snapshots/} or the sweep in
         (Table~\ref{tab:deployment}).
   \item \emph{Descriptions and manifestos on IPFS.} The chain holds only their
         IPFS addresses, with the title and the candidates' names, which a reader
-        needs to make sense of the tally. This is a choice by construction, and
-        Section~6 does not measure it separately.
+        needs to make sense of the tally. Section~6 does not measure this
+        separately.
   \item \emph{A constant-time tree depth.} The depth comes from one storage
         read and \texttt{Math.log2}, rather than a loop over the levels, which
         would add about 210 gas per level. A tier 3 ballot costs between
@@ -267,12 +268,9 @@ gas snapshot committed in \texttt{contracts/snapshots/} or the sweep in
         \texttt{castVote}. Forwarding it with a signature from a fresh key
         cost 127,194 gas more per ballot on Sepolia
         (Section~\ref{sec:req-changes}).
-  \item \emph{No stored list of elections.} The factory's events already list
-        every election, so creating one writes only its \texttt{isElection}
-        flag.
 \end{itemize}
 
-Not everything was trimmed. Titles and candidate names are stored as strings so
+Some costs are kept on purpose. Titles and candidate names are stored as strings so
 that the contract alone explains its tally, and roles go through
 \texttt{AccessControl} rather than fixed addresses, because a clone cannot have
 its own immutable values. The first ballot also costs more than later ones
@@ -351,7 +349,7 @@ Static analysis runs on every pull request and every push to the main
 branch. Continuous integration checks formatting,
 runs \texttt{forge lint} with warnings treated as errors, and runs
 Slither~\cite{slither} 0.11.6, which fails the build on any finding. Slither
-analyses our seven files only: OpenZeppelin and Semaphore's verifier are
+analyses our six files only: OpenZeppelin and Semaphore's verifier are
 excluded as dependencies. On the deployed sources it reports no findings, with
 these dispositions for what is suppressed:
 
@@ -365,9 +363,6 @@ these dispositions for what is suppressed:
         slot, which delays the next block by one slot. Against windows of
         minutes to days, that cannot move a phase meaningfully. We judge every
         instance a false positive.
-  \item \emph{Dead code} (\texttt{dead-code}, informational; suppressed on one
-        line). \texttt{SemaphoreElection.\_msgData} is never called, but the
-        compiler requires the override because two of its bases define it.
   \item \emph{Lints.} \texttt{forge lint}'s block-timestamp lint is excluded
         for the same reason as Slither's detector. Four lines suppress its
         reentrancy-events lint, each with a comment saying why it does not

@@ -110,6 +110,11 @@ requirement.
   \toprule
   \textbf{ID} & \textbf{The system shall} & \textbf{As built} \\
   \midrule
+  \endfirsthead
+  \caption[]{Functional requirements from Evaluation~1, and how each is met (continued).}\\
+  \toprule
+  \textbf{ID} & \textbf{The system shall} & \textbf{As built} \\
+  \midrule
   \endhead
   \bottomrule
   \endlastfoot
@@ -138,6 +143,11 @@ Section~6 reports the measured values.
 
 \begin{longtable}{@{}>{\RaggedRight\arraybackslash\small}p{1.5cm}>{\RaggedRight\arraybackslash\small}p{10.4cm}>{\RaggedRight\arraybackslash\small}p{5.4cm}@{}}
   \caption{Non-functional requirements and the parameter that tests each one.}\label{tab:nfr}\\
+  \toprule
+  \textbf{ID} & \textbf{Requirement} & \textbf{Tested by} \\
+  \midrule
+  \endfirsthead
+  \caption[]{Non-functional requirements and the parameter that tests each one (continued).}\\
   \toprule
   \textbf{ID} & \textbf{Requirement} & \textbf{Tested by} \\
   \midrule
@@ -241,12 +251,10 @@ the reason given.
         times by device: under a second on a laptop and under two seconds on an
         Android phone, for any list up to 4,096 voters.
 
-  \item \textbf{Deployment follows the network's gas rules.} Sepolia
-        adopted Glamsterdam on 6 October 2026~\cite{glamsterdam}, after
-        Evaluation~1. Its EIP-8037~\cite{eip8037} prices new state at 1,530 gas
-        per byte, which the local toolchain does not model, so deployment
-        takes its gas limits from the network rather than from a local
-        simulation, and NFR6 reports both rule sets.
+  \item \textbf{Gas is reported under two rule sets.} Sepolia adopted
+        Glamsterdam on 6 October 2026~\cite{glamsterdam}, after Evaluation~1.
+        It prices new state far higher than mainnet's current rules
+        (Section~6), so NFR6 reports gas under both.
 \end{itemize}
 
 The usability test behind NFR10, parameter E3, was run as a simulation with ten

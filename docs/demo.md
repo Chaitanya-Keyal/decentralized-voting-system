@@ -55,7 +55,6 @@ a visible pointer for each step. Its voters sign in through the browser tests' s
 (`e2e/google.ts`), which shows an address box where Google's button would be.
 `E2E_VIDEO=1 E2E_VIDEO_OUT=<file> pnpm e2e --grep "backup video"` records it again after a change;
 the comment at the top of `e2e/video.spec.ts` says how the narration is laid over it.
-A recording of a live rehearsal on Sepolia is a better backup still, if there is time.
 
 ## Setting up the live election
 
@@ -126,8 +125,10 @@ difference between the tiers: there, every ballot appears beside the wallet that
   the system trusts the registrar with. Publishing the voter count does not reveal padding,
   because registration is voluntary and nobody else knows the true number. What it does is fix
   that number in public before any ballot is cast, after which the contract refuses extra
-  ballots. See roll correctness in [architecture.md](architecture.md), section 2.
-- *Why does a ballot cost so much more on Sepolia?* Sepolia runs Glamsterdam, whose EIP-8037
-  prices new state several times higher than mainnet. Section 6 of the report gives both.
+  ballots. See voter list correctness in [architecture.md](architecture.md), section 2.
+- *Why does creating an election cost so much more on Sepolia?* Sepolia runs Glamsterdam, whose
+  EIP-8037 prices new state several times higher than mainnet. Creating an election costs about
+  five times as much there, and a ballot, which writes one new storage slot, about a third more.
+  Section 6 of the report gives both.
 - *What if a voter loses their key?* They cannot vote, and nobody can vote for them. The key
   is offered as a backup file and as a QR code at registration for this reason.

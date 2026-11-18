@@ -110,19 +110,15 @@ const c2series = (phase) =>
 const prove = c2series("prove");
 const rebuild = c2series("tree_rebuild");
 
-// B1, end to end on Sepolia. From TIP_FLOOR on (UTC, as in the file names), the relayer offers at
-// least a 0.1 gwei tip, as it does by default; the runs before used the tip a node suggests.
-const TIP_FLOOR = "202611170340";
-const b1 = (from, to, burst) =>
-  results(burst ? /^b1-sepolia-burst-\d+\.csv$/ : /^b1-sepolia-\d+\.csv$/)
-    .filter((file) => {
-      const stamp = path.basename(file).match(/(\d{12})/)[1];
-      return stamp >= from && stamp < to;
-    })
-    .flatMap((file) => readCsv(file).map((r) => Number(r.click_to_counted_ms)));
-const b1NodeTip = b1("0", TIP_FLOOR, false);
-const b1Now = b1(TIP_FLOOR, "9", false);
-const b1Burst = b1("0", "9", true);
+// B1, end to end on Sepolia. These runs had the relayer offer the tip a node suggests
+// (RELAYER_MIN_PRIORITY_FEE_WEI=0); every other run used its default minimum of 0.1 gwei.
+const NODE_TIP_RUNS = ["b1-sepolia-202611180024.csv", "b1-sepolia-202611180218.csv"];
+const b1 = (files) =>
+  files.flatMap((file) => readCsv(file).map((r) => Number(r.click_to_counted_ms)));
+const b1Runs = results(/^b1-sepolia-\d+\.csv$/);
+const b1NodeTip = b1(b1Runs.filter((file) => NODE_TIP_RUNS.includes(path.basename(file))));
+const b1Now = b1(b1Runs.filter((file) => !NODE_TIP_RUNS.includes(path.basename(file))));
+const b1Burst = b1(results(/^b1-sepolia-burst-\d+\.csv$/));
 
 // B2: the booth's code in a laptop's browser, from the /bench page.
 const laptop = fs.existsSync(path.join(RESULTS, "summary-laptop-core-ultra-7-256v-chromium.csv"))
@@ -318,16 +314,16 @@ async function main() {
   {
     const s = pres.addSlide();
     title(s, "One operator runs the whole election", "Problem");
-    text(s, "In most institutional elections one database is the voter roll, the ballot box, the count and the log. Nobody outside can check any of them, so voters have to trust whoever runs it.", {
+    text(s, "In most institutional elections one database is the voter list, the ballot box, the count and the log. Nobody outside can check any of them, so voters have to trust whoever runs it.", {
       x: 0.5, y: 1.15, w: 3.7, h: 1.5, fontSize: 15,
     });
     card(s, 0.5, 2.85, 3.7, 1.85, C.tealTint);
     text(s, [
       { text: "What DVote changes", options: { bold: true, color: C.teal, breakLine: true } },
-      { text: "The roll's fingerprint, every ballot and the count are on a public chain. Anyone can recount from the chain alone, and an anonymous ballot proves it is eligible without saying whose it is." },
+      { text: "The voter list's root, every ballot and the count are on a public chain. Anyone can recount from the chain alone, and an anonymous ballot proves it is eligible without saying whose it is." },
     ], { x: 0.7, y: 3.0, w: 3.3, h: 1.6, fontSize: 13, paraSpaceAfter: 4 });
     const items = [
-      [I.list, "Voter roll", "Fixed in public before voting; it cannot change after"],
+      [I.list, "Voter list", "Fixed in public before voting; it cannot change after"],
       [I.box, "Ballot box", "Each ballot is a transaction; a second one from the same voter is refused"],
       [I.calc, "Count", "Kept by the contract as ballots arrive"],
       [I.search, "Audit", "Anyone recounts in the browser, from the chain and IPFS"],
@@ -365,7 +361,7 @@ async function main() {
           "Voters register a key made in their browser",
           "A zero-knowledge proof shows the key is on the list, not which one",
           "A relayer sends the ballot and pays; no wallet needed",
-          "Nobody, the registrar included, can tell whose ballot is whose",
+          "Nothing on-chain links ballot to voter; the registrar knows only who registered",
         ],
         gas: `${n0(Number(snap3.castVote))} gas a ballot`,
       },
@@ -503,9 +499,9 @@ async function main() {
     const changes = [
       [I.relay, "No forwarder", "The relayer calls the contract directly. The proof already binds the ballot, and an ERC-2771 forwarder added about a third more gas per ballot on Sepolia."],
       [I.ruler, "Approval voting", "A voter can approve several candidates, as committee seats need. The counting rule is fixed when the election is created."],
-      [I.gas, "Sepolia's Glamsterdam upgrade", "New state costs 1,530 gas a byte there, so deployment takes its gas limits from the network, and gas is reported under both rule sets."],
+      [I.gas, "Sepolia's Glamsterdam upgrade", "New state costs 1,530 gas a byte there, so gas is reported under both rule sets."],
       [I.bolt, "Both tiers offered", "Wallet ballots stay as a choice for open votes: about 3.7 times cheaper per ballot under mainnet's rules, with no proving."],
-      [I.qr, "Voting from another device", "Voters often register on one device and vote on another, so a QR code or a private link carries the key across."],
+      [I.qr, "Voting from another device", "A voter may register on one device and vote on another; a QR code or a private link carries the key across."],
       [I.google, "Google sign-in", "Registration checks the institute account with Google rather than emailing a code. Google confirms the account is the institute's."],
     ];
     changes.forEach(([ic, h, b], i) => {
@@ -517,7 +513,7 @@ async function main() {
       text(s, b, { x: x + 0.82, y: y + 0.48, w: 3.45, h: 0.7, fontSize: 11, color: C.muted });
     });
     pageNo(s, ++page);
-    s.addNotes("Each of these came from a measurement or a test, not a preference. Section 4 of the report lists every divergence from the Evaluation 1 design with its reason.");
+    s.addNotes("Each of these has a stated reason. Sections 3.4 and 4.3 of the report list every change from the Evaluation 1 design.");
   }
 
   // 8. C1 ------------------------------------------------------------------------
@@ -573,7 +569,7 @@ async function main() {
     text(s, "local, mainnet rules", { x: 4.4, y: 1.8, w: 2.0, h: 0.25, fontSize: 10, color: C.muted, align: "right" });
     text(s, "Sepolia, Glamsterdam", { x: 6.8, y: 1.8, w: 2.5, h: 0.25, fontSize: 10, color: C.red, align: "right" });
     pageNo(s, ++page);
-    s.addNotes("Foundry's EVM does not model EIP-8037 yet, so its own gas estimates for deploying contracts on Sepolia are about seven times too low. We deploy with the node's estimates, and report both rule sets.");
+    s.addNotes("Foundry's EVM does not model EIP-8037 yet, so the local figures follow mainnet's current rules. The report gives both rule sets.");
   }
 
   // 10. C2 -----------------------------------------------------------------------
@@ -627,7 +623,7 @@ async function main() {
     if (!burst) missing.push("B1, ten voters at once");
     text(s, [
       { text: burst ? `Ten voters at once: all in one block, median ${s1(burst.median)} (ten browsers proving on one machine).` : "", options: { breakLine: true } },
-      { text: nodeTip ? `The relayer tips at least 0.1 gwei: with the tip a node suggests, slow ballots waited an extra block or two (slowest ${s1(nodeTip.slowest)} of ${nodeTip.n}).` : "" },
+      { text: nodeTip ? `The relayer tips at least 0.1 gwei: with the tip a node suggests, ballots missed the next block more often (slowest ${s1(nodeTip.slowest)} of ${nodeTip.n}).` : "" },
     ], { x: 0.75, y: 3.4, w: 3.9, h: 1.55, fontSize: 11.5, color: C.muted, paraSpaceAfter: 6 });
     card(s, 5.2, 1.1, 4.3, 3.95);
     iconCircle(s, I.users, 5.4, 1.3, 0.5, C.amber);
@@ -688,7 +684,7 @@ async function main() {
       x: 0.5, y: 3.95, w: 4.6, h: 0.7, fontSize: 11.5, color: C.ink,
     });
     card(s, 5.4, 1.15, 4.1, 3.3, C.tealTint);
-    text(s, "What it shaped", { x: 5.6, y: 1.27, w: 3.7, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.teal });
+    text(s, "What the interface does", { x: 5.6, y: 1.27, w: 3.7, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.teal });
     text(s, [
       "Registration in three plain steps: free, no wallet",
       "After voting, the ballot ID, marked \u201cyours\u201d in the public list",
@@ -732,7 +728,7 @@ async function main() {
     title(s, "What DVote does not promise", "Limits");
     const limits = [
       [I.lock, "Coercion and vote selling", "Whoever holds a voter's key can cast that ballot."],
-      [I.list, "An honest roll", "The registrar decides who is eligible; publishing fixes the list, it does not prove it right."],
+      [I.list, "An honest voter list", "The registrar decides who is eligible; publishing fixes the list, it does not prove it right."],
       [I.eye, "The running count", "The tally is public while voting is open."],
       [I.relay, "A neutral relayer", "It sees timing and network addresses, and could drop ballots; any wallet can submit instead."],
     ];
@@ -750,7 +746,7 @@ async function main() {
       { text: "MACI-style re-voting against coercion, encrypted ballots until voting closes, institute single sign-on, several relayers, and pages a voter can verify." },
     ], { x: 0.7, y: 4.2, w: 8.6, h: 0.75, fontSize: 13, valign: "middle" });
     pageNo(s, ++page);
-    s.addNotes("These are stated in Section 3 of the report as non-guarantees. Section 7 says what would address three of them; an honest roll still rests on the registrar.");
+    s.addNotes("These are stated in Section 3 of the report as non-guarantees. Section 7 says what would address three of them; an honest voter list still rests on the registrar.");
   }
 
   // 16. Close ------------------------------------------------------------------

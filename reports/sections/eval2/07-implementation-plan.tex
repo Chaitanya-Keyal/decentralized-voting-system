@@ -32,40 +32,20 @@ core, and in the browser on an Android phone under two seconds up to 4,096
 voters and 9.1\,s at 65,536 (B2). That is fast enough that proving stays on the
 voter's device and the server-side fallback is not needed.
 
-Some items were built differently from the plan:
+Some items were built differently from the plan. The design changes, such as
+the relayer calling \texttt{castVote} itself without a forwarder, documents on
+our own IPFS node with copies on Pinata, and gas reported under both mainnet's
+and Glamsterdam's rules, are set out with their reasons in
+Section~\ref{sec:req-changes} and Table~\ref{tab:divergences}. The proving files
+are also checked differently: the plan was to compare them with hashes
+published in the Semaphore repository, and they are instead pinned by SHA-256
+against the npm package of the same release, whose own integrity hash matched
+the registry. Every file the booth downloads is checked against those pins.
 
-\begin{itemize}
-  \item \textbf{The relayer's path.} The plan had the booth sign each ballot
-        with a fresh key and send it through an ERC-2771~\cite{erc2771}
-        forwarder. The relayer instead calls \texttt{castVote} itself, and
-        there is no forwarder, for the reasons given in
-        Section~\ref{sec:req-changes}.
-  \item \textbf{The proving files.} The plan was to check them against hashes
-        published in the Semaphore repository. They are instead pinned by
-        SHA-256 against the npm package of the same release, whose own
-        integrity hash matched the registry, and every file the booth
-        downloads is checked against those pins.
-  \item \textbf{Deployment.} Sepolia moved to the Glamsterdam upgrade on
-        6~October~\cite{glamsterdam}, after the plan was written. Foundry's
-        local simulation prices state at mainnet's rate, so deployments take
-        their gas limits from the network, and A1 is reported under both rule
-        sets.
-  \item \textbf{Public RPC nodes.} The free Sepolia endpoints sit behind load
-        balancers, and one node can lag the next by a block. The registrar,
-        the audit and the pages each tolerate a lagging node, and the browser
-        reads through a list of fallback endpoints.
-  \item \textbf{Document storage.} The plan named Pinata for IPFS. Documents are
-        on an IPFS node of our own, which the site reads first, and each
-        published voter list is copied to Pinata with its election's
-        documents (Section~4).
-\end{itemize}
-
-Some things were added that the plan did not have. Approval voting, listed as
-optional, is built and fixed per election when it is created. Voters prove
-their address with Google sign-in for the institute's domain rather than an
-emailed code. The booth offers a QR code and a private link that carry the
-voting key to a second device, since voters often register on one device and
-vote on another.
+Approval voting, optional in the plan, is built and fixed per election when it
+is created. Two things were added that the plan did not have: Google sign-in
+for the institute's domain in place of an emailed code, and a QR code or
+private link that carries the voting key to a second device.
 
 \subsection{Contingencies}
 
@@ -83,9 +63,8 @@ planned, and the two fallbacks were never needed:
         one counted ballot per registered voter. A ballot that loses a race, for example to the close
         of voting, still costs gas.
   \item \emph{Not enough Sepolia ETH.} Gas and scaling measurements run on a
-        local node, as planned. Test ETH has been more than enough for
-        everything else: the current deployment of both tiers cost
-        0.00061\,ETH.
+        local node, as planned. Test ETH is not a constraint for the rest:
+        deploying both tiers cost 0.00061\,ETH (Table~\ref{tab:deployment}).
   \item \emph{Proving moves to a server.} Not needed, as above.
   \item \emph{Tier 3 not ready, so tier 2 is demonstrated.} Not needed: tier 3
         runs on Sepolia.

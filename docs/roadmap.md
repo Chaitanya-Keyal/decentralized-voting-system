@@ -5,8 +5,8 @@ and slides are frozen in `reports/submitted/`. Evaluation 2 asks for a live demo
 complete code, and the final report. This roadmap builds everything the Evaluation 1
 report committed to, in three milestones, then measures it.
 
-The system has three tiers. Tier 1 is the conventional approach and is only a point of
-comparison; tiers 2 and 3 are both built, in that order.
+DVote has two kinds of election, tiers 2 and 3, built in that order. Tier 1, the conventional
+approach, is only a point of comparison and is not built.
 
 | Tier | Eligibility | Ballot privacy | Voter pays gas |
 |---|---|---|---|
@@ -49,8 +49,8 @@ secret to keep yet; the secret, and the backup copy of it, arrive with tier 3.
   and only before voting opens; anyone can open registration, open and close voting, and
   finalize
 - Candidates can change only before voting opens (FR1)
-- `ElectionFactory` deploying each election as an EIP-1167 clone and keeping a list of all
-  elections for auditors
+- `ElectionFactory` deploying each election as an EIP-1167 clone and recording it in
+  `isElection`; its `ElectionCreated` events list every election for auditors
 - `VoterRegistry` storing the root, the voter count and the voter list's IPFS address,
   written in one transaction when registration closes and frozen afterwards (FR3)
 - Voting cannot open until the list's IPFS address is published, and the schedule leaves a
@@ -66,7 +66,7 @@ secret to keep yet; the secret, and the backup copy of it, arrive with tier 3.
 **Backend**
 - Fastify service with Postgres (Prisma)
 - Registrar: institute email by Google sign-in, then the voter's wallet address, with no
-  personal data on-chain; a receipt signed over the address and the election ID (FR2); and
+  personal data on-chain; a receipt signed over the wallet address and the election's address (FR2); and
   publication of the voter list to IPFS with the root, the voter count and the address (FR3)
 - Metadata service pinning the ballot description and candidate manifestos to IPFS (FR1)
 - Indexer reading `VoteCast` events into Postgres as a read cache
@@ -210,16 +210,7 @@ days before the evaluation.
 
 ### Demo script
 
-1. The authority creates an election, and the registrar registers the audience.
-2. A batch of ballots is cast before any live one, so that no live ballot is the only one in
-   its time window.
-3. Two or three people vote from their own phones, paying no gas.
-4. Open the block explorer and show that no on-chain field links ballots to the people who
-   cast them.
-5. Attempt a double vote and watch it fail.
-6. Run the audit, which recounts the tally from the chain and IPFS alone, without our
-   backend.
-7. Finalize, and show the permanent result.
+The demo follows [demo.md](demo.md).
 
 ---
 

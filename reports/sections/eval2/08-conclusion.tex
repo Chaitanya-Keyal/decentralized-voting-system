@@ -33,17 +33,16 @@ The measurements support the design's main claims:
         not the proof, is the slow step in the booth.
   \item \textbf{A ballot is usually counted within one block.} On Sepolia,
         with voters casting one at a time, the median time from pressing Cast
-        to the booth reporting the ballot counted was 10.7\,s over 16 ballots.
-        Fourteen were counted within 15\,s and the slowest took 18.4\,s, one
+        to the booth reporting the ballot counted was 9.3\,s over 16 ballots.
+        Fourteen were counted within 15\,s and the slowest took 20.0\,s, one
         block later.
   \item \textbf{A room can vote at once.} The relayer sends ballots without
         waiting for each block, so 64 simultaneous voters were counted in the
         next block and 1,024 within twenty blocks, with none lost, and ten voters casting together on Sepolia all landed in
         the same block.
-  \item \textbf{The testnet changed the costs.} Sepolia's Glamsterdam rules
-        price new state several times higher than mainnet's. Creating an
-        election there cost 2.97 million gas against about 0.6 million
-        locally.
+  \item \textbf{Sepolia prices new state higher.} Under its Glamsterdam rules,
+        creating an election cost 2.97 million gas against about 0.6 million
+        locally (Section~6).
 \end{itemize}
 
 The security properties in Section~6 were tested by trying to break them:
