@@ -281,6 +281,10 @@ async function main() {
     warn: await icon(fa.FaTriangleExclamation, C.white),
     check: await icon(fa.FaCircleCheck, C.teal),
     half: await icon(fa.FaCircleHalfStroke, C.amber),
+    code: await icon(fa.FaCode, C.white),
+    desktop: await icon(fa.FaDesktop, C.white),
+    server: await icon(fa.FaServer, C.white),
+    cubes: await icon(fa.FaCubes, C.white),
   };
   let page = 1;
 
@@ -445,6 +449,32 @@ async function main() {
     text(s, "audit: chain and IPFS only", { x: 3.7, y: 4.69, w: 2.8, h: 0.25, fontSize: 10, color: C.teal, italic: true });
     text(s, "The chain decides the result; a service that stops cannot change it.", {
       x: 0.5, y: 5.0, w: 8.4, h: 0.3, fontSize: 13, bold: true, color: C.navy,
+    });
+    pageNo(s, ++page);
+  }
+
+  // Technology stack ----------------------------------------------------------
+  {
+    const s = pres.addSlide();
+    title(s, "Technology stack", "Stack");
+    const parts = [
+      [I.code, C.navy, "Contracts and proofs", ["Solidity 0.8.28, built and tested with Foundry", "OpenZeppelin 5.6: access control, clones", "Semaphore v4: Groth16 zero-knowledge proofs"]],
+      [I.desktop, C.teal, "Web app", ["Next.js 16 and React 19", "wagmi and viem for wallets and the chain", "Proving in a Web Worker, on the voter's device"]],
+      [I.server, C.teal, "Services", ["Fastify on Node.js 24", "Registrar and indexer on PostgreSQL", "Relayer queue on BullMQ and Redis"]],
+      [I.cubes, C.amber, "Chain and storage", ["Ethereum Sepolia", "IPFS: our own node, with copies on Pinata", "Source verified on Sourcify and Etherscan"]],
+    ];
+    parts.forEach(([ic, fill, head, lines], i) => {
+      const x = 0.5 + (i % 2) * 4.6;
+      const y = 1.1 + Math.floor(i / 2) * 1.75;
+      card(s, x, y, 4.4, 1.6);
+      iconCircle(s, ic, x + 0.2, y + 0.22, 0.5, fill);
+      text(s, head, { x: x + 0.85, y: y + 0.18, w: 3.4, h: 0.4, fontFace: HEAD, fontSize: 14, bold: true, color: C.navy });
+      text(s, lines.map((t, j, a) => ({ text: t, options: { bullet: true, breakLine: j < a.length - 1 } })), {
+        x: x + 0.85, y: y + 0.58, w: 3.45, h: 0.95, fontSize: 11.5, color: C.ink, paraSpaceAfter: 3,
+      });
+    });
+    text(s, "Voters prove they belong to the institute with Google sign-in, limited to its domain.", {
+      x: 0.5, y: 4.65, w: 9.0, h: 0.35, fontSize: 11.5, color: C.muted,
     });
     pageNo(s, ++page);
   }
@@ -724,6 +754,26 @@ async function main() {
       iconCircle(s, ic, x + 0.22, y + 0.3, 0.55, C.navy);
       text(s, h, { x: x + 0.92, y: y + 0.28, w: 3.35, h: 0.4, fontFace: HEAD, fontSize: 15, bold: true, color: C.navy });
       text(s, b, { x: x + 0.92, y: y + 0.72, w: 3.35, h: 0.85, fontSize: 13, color: C.muted });
+    });
+    pageNo(s, ++page);
+  }
+
+  // Conclusion ----------------------------------------------------------------
+  {
+    const s = pres.addSlide();
+    title(s, "Conclusion", "Summary");
+    const points = [
+      [I.mask, "Anonymous voting works end to end on a public blockchain, and voters need no wallet or cryptocurrency."],
+      [I.ruler, "A ballot costs the same however large the electorate, because only the voter list's fingerprint goes on-chain."],
+      [I.phone, "Each voter's own device makes the proof, quickly enough on an ordinary phone."],
+      [I.search, "Anyone can recount an election from public records alone, without trusting our servers."],
+      [I.shield, "Secrecy holds on-chain; against the operators it rests on running the registrar and the relayer apart."],
+    ];
+    points.forEach(([ic, t], i) => {
+      const y = 1.1 + i * 0.8;
+      card(s, 0.5, y, 9.0, 0.68);
+      iconCircle(s, ic, 0.68, y + 0.1, 0.48, C.teal);
+      text(s, t, { x: 1.35, y, w: 7.95, h: 0.68, fontSize: 13, color: C.ink, valign: "middle" });
     });
     pageNo(s, ++page);
   }

@@ -117,6 +117,37 @@ the served copy just as they would trust a web wallet.
   \end{tabular}
 \end{table}
 
+\subsection{Technology stack}\label{sec:stack}
+
+Table~\ref{tab:stack} lists what each part of \projectname{} is built with and
+why. The versions are those of the deployed system.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Technology stack.}
+  \label{tab:stack}
+  \small
+  \begin{tabular}{@{}L{2.6cm}L{6.2cm}L{7.0cm}@{}}
+    \toprule
+    \textbf{Part} & \textbf{Built with} & \textbf{Why} \\
+    \midrule
+    Contracts & Solidity 0.8.28~\cite{solidity}, Foundry 1.8~\cite{foundry}, OpenZeppelin Contracts 5.6~\cite{openzeppelin} & Foundry's fuzzing, coverage and gas snapshots; audited access control, clones and Merkle proofs \\
+    \addlinespace[2pt]
+    Proofs & Semaphore 4.14~\cite{semaphore}: Groth16~\cite{groth16} over a LeanIMT~\cite{leanimt} & An audited circuit for anonymous membership with a nullifier per election, and proofs cheap enough to verify on-chain \\
+    \addlinespace[2pt]
+    Web app & Next.js 16~\cite{nextjs} with React 19, wagmi 2~\cite{wagmi} and viem 2~\cite{viem}, Tailwind CSS 4 & Pages that read the chain directly; proving runs in a Web Worker on the voter's device \\
+    \addlinespace[2pt]
+    Services & Node.js 24, Fastify 5~\cite{fastify}, PostgreSQL 17~\cite{postgres} with Prisma 7, BullMQ 6~\cite{bullmq} on Redis 7 & The registrar and the indexer keep their data in PostgreSQL; the relayer's queue is in Redis, apart from the registrar's records \\
+    \addlinespace[2pt]
+    Identity & Google sign-in~\cite{googleidtoken}, limited to the institute's domain & Confirms that an account belongs to the institute without a mail service \\
+    \addlinespace[2pt]
+    Chain and storage & Ethereum Sepolia~\cite{sepolia}; IPFS~\cite{ipfs} through our own Kubo node, with copies on Pinata~\cite{pinata} & A public testnet with Ethereum's rules; content-addressed documents that any gateway can serve and anyone can check \\
+    \addlinespace[2pt]
+    Verification & Sourcify~\cite{sourcify} and Etherscan, shown by Blockscout & Anyone can match the deployed bytecode to its published source \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 \subsection{Deployment}\label{sec:deployment}
 
 Table~\ref{tab:deployment} lists the deployed contracts. All five are on
