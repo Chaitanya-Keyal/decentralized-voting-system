@@ -308,7 +308,7 @@ apart between them.
 \subsection{Testing and static analysis}\label{sec:contract-tests}
 
 The contracts have 90 Foundry~\cite{foundry} tests in six suites
-(Table~\ref{tab:contract-tests}), and all pass at the deployed commit. Five are
+(Table~\ref{tab:contract-tests}), and all pass on the deployed sources. Five are
 fuzz tests, which Foundry runs with 256 random inputs each by default and
 1,000 in continuous integration. There are no stateful invariant tests.
 
@@ -345,8 +345,8 @@ a voter list built by the TypeScript tree builder.
 \texttt{forge coverage} reports every line (162 of 162), statement (174 of
 174), branch (32 of 32) and function (43 of 43) of the contracts covered.
 
-Static analysis runs on every pull request and every push to the main
-branch. Continuous integration checks formatting,
+Static analysis runs in continuous integration on every change, which also
+checks formatting,
 runs \texttt{forge lint} with warnings treated as errors, and runs
 Slither~\cite{slither} 0.11.6, which fails the build on any finding. Slither
 analyses our six files only: OpenZeppelin and Semaphore's verifier are

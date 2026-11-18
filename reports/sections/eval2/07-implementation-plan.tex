@@ -3,10 +3,10 @@
 % The plan in the Evaluation 1 report, against what was delivered.
 % ===========================================================================
 
-The Evaluation~1 report planned five phases: tier 2 working end to end (M1),
-then tier 3 on Sepolia (M2), a feature freeze with auditing and usability
-testing, measurement, and finally rehearsal. Table~\ref{tab:plan-executed} sets
-each against what was delivered.
+The Evaluation~1 report planned the work in phases: tier 2 working end to end
+(M1), then tier 3 on Sepolia (M2), a feature freeze with auditing and usability
+testing, and measurement. Table~\ref{tab:plan-executed} sets each against what
+was delivered.
 
 \begin{table}[!htb]
   \centering
@@ -21,12 +21,11 @@ each against what was delivered.
     2 (M2)         & Tier 3 anonymous and gasless voting on Sepolia                 & Built and deployed on Sepolia, where complete anonymous elections run end to end in real time \\
     3 (freeze)     & Approval voting if time allowed, Slither, reorgs, audit with the backend off, usability test & Approval voting, Slither, coverage, reorg handling, and the audit panel, which passes with the API and relayer unreachable. The usability test was run as a simulation \\
     4 (measure)    & Every parameter measured                                       & A1, B1, B2 on a laptop and an Android phone, C1 to C3, D1 to D5, E1, E2, and E3 by simulation (Section~6) \\
-    5 (rehearse)   & Three rehearsals on Sepolia, a backup video                   & The demo script (\texttt{docs/demo.md}), which the presenters rehearse on Sepolia, and a backup video recorded from a scripted run on a local chain \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-The go/no-go decision on proving in phones was settled by measurement: proving
+Whether phones could prove ballots was settled by measurement: proving
 a ballot takes 0.57\,s at two voters and 1.52\,s at 65,536 on one ARM64 CPU
 core, and in the browser on an Android phone under two seconds up to 4,096
 voters and 9.1\,s at 65,536 (B2). That is fast enough that proving stays on the
@@ -53,7 +52,7 @@ The Evaluation~1 plan named five risks. Three of its responses were built as
 planned, and the two fallbacks were never needed:
 
 \begin{itemize}
-  \item \emph{Relayer down on the day.} Any wallet can submit an anonymous
+  \item \emph{Relayer unavailable.} Any wallet can submit an anonymous
         ballot. The booth always offers this, and recommends it when the relayer
         reports a failure or voting closes within five minutes.
   \item \emph{Relayer funds drained.} The relayer pays only for elections run
@@ -84,7 +83,7 @@ Six pieces of work would matter most beyond this project:
         need not stand. The price is a coordinator who decrypts the votes and must
         be trusted for collusion resistance, though not for the count. A tier
         built on MACI's model would be the natural next step.
-  \item \textbf{Tally secrecy while voting is open.} Today the running count is
+  \item \textbf{Tally secrecy while voting is open.} In \projectname{} the running count is
         public, which can sway late voters. In Helios~\cite{helios}, the
         bulletin board shows each ballot only in encrypted form, and the
         ballots are shuffled and decrypted once the election closes; but whoever holds the decryption

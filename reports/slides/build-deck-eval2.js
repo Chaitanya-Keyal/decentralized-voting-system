@@ -566,7 +566,7 @@ async function main() {
   // 10. C2 -----------------------------------------------------------------------
   {
     const s = pres.addSlide();
-    title(s, "The voter's device does the heavy lifting", "Booth (C2)");
+    title(s, "The voter's device does the proving", "Booth (C2)");
     const labels = prove.map((r) => rollLabel(r.roll));
     s.addChart(
       pres.charts.LINE,
@@ -627,7 +627,7 @@ async function main() {
     for (const r of c3now) rows.push([{ text: n0(r.load) }, { text: s1(r.last), options: { align: "right" } }, { text: String(r.blocks), options: { align: "right" } }]);
     if (!c3now.length) missing.push("C3 results");
     s.addTable(rows, { x: 5.45, y: 2.45, w: 3.8, colW: [1.4, 1.4, 1.0], rowH: 0.32, fontFace: BODY, fontSize: 12, color: C.ink, border: { type: "solid", pt: 0.5, color: C.line }, margin: [0, 0.06, 0, 0.06], valign: "middle" });
-    text(s, `The relayer sends up to 64 ballots without waiting for each block, so a big room takes a few blocks. ${c3now.every((r) => r.failed === 0) ? "No ballot was lost." : "Some ballots failed."}`, {
+    text(s, `The relayer sends up to 64 ballots without waiting for each block, so 1,024 voters take about twenty blocks. ${c3now.every((r) => r.failed === 0) ? "No ballot was lost." : "Some ballots failed."}`, {
       x: 5.45, y: 4.2, w: 3.85, h: 0.6, fontSize: 11.5, color: C.ink,
     });
     pageNo(s, ++page);
@@ -640,7 +640,7 @@ async function main() {
     const props = [
       [true, "D1 One ballot per voter", "A reused nullifier is refused, whoever sends it again; the relayer refuses it before paying."],
       [true, "D2 Only listed voters", "Real proofs against another root, at the wrong depth, for another election, tampered or with a changed choice: all refused."],
-      [false, "D3 Ballot secrecy", "Fully on the blockchain: nothing public links a ballot to a voter. Against us, the operators, it holds as long as the registrar's and the relayer's records are kept apart."],
+      [false, "D3 Ballot secrecy", "Fully on the blockchain: nothing public links a ballot to a voter. Against whoever runs the services, it holds as long as the registrar and the relayer are run apart."],
       [true, "D4 Anyone can verify", "The audit recounts and re-checks every proof from the chain and IPFS, and passes with our API and relayer blocked."],
       [true, "D5 The authority is contained", "It cannot change a published list or the count, or hold the result back: anyone can close and finalize."],
     ];
@@ -658,7 +658,7 @@ async function main() {
   // 13. Usability --------------------------------------------------------------
   {
     const s = pres.addSlide();
-    title(s, "Easy to use, without crypto", "Usability (E1–E3)");
+    title(s, "Usable without cryptocurrency", "Usability (E1–E3)");
     const e3 = readCsv(path.join(RESULTS, "e3-simulated.csv"));
     const final = e3.filter((r) => r.round === e3.at(-1)?.round);
     if (!final.length) missing.push("E3 results");
@@ -667,7 +667,7 @@ async function main() {
     stat(s, `${voted}/${final.length}`, "registered and voted", 0.5, 1.15, 1.45);
     stat(s, "5 + 3", "steps to register, then to vote", 2.05, 1.15, 1.45, C.navy);
     stat(s, "0 ETH", "needed by a voter: no wallet, no crypto", 3.6, 1.15, 1.45, C.amber);
-    text(s, `Tested with ${final.length} simulated participants who don't use cryptocurrency, on the real screens: every one registered, voted, and was sure their ballot counted.`, {
+    text(s, `Tested with ${final.length} simulated participants who don't use cryptocurrency, on screenshots of the real interface: every one registered, voted, and was sure their ballot counted.`, {
       x: 0.5, y: 3.0, w: 4.6, h: 0.9, fontSize: 12.5, color: C.ink,
     });
     card(s, 5.4, 1.15, 4.1, 3.3, C.tealTint);
@@ -689,9 +689,9 @@ async function main() {
     title(s, "Live: an election on Sepolia", "Demo");
     const steps = [
       "The election and its contract",
-      "You register with your phone",
+      "A voter registers on a phone",
       "The list goes on-chain by itself",
-      "You vote, with no wallet",
+      "The voter votes, with no wallet",
       "A second ballot is refused",
       "Anyone closes and finalizes",
       "The audit, from chain and IPFS",
