@@ -1,16 +1,15 @@
 "use client";
 
 import { CountingRule, Phase } from "@dvote/shared";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { api } from "@/lib/api";
 import type { OnchainElection } from "@/lib/election";
-import { describeError } from "@/lib/errors";
 import { documentSources } from "@/lib/sources";
 import { formatRelative, formatTime } from "@/lib/time";
 
-import { Button, LinkButton, Mono, Notice, Spinner } from "../ui";
+import { LinkButton, Mono, Spinner } from "../ui";
 import { SourcesLink } from "../sources-link";
 import { ActionButton } from "./action-button";
 import { SkipAhead } from "./skip-ahead";
@@ -24,22 +23,6 @@ function useRegistrationCount(election: OnchainElection) {
 }
 
 /** Asks the registrar to publish the voter list, which it does once registration has closed. */
-function PublishButton({ election }: { election: OnchainElection }) {
-  const publish = useMutation({ mutationFn: () => api.publishVoterList(election.address) });
-  const { data } = useRegistrationCount(election);
-  if (data?.count === 0) return null;
-  return (
-    <div className="flex flex-col gap-2">
-      <div>
-        <Button disabled={publish.isPending} onClick={() => publish.mutate()}>
-          {publish.isPending && <Spinner />} Ask the registrar to publish it now
-        </Button>
-      </div>
-      {publish.error && <Notice tone="error">{describeError(publish.error)}</Notice>}
-    </div>
-  );
-}
-
 function RegistrationCount({ election, closed }: { election: OnchainElection; closed?: boolean }) {
   const { data } = useRegistrationCount(election);
   if (!data || (closed && data.count === 0)) return null;
@@ -65,9 +48,15 @@ function VoterList({ election }: { election: OnchainElection }) {
 
 function PublishingMessage({ election }: { election: OnchainElection }) {
   const { data } = useRegistrationCount(election);
-  return data?.count === 0
-    ? "Registration closed with nobody registered, so there is no voter list to publish and this election cannot go ahead. The organiser can cancel it."
-    : "Registration has closed. The registrar publishes the voter list automatically. If it hasn't appeared after a few minutes, ask it to publish now.";
+  if (data?.count === 0) {
+    return "Registration closed with nobody registered, so there is no voter list to publish and this election cannot go ahead. The organiser can cancel it.";
+  }
+  return (
+    <span className="inline-flex items-center gap-2">
+      <Spinner /> Registration has closed. The registrar is publishing the voter list; it appears
+      here within a minute or two.
+    </span>
+  );
 }
 
 interface Step {
@@ -92,7 +81,6 @@ function awaitingList(election: OnchainElection, now: number): Step {
   return {
     message: <PublishingMessage election={election} />,
     details: <RegistrationCount election={election} closed />,
-    actions: <PublishButton election={election} />,
   };
 }
 

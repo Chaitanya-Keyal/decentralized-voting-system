@@ -305,9 +305,6 @@ async function main() {
       ]),
       { x: 5.62, y: 2.38, w: 3.72, colW: [2.1, 1.62], rowH: 0.29, border: { type: "none" }, margin: [0, 0.08, 0, 0.08], valign: "middle" },
     );
-    s.addNotes(
-      "DVote is a voting system where the rules and the count live in a smart contract, and a voter can stay anonymous. At Evaluation 1 we presented the design and the plan. Today: what we built, how it performed against the parameters we set, and a live election on Sepolia.",
-    );
   }
 
   // 2. The problem ---------------------------------------------------------
@@ -337,7 +334,6 @@ async function main() {
       text(s, b, { x: x + 0.2, y: y + 0.85, w: 1.95, h: 0.75, fontSize: 12, color: C.muted });
     });
     pageNo(s, ++page);
-    s.addNotes("The problem from Evaluation 1, in one slide. Four jobs that one operator usually does, and what the chain does for each of them in DVote.");
   }
 
   // 3. Two tiers -------------------------------------------------------------
@@ -379,7 +375,6 @@ async function main() {
       x: 0.5, y: 4.9, w: 9.0, h: 0.35, fontSize: 12, color: C.muted,
     });
     pageNo(s, ++page);
-    s.addNotes("Two tiers. Tier 2 is cheap and simple but public. Tier 3 is the anonymous one, and it is what the demo uses. The gas figures are measured locally under mainnet's current rules.");
   }
 
   // 4. An anonymous ballot ---------------------------------------------------
@@ -407,7 +402,6 @@ async function main() {
       x: 0.7, y: 4.68, w: 8.6, h: 0.45, fontSize: 13, color: C.teal, bold: true, valign: "middle",
     });
     pageNo(s, ++page);
-    s.addNotes("This is Semaphore v4. The nullifier is the same every time a given key votes in a given election, so the contract refuses a second ballot without learning who cast either. Proving happens on the voter's phone, in a Web Worker.");
   }
 
   // 5. Architecture ----------------------------------------------------------
@@ -453,7 +447,6 @@ async function main() {
       x: 0.5, y: 5.0, w: 8.4, h: 0.3, fontSize: 13, bold: true, color: C.navy,
     });
     pageNo(s, ++page);
-    s.addNotes("Three services around the contracts. The registrar is the one trusted party, for eligibility only. The relayer is a separate process with its own key and no access to the registrar's data. The indexer only makes pages fast. The audit deliberately uses none of them.");
   }
 
   // 6. Contracts and lifecycle ---------------------------------------------
@@ -489,7 +482,6 @@ async function main() {
       text(s, what, { x: 2.2, y, w: 7.1, h: 0.66, fontSize: 12.5, valign: "middle" });
     });
     pageNo(s, ++page);
-    s.addNotes("Elections are cheap clones of one implementation per tier. Phase changes are time-gated; the only role with real power is the registrar's, and it acts once. Ninety Foundry tests, five of them fuzz tests; Slither reports nothing apart from the deliberate timestamp checks.");
   }
 
   // 7. What changed ----------------------------------------------------------
@@ -513,7 +505,6 @@ async function main() {
       text(s, b, { x: x + 0.82, y: y + 0.48, w: 3.45, h: 0.7, fontSize: 11, color: C.muted });
     });
     pageNo(s, ++page);
-    s.addNotes("Each of these has a stated reason. Sections 3.4 and 4.3 of the report list every change from the Evaluation 1 design.");
   }
 
   // 8. C1 ------------------------------------------------------------------------
@@ -539,11 +530,12 @@ async function main() {
         valAxisMinVal: 0, valAxisMaxVal: 350, valGridLine: { color: C.line, size: 0.5 }, catGridLine: { style: "none" },
       },
     );
-    stat(s, n0(Number(snap3.castVote)), "gas, an anonymous ballot (local, mainnet rules)", 6.7, 1.2, 2.8);
-    stat(s, n0(Math.max(...flatFrom4) - Math.min(...flatFrom4)), "gas of spread, 4 to 65,536 voters: calldata bytes, not list size", 6.7, 2.45, 2.8, C.navy);
-    stat(s, n0(Number(snap3.publishVoterList)), "gas to publish a list of any size", 6.7, 3.7, 2.8, C.amber);
+    const spread = Math.max(...flatFrom4) - Math.min(...flatFrom4);
+    const wallet = t2cast.map((r) => r.gas);
+    stat(s, n0(Number(snap3.castVote)), `gas per anonymous ballot, at 4 or 65,536 voters alike (within ${spread} gas)`, 6.7, 1.2, 2.8);
+    stat(s, n0(Number(snap3.publishVoterList)), "gas to publish the voter list, whatever its size", 6.7, 2.45, 2.8, C.amber);
+    stat(s, `${k(Math.min(...wallet))}–${k(Math.max(...wallet))}`, "gas per wallet ballot: grows slightly, one hash per level of the list's tree", 6.7, 3.7, 2.8, C.navy);
     pageNo(s, ++page);
-    s.addNotes("The central claim. Each point is a real election on a local node. Only a root, a count and a content hash go on-chain, so publishing is flat; the anonymous ballot is flat because the verifier's work does not grow with the list. The wallet ballot grows a little, one hash per tree level.");
   }
 
   // 9. Glamsterdam ----------------------------------------------------------------
@@ -569,7 +561,6 @@ async function main() {
     text(s, "local, mainnet rules", { x: 4.4, y: 1.8, w: 2.0, h: 0.25, fontSize: 10, color: C.muted, align: "right" });
     text(s, "Sepolia, Glamsterdam", { x: 6.8, y: 1.8, w: 2.5, h: 0.25, fontSize: 10, color: C.red, align: "right" });
     pageNo(s, ++page);
-    s.addNotes("Foundry's EVM does not model EIP-8037 yet, so the local figures follow mainnet's current rules. The report gives both rule sets.");
   }
 
   // 10. C2 -----------------------------------------------------------------------
@@ -605,42 +596,41 @@ async function main() {
       x: 6.7, y: 4.62, w: 2.9, h: 0.7, fontSize: 10.5, italic: true, color: C.muted,
     });
     pageNo(s, ++page);
-    s.addNotes("The flat gas line must not hide work moved to the voter. Proving grows only with the tree's depth. Rebuilding the published list to check it against the on-chain root grows with the list; past about eight thousand voters it costs more than proving. The chart is one ARM64 core in Node.js 24. B2 ran the booth's own code in a browser from the demo's /bench page: a laptop with an Intel Core Ultra 7 256V, and a Nothing Phone (3a), which takes about twice as long as the laptop but stays under two seconds up to 4,096 voters.");
   }
 
   // 11. B1 and C3 -------------------------------------------------------------
   {
     const s = pres.addSlide();
-    title(s, "Latency, and a room voting at once", "Latency (B1, C3)");
+    title(s, "How long until a vote is counted", "Latency (B1, C3)");
     const b1s = stats(b1Now) ?? undefined;
-    card(s, 0.5, 1.1, 4.3, 3.95);
-    iconCircle(s, I.phone, 0.7, 1.3, 0.5, C.teal);
-    text(s, "One voter, Sepolia (B1)", { x: 1.32, y: 1.37, w: 3.3, h: 0.4, fontFace: HEAD, fontSize: 15, bold: true, color: C.navy });
-    stat(s, fig(b1s?.median, "B1 median", s1), `median, click to counted (${b1s?.n ?? 0} ballots)`, 0.75, 2.0, 1.9);
-    stat(s, fig(b1s?.slowest, "B1 slowest", s1), `slowest of ${b1s?.n ?? 0}; ${b1s ? b1Now.filter((ms) => ms <= 15_000).length : 0} counted within 15 s`, 2.75, 2.0, 1.9, C.navy);
     const nodeTip = stats(b1NodeTip);
     const burst = stats(b1Burst);
     if (!burst) missing.push("B1, ten voters at once");
-    text(s, [
-      { text: burst ? `Ten voters at once: all in one block, median ${s1(burst.median)} (ten browsers proving on one machine).` : "", options: { breakLine: true } },
-      { text: nodeTip ? `The relayer tips at least 0.1 gwei: with the tip a node suggests, ballots missed the next block more often (slowest ${s1(nodeTip.slowest)} of ${nodeTip.n}).` : "" },
-    ], { x: 0.75, y: 3.4, w: 3.9, h: 1.55, fontSize: 11.5, color: C.muted, paraSpaceAfter: 6 });
+
+    card(s, 0.5, 1.1, 4.3, 3.95);
+    iconCircle(s, I.phone, 0.7, 1.3, 0.5, C.teal);
+    text(s, "One voter, on Sepolia (B1)", { x: 1.32, y: 1.37, w: 3.3, h: 0.4, fontFace: HEAD, fontSize: 15, bold: true, color: C.navy });
+    text(s, "From pressing Cast to \u201cYou have voted\u201d: making the proof, the relayer, and one 12-second block.", { x: 0.75, y: 1.88, w: 3.9, h: 0.5, fontSize: 11, color: C.muted });
+    stat(s, fig(b1s?.median, "B1 median", s1), `typical: the median of ${b1s?.n ?? 0} ballots`, 0.75, 2.45, 1.9);
+    stat(s, fig(b1s?.slowest, "B1 slowest", s1), `slowest; ${b1s ? b1Now.filter((ms) => ms <= 15_000).length : 0} of ${b1s?.n ?? 0} took under 15 s`, 2.75, 2.45, 1.9, C.navy);
+    text(s, burst ? `Ten voters pressing Cast together: all counted in the same block, in about ${Math.round(burst.median / 1000)} s.` : "", { x: 0.75, y: 4.2, w: 3.9, h: 0.6, fontSize: 11.5, color: C.ink });
+
     card(s, 5.2, 1.1, 4.3, 3.95);
     iconCircle(s, I.users, 5.4, 1.3, 0.5, C.amber);
-    text(s, "A burst through the relayer (C3)", { x: 6.02, y: 1.37, w: 3.4, h: 0.4, fontFace: HEAD, fontSize: 15, bold: true, color: C.navy });
+    text(s, "A whole room at once (C3)", { x: 6.02, y: 1.37, w: 3.4, h: 0.4, fontFace: HEAD, fontSize: 15, bold: true, color: C.navy });
+    text(s, "Many voters press Cast at the same moment, on a local test chain with 12-second blocks.", { x: 5.45, y: 1.88, w: 3.85, h: 0.5, fontSize: 11, color: C.muted });
     const rows = [[
-      { text: "Voters", options: { bold: true, color: C.muted } },
-      { text: "Last counted", options: { bold: true, color: C.muted, align: "right" } },
+      { text: "Voters at once", options: { bold: true, color: C.muted } },
+      { text: "All counted in", options: { bold: true, color: C.muted, align: "right" } },
       { text: "Blocks", options: { bold: true, color: C.muted, align: "right" } },
     ]];
     for (const r of c3now) rows.push([{ text: n0(r.load) }, { text: s1(r.last), options: { align: "right" } }, { text: String(r.blocks), options: { align: "right" } }]);
     if (!c3now.length) missing.push("C3 results");
-    s.addTable(rows, { x: 5.45, y: 1.95, w: 3.8, colW: [1.4, 1.4, 1.0], rowH: 0.34, fontFace: BODY, fontSize: 13, color: C.ink, border: { type: "solid", pt: 0.5, color: C.line }, margin: [0, 0.06, 0, 0.06], valign: "middle" });
-    text(s, `Local node, 12-second blocks, Sepolia's gas limit. ${c3now.every((r) => r.failed === 0) ? "No ballot failed." : "Some ballots failed."}`, {
-      x: 5.45, y: 4.45, w: 3.85, h: 0.5, fontSize: 11, color: C.muted,
+    s.addTable(rows, { x: 5.45, y: 2.45, w: 3.8, colW: [1.4, 1.4, 1.0], rowH: 0.32, fontFace: BODY, fontSize: 12, color: C.ink, border: { type: "solid", pt: 0.5, color: C.line }, margin: [0, 0.06, 0, 0.06], valign: "middle" });
+    text(s, `The relayer sends up to 64 ballots without waiting for each block, so a big room takes a few blocks. ${c3now.every((r) => r.failed === 0) ? "No ballot was lost." : "Some ballots failed."}`, {
+      x: 5.45, y: 4.2, w: 3.85, h: 0.6, fontSize: 11.5, color: C.ink,
     });
     pageNo(s, ++page);
-    s.addNotes("B1 is timed by the Sepolia end-to-end test, from pressing Cast to the booth reporting the ballot counted: proving, the relayer's checks, a block, and the booth confirming on-chain. In C3 the relayer sends ballots back to back without waiting for each block, so 64 voters at once are counted in the next block; what limits it is checking each proof before accepting it.");
   }
 
   // 12. Security --------------------------------------------------------------
@@ -650,7 +640,7 @@ async function main() {
     const props = [
       [true, "D1 One ballot per voter", "A reused nullifier is refused, whoever sends it again; the relayer refuses it before paying."],
       [true, "D2 Only listed voters", "Real proofs against another root, at the wrong depth, for another election, tampered or with a changed choice: all refused."],
-      [false, "D3 Ballot secrecy", "Holds against the chain. Against the operators it holds while the relayer is run apart from the registrar."],
+      [false, "D3 Ballot secrecy", "Fully on the blockchain: nothing public links a ballot to a voter. Against us, the operators, it holds as long as the registrar's and the relayer's records are kept apart."],
       [true, "D4 Anyone can verify", "The audit recounts and re-checks every proof from the chain and IPFS, and passes with our API and relayer blocked."],
       [true, "D5 The authority is contained", "It cannot change a published list or the count, or hold the result back: anyone can close and finalize."],
     ];
@@ -661,27 +651,24 @@ async function main() {
       text(s, h, { x: 1.2, y, w: 2.9, h: 0.68, fontFace: HEAD, fontSize: 14, bold: true, color: C.navy, valign: "middle" });
       text(s, b, { x: 4.1, y, w: 5.25, h: 0.68, fontSize: 11.5, valign: "middle" });
     });
+    text(s, "Half circle: holds, under the condition stated.", { x: 0.55, y: 5.05, w: 6.0, h: 0.3, fontSize: 10, color: C.muted });
     pageNo(s, ++page);
-    s.addNotes("D2's cases are each a contract test with a real proof made by the same library the booth uses. D3 is the conditional one: the relayer sees when a ballot arrives and from which address; the registrar knows who registered. Run apart, neither can link a person to a ballot.");
   }
 
   // 13. Usability --------------------------------------------------------------
   {
     const s = pres.addSlide();
-    title(s, "A simulated usability test", "Usability (E1–E3)");
+    title(s, "Easy to use, without crypto", "Usability (E1–E3)");
     const e3 = readCsv(path.join(RESULTS, "e3-simulated.csv"));
     const final = e3.filter((r) => r.round === e3.at(-1)?.round);
     if (!final.length) missing.push("E3 results");
     const count = (key, value) => final.filter((r) => r[key] === value).length;
     const voted = count("vote", "completed") + count("vote", "with help");
-    stat(s, `${count("register", "completed")} of ${final.length}`, "registered unaided", 0.5, 1.15, 1.45);
-    stat(s, `${voted} of ${final.length}`, `voted, ${voted - count("vote", "completed")} of them with help`, 2.05, 1.15, 1.45, C.navy);
-    stat(s, `${count("trust_counted", "yes")} of ${final.length}`, "sure their ballot counted", 3.6, 1.15, 1.45, C.teal);
-    text(s, "Ten AI-played students who don't use cryptocurrency, on the real screens: low vision, a WhatsApp link, a library computer then a phone, a worry about cost, and more. A cognitive walkthrough.", {
-      x: 0.5, y: 3.0, w: 4.6, h: 0.8, fontSize: 11.5, italic: true, color: C.muted,
-    });
-    text(s, "The two who needed help were moving the key into WhatsApp's own browser, and from a library computer to a phone. Both voted.", {
-      x: 0.5, y: 3.95, w: 4.6, h: 0.7, fontSize: 11.5, color: C.ink,
+    stat(s, `${voted}/${final.length}`, "registered and voted", 0.5, 1.15, 1.45);
+    stat(s, "5 + 3", "steps to register, then to vote", 2.05, 1.15, 1.45, C.navy);
+    stat(s, "0 ETH", "needed by a voter: no wallet, no crypto", 3.6, 1.15, 1.45, C.amber);
+    text(s, `Tested with ${final.length} simulated participants who don't use cryptocurrency, on the real screens: every one registered, voted, and was sure their ballot counted.`, {
+      x: 0.5, y: 3.0, w: 4.6, h: 0.9, fontSize: 12.5, color: C.ink,
     });
     card(s, 5.4, 1.15, 4.1, 3.3, C.tealTint);
     text(s, "What the interface does", { x: 5.6, y: 1.27, w: 3.7, h: 0.35, fontFace: HEAD, fontSize: 15, bold: true, color: C.teal });
@@ -694,7 +681,6 @@ async function main() {
       x: 5.6, y: 1.7, w: 3.75, h: 2.7, fontSize: 12.5, paraSpaceAfter: 6,
     });
     pageNo(s, ++page);
-    s.addNotes("E1: five actions to register with Google, three to vote. E2: no anonymous voter needs ETH or a wallet. E3 was run as a simulation: ten participants played by language models walked through the real screens. Nobody was fully convinced of secrecy, mostly because the example election had three voters, which the page says plainly. The two who needed help were moving the key into WhatsApp's browser and from a library computer to a phone.");
   }
 
   // 14. Demo -------------------------------------------------------------------
@@ -719,7 +705,6 @@ async function main() {
       text(s, t, { x: x + 0.18, y: y + 0.78, w: 1.8, h: 0.8, fontSize: 15, bold: true, color: C.navy });
     });
     pageNo(s, ++page);
-    s.addNotes("Follow docs/demo.md. A finished election is prepared in advance in case the live one runs late.");
   }
 
   // 15. Limits -----------------------------------------------------------------
@@ -734,30 +719,13 @@ async function main() {
     ];
     limits.forEach(([ic, h, b], i) => {
       const x = 0.5 + (i % 2) * 4.6;
-      const y = 1.1 + Math.floor(i / 2) * 1.45;
-      card(s, x, y, 4.4, 1.28);
-      iconCircle(s, ic, x + 0.18, y + 0.2, 0.5, C.navy);
-      text(s, h, { x: x + 0.82, y: y + 0.15, w: 3.45, h: 0.35, fontFace: HEAD, fontSize: 14, bold: true, color: C.navy });
-      text(s, b, { x: x + 0.82, y: y + 0.52, w: 3.45, h: 0.7, fontSize: 12, color: C.muted });
+      const y = 1.2 + Math.floor(i / 2) * 1.95;
+      card(s, x, y, 4.4, 1.75);
+      iconCircle(s, ic, x + 0.22, y + 0.3, 0.55, C.navy);
+      text(s, h, { x: x + 0.92, y: y + 0.28, w: 3.35, h: 0.4, fontFace: HEAD, fontSize: 15, bold: true, color: C.navy });
+      text(s, b, { x: x + 0.92, y: y + 0.72, w: 3.35, h: 0.85, fontSize: 13, color: C.muted });
     });
-    card(s, 0.5, 4.1, 9.0, 0.95, C.amberTint);
-    text(s, [
-      { text: "Next: ", options: { bold: true, color: C.navy } },
-      { text: "MACI-style re-voting against coercion, encrypted ballots until voting closes, institute single sign-on, several relayers, and pages a voter can verify." },
-    ], { x: 0.7, y: 4.2, w: 8.6, h: 0.75, fontSize: 13, valign: "middle" });
     pageNo(s, ++page);
-    s.addNotes("These are stated in Section 3 of the report as non-guarantees. Section 7 says what would address three of them; an honest voter list still rests on the registrar.");
-  }
-
-  // 16. Close ------------------------------------------------------------------
-  {
-    const s = pres.addSlide();
-    s.background = { color: C.navy };
-    text(s, "Thank you", { x: 0.5, y: 1.6, w: 9.0, h: 0.9, fontFace: HEAD, fontSize: 44, bold: true, color: C.white, align: "center" });
-    text(s, "Questions", { x: 0.5, y: 2.55, w: 9.0, h: 0.6, fontFace: HEAD, fontSize: 24, color: C.amber, align: "center" });
-    text(s, "The contracts are verified on Sourcify and Etherscan; the report gives every address and every measurement's source.", {
-      x: 1.5, y: 3.6, w: 7.0, h: 0.6, fontSize: 13, color: "C9D3DF", align: "center",
-    });
   }
 
   if (missing.length && !DRAFT) {

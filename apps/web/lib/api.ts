@@ -8,7 +8,6 @@ import {
   identityReceiptSchema,
   indexerStatusSchema,
   pinResponseSchema,
-  publicationSchema,
   receiptSchema,
   registrationCountSchema,
   type ElectionMetadata,
@@ -68,8 +67,6 @@ export const api = {
     call(identityReceiptSchema, `/elections/${election}/registrations`, request),
   registrationCount: (election: Address) =>
     call(registrationCountSchema, `/elections/${election}/registrations/count`),
-  publishVoterList: (election: Address) =>
-    call(publicationSchema, `/elections/${election}/voter-list`, {}),
 
   pin: (document: ElectionMetadata | Manifesto) => call(pinResponseSchema, "/metadata", document),
 
