@@ -11,7 +11,6 @@ import { createHash } from "node:crypto";
 
 import {
   AUTHORITY_ROLE,
-  electionFactories,
   electionFactoryAbi,
   Phase,
   relayReceiptTypedData,
@@ -124,24 +123,13 @@ export async function acceptBallot(
   const { election } = request;
   const ballot = toBallot(request);
 
-  const created = await Promise.all(
-    electionFactories(deployment).map((factory) =>
-      publicClient.readContract({
-        address: factory,
-        abi: electionFactoryAbi,
-        functionName: "isElection",
-        args: [election],
-      }),
-    ),
-  );
-  const anonymous =
-    created.includes(true) &&
-    (await publicClient.readContract({
-      address: election,
-      abi: semaphoreElectionAbi,
-      functionName: "tier",
-    })) === 3;
-  if (!anonymous) {
+  const created = await publicClient.readContract({
+    address: deployment.semaphoreFactory,
+    abi: electionFactoryAbi,
+    functionName: "isElection",
+    args: [election],
+  });
+  if (!created) {
     throw new HttpError(400, "The relayer only submits ballots for anonymous elections.");
   }
   if (!(await servesElection(election))) {

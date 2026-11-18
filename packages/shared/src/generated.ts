@@ -1061,10 +1061,6 @@ export const deployments = {
     semaphoreElection: "0xC68Bc7E5781BBCEeBE2A5191B1CA67a103c5F748",
     semaphoreFactory: "0x775dbb03Bf006965F87e823DE9a2b4bD43865659",
     semaphoreVerifier: "0x63793A1033c88645C8a25648e02Ad22F581Ccee1",
-    earlierFactories: [
-      "0x983f62B08b34AF0FeA66589141f64d3ec2eFFd54",
-      "0xE2B0121FdC5b8E5359FdE77dE7e44333AAe90690",
-    ],
-    startBlock: 12150344,
+    startBlock: 12157498,
   },
 } as const;

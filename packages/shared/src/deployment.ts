@@ -14,11 +14,6 @@ export interface Deployment {
   semaphoreVerifier: Address;
   semaphoreElection: Address;
   semaphoreFactory: Address;
-  /**
-   * Factories of an earlier deployment of the same contracts. Their elections are still genuine
-   * and still read; new elections come from the factories above.
-   */
-  earlierFactories?: readonly Address[];
 }
 
 /** The contracts deployed on a chain, or undefined if none are. */
@@ -26,13 +21,9 @@ export function deploymentFor(chainId: number): Deployment | undefined {
   return (deployments as Record<string, Deployment | undefined>)[String(chainId)];
 }
 
-/** Every factory of this deployment: an election is genuine if any of them created it. */
+/** Both factories of this deployment: an election is genuine if either created it. */
 export function electionFactories(deployment: Deployment): Address[] {
-  return [
-    deployment.electionFactory,
-    deployment.semaphoreFactory,
-    ...(deployment.earlierFactories ?? []),
-  ];
+  return [deployment.electionFactory, deployment.semaphoreFactory];
 }
 
 /** The factory for a tier. */
