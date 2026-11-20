@@ -199,11 +199,11 @@ value, or a written reason why it has none.
 
 ## Report and demo
 
-**Status:** the report (`reports/eval2.pdf`), the slides, the demo script ([demo.md](demo.md))
-and a backup video ([demo-backup.mp4](demo-backup.mp4)) are done. The rehearsals are left to the
-days before the evaluation.
+**Status: done.** The report (`reports/eval2.pdf`), the slides, the demo script
+([demo.md](demo.md)) and a backup video ([demo-backup.mp4](demo-backup.mp4)) were delivered, and
+the system was demonstrated live on Sepolia at Evaluation 2.
 
-- Evaluation 2 report, following the template in `docs/evaluation_2_template.docx`
+- Evaluation 2 report, following the course's template
 - Three timed demo rehearsals on Sepolia, on the actual presentation hardware and network
 - Relayer wallet funded, with a funded backup, and a few funded wallets so voters can submit
   directly if the relayer fails

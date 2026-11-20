@@ -25,12 +25,12 @@ development.
 - Presentation of a clear problem idea
 - Actors/stakeholders' requirement gathering with justification
 - Defined evaluation parameters
-- Submission of the report ([Template](./evaluation_1_template.docx), [Source](https://docs.google.com/document/d/18smftYvKemYz5niqOWKMilhLdkJYEOiOo36_jWjKPvM/edit?usp=sharing))
+- Submission of the report, following the course's template
 - 20 Marks (10% of Course Total)
 
 ### Evaluation 2 (20-Nov/21-Nov)
 
 - Final Live Demo
 - Submission of complete code
-- Submission of the report ([Template](./evaluation_2_template.docx), [Source](https://docs.google.com/document/d/17NNxlxEFETuhyBXtEAdoDDzIbufyuKmI-HJCjfPDvwk/edit?usp=sharing))
+- Submission of the report, following the course's template
 - 20 Marks (10% of Course Total)
